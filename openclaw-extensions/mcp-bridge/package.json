@@ -1,0 +1,11 @@
+{
+  "name": "@agora/openclaw-mcp-bridge",
+  "version": "0.0.0",
+  "description": "Expose Agora-managed MCP servers as native OpenClaw tools.",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
