@@ -38,11 +38,6 @@ const ENGINE_OPTIONS: Array<{
     hintKey: 'coworkAgentEngineHermesHint',
   },
   {
-    engine: CoworkAgentEngine.YdCowork,
-    labelKey: 'coworkAgentEngineClaudeLegacy',
-    hintKey: 'coworkAgentEngineClaudeLegacyHint',
-  },
-  {
     engine: CoworkAgentEngine.ClaudeCode,
     labelKey: 'coworkAgentEngineClaudeCode',
     hintKey: 'coworkAgentEngineClaudeCodeHint',
@@ -51,11 +46,6 @@ const ENGINE_OPTIONS: Array<{
     engine: CoworkAgentEngine.Codex,
     labelKey: 'coworkAgentEngineCodex',
     hintKey: 'coworkAgentEngineCodexHint',
-  },
-  {
-    engine: CoworkAgentEngine.CodexApp,
-    labelKey: 'coworkAgentEngineCodexApp',
-    hintKey: 'coworkAgentEngineCodexAppHint',
   },
   {
     engine: CoworkAgentEngine.OpenCode,
@@ -172,20 +162,6 @@ const CoworkEngineSelector: React.FC<CoworkEngineSelectorProps> = ({
   };
 
   const renderCliStatus = (engine: CoworkAgentEngineType) => {
-    if (engine === CoworkAgentEngine.CodexApp) {
-      const status = snapshot?.codexApp;
-      if (!status) return null;
-      const ready = status.cliFound && status.appInstalled && status.appServerSupported;
-      return (
-        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-secondary">
-          <span className={`h-1.5 w-1.5 rounded-full ${ready ? 'bg-green-500' : 'bg-amber-500'}`} />
-          <span className="truncate">
-            {i18nService.t(ready ? 'coworkAgentCodexAppReady' : 'coworkAgentCodexAppMissing')}
-            {status.appRunning ? ` · ${i18nService.t('coworkAgentCodexAppRunning')}` : ''}
-          </span>
-        </div>
-      );
-    }
     const status = getCliStatus(engine);
     if (!isCliEngine(engine) || !status) return null;
     return (

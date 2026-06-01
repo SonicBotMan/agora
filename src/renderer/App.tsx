@@ -534,19 +534,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('app:showToast', handler);
   }, [showToast]);
 
-  useEffect(() => {
-    const unsubscribe = window.electron.desktopPet.onOpenTaskRequested(({ sessionId }) => {
-      setMainView('cowork');
-      dispatch(clearSelection());
-      void coworkService.loadSession(sessionId).then((session) => {
-        if (!session) {
-          showToast(i18nService.t('desktopPetOpenTaskFailed'));
-        }
-      });
-    });
-    return unsubscribe;
-  }, [dispatch, showToast]);
-
   // 监听托盘菜单打开设置的 IPC 事件
   useEffect(() => {
     const unsubscribe = window.electron.ipcRenderer.on('app:openSettings', () => {

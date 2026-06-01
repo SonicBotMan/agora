@@ -251,51 +251,6 @@ export interface DiscordGatewayStatus {
   lastOutboundAt: number | null;
 }
 
-// ==================== NIM (NetEase IM) Types ====================
-
-export type NimTeamPolicy = 'open' | 'allowlist' | 'disabled';
-
-export interface NimP2pConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-export interface NimTeamConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-export interface NimQChatConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-export interface NimAdvancedConfig {
-  mediaMaxMb?: number;
-  textChunkLimit?: number;
-  debug?: boolean;
-}
-
-export interface NimConfig {
-  enabled: boolean;
-  appKey: string;
-  account: string;
-  token: string;
-  p2p?: NimP2pConfig;
-  team?: NimTeamConfig;
-  qchat?: NimQChatConfig;
-  advanced?: NimAdvancedConfig;
-}
-
-export interface NimGatewayStatus {
-  connected: boolean;
-  startedAt: number | null;
-  lastError: string | null;
-  botAccount: string | null;
-  lastInboundAt: number | null;
-  lastOutboundAt: number | null;
-}
-
 // ==================== NetEase Bee Types ====================
 
 export interface NeteaseBeeChanConfig {
@@ -448,7 +403,6 @@ export interface IMGatewayConfig {
   telegram: TelegramOpenClawConfig;
   qq: QQMultiInstanceConfig;
   discord: DiscordOpenClawConfig;
-  nim: NimConfig;
   'netease-bee': NeteaseBeeChanConfig;
   wecom: WecomOpenClawConfig;
   popo: PopoOpenClawConfig;
@@ -471,7 +425,6 @@ export interface IMGatewayStatus {
   qq: QQMultiInstanceStatus;
   telegram: TelegramGatewayStatus;
   discord: DiscordGatewayStatus;
-  nim: NimGatewayStatus;
   'netease-bee': NeteaseBeeChanGatewayStatus;
   wecom: WecomGatewayStatus;
   popo: PopoGatewayStatus;
@@ -635,13 +588,6 @@ export const DEFAULT_DISCORD_OPENCLAW_CONFIG: DiscordOpenClawConfig = {
   debug: false,
 };
 
-export const DEFAULT_NIM_CONFIG: NimConfig = {
-  enabled: false,
-  appKey: '',
-  account: '',
-  token: '',
-};
-
 export const DEFAULT_NETEASE_BEE_CONFIG: NeteaseBeeChanConfig = {
   enabled: false,
   clientId: '',
@@ -750,7 +696,6 @@ export const DEFAULT_IM_CONFIG: IMGatewayConfig = {
   telegram: DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
   qq: DEFAULT_QQ_MULTI_INSTANCE_CONFIG,
   discord: DEFAULT_DISCORD_OPENCLAW_CONFIG,
-  nim: DEFAULT_NIM_CONFIG,
   'netease-bee': DEFAULT_NETEASE_BEE_CONFIG,
   wecom: DEFAULT_WECOM_CONFIG,
   popo: DEFAULT_POPO_CONFIG,
@@ -794,14 +739,6 @@ export const DEFAULT_IM_STATUS: IMGatewayStatus = {
     startedAt: null,
     lastError: null,
     botUsername: null,
-    lastInboundAt: null,
-    lastOutboundAt: null,
-  },
-  nim: {
-    connected: false,
-    startedAt: null,
-    lastError: null,
-    botAccount: null,
     lastInboundAt: null,
     lastOutboundAt: null,
   },

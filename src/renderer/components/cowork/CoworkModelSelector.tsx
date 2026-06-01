@@ -171,17 +171,6 @@ const CoworkModelSelector: React.FC<CoworkModelSelectorProps> = ({
     );
   }
 
-  if (config.agentEngine === CoworkAgentEngine.CodexApp) {
-    return (
-      <div
-        className="max-w-[260px] truncate rounded-xl bg-surface px-3 py-1.5 text-sm font-medium text-foreground"
-        title={i18nService.t('coworkAgentCodexAppModelSourceValue')}
-      >
-        {i18nService.t('coworkAgentCodexAppModelSourceValue')}
-      </div>
-    );
-  }
-
   if (!appType) {
     return <ModelSelector dropdownDirection={dropdownDirection} />;
   }

@@ -5,7 +5,6 @@ import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
 
 import App from './App';
-import DesktopPetWindow from './components/pet/DesktopPetWindow';
 import { store } from './store';
 
 const rootElement = document.getElementById('root');
@@ -14,18 +13,11 @@ if (!rootElement) {
 }
 
 try {
-  const windowKind = new URLSearchParams(window.location.search).get('window');
-  const content = windowKind === 'desktop-pet'
-    ? <DesktopPetWindow />
-    : (
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
       <Provider store={store}>
         <App />
       </Provider>
-    );
-
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      {content}
     </React.StrictMode>
   );
 } catch (error) {

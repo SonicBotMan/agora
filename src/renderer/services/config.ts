@@ -194,7 +194,6 @@ class ConfigService {
             ...storedConfig.api,
           },
           model: migratedModel,
-          pet: storedConfig.pet ?? {},
           app: {
             ...defaultConfig.app,
             ...storedConfig.app,
@@ -217,12 +216,10 @@ class ConfigService {
 
   async updateConfig(newConfig: Partial<AppConfig>) {
     const normalizedProviders = normalizeProvidersConfig(newConfig.providers as AppConfig['providers'] | undefined);
-    const normalizedPet = newConfig.pet ?? {};
     this.config = {
       ...this.config,
       ...newConfig,
       ...(normalizedProviders ? { providers: normalizedProviders } : {}),
-      ...(normalizedPet ? { pet: normalizedPet } : {}),
     };
     await localStore.setItem(CONFIG_KEYS.APP_CONFIG, this.config);
   }

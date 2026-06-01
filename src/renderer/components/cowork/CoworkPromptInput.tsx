@@ -65,7 +65,6 @@ const getSlashCommandsForEngine = (engine: CoworkAgentEngine | undefined): Slash
   if (
     engine === CoworkAgentEngine.ClaudeCode
     || engine === CoworkAgentEngine.Codex
-    || engine === CoworkAgentEngine.CodexApp
     || engine === CoworkAgentEngine.GrokBuild
     || engine === CoworkAgentEngine.QwenCode
     || engine === CoworkAgentEngine.DeepSeekTui
@@ -930,7 +929,6 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                 agentEngine === CoworkAgentEngine.ClaudeCode
                   ? 'coworkSlashCommandsClaudeCode'
                   : agentEngine === CoworkAgentEngine.Codex
-                    || agentEngine === CoworkAgentEngine.CodexApp
                     ? 'coworkSlashCommandsCodex'
                     : agentEngine === CoworkAgentEngine.GrokBuild
                       ? 'coworkSlashCommandsGrokBuild'

@@ -22,10 +22,3 @@ test('openclaw prompt points scheduled task requests to the native cron tool', (
   expect(prompt).toMatch(/Channel is required/i);
   expect(prompt).toMatch(/output your results as plain text/i);
 });
-
-test('yd_cowork prompt tells the user to switch engines', () => {
-  const prompt = buildScheduledTaskEnginePrompt('yd_cowork');
-
-  expect(prompt).toMatch(new RegExp(SCHEDULED_TASK_SWITCH_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  expect(prompt).toMatch(/do not attempt to create, update, list, enable, disable, or delete scheduled tasks/i);
-});

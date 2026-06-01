@@ -449,10 +449,6 @@ export class IMCoworkHandler extends EventEmitter {
 
     if (platform === 'nim') {
       const nimLabel = t('channelPrefixNim');
-      if (message?.chatSubType === 'qchat') {
-        const channelLabel = message.groupName || _imConversationId;
-        return `${nimLabel}-${t('nimQChat')}-${channelLabel}`;
-      }
       if (message?.chatType === 'group') {
         const groupLabel = message.groupName || senderId || _imConversationId;
         return `${nimLabel}-${t('nimGroup')}-${groupLabel}`;

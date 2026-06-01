@@ -415,7 +415,7 @@ export class SqliteStore {
           .prepare("UPDATE agents SET name = ?, updated_at = ? WHERE id = 'main'")
           .run(DEFAULT_AGENT_DB_NAME, Date.now());
       }
-      if (mainAgent?.agent_engine === CoworkAgentEngine.YdCowork) {
+      if (mainAgent?.agent_engine === CoworkAgentEngine.ClaudeCode) {
         this.db
           .prepare("UPDATE agents SET agent_engine = ?, updated_at = ? WHERE id = 'main'")
           .run(DEFAULT_AGENT_ENGINE, Date.now());
@@ -427,7 +427,7 @@ export class SqliteStore {
     try {
       this.db
         .prepare("UPDATE cowork_config SET value = ?, updated_at = ? WHERE key = 'agentEngine' AND value = ?")
-        .run(DEFAULT_AGENT_ENGINE, Date.now(), CoworkAgentEngine.YdCowork);
+        .run(DEFAULT_AGENT_ENGINE, Date.now(), CoworkAgentEngine.ClaudeCode);
       this.db.exec(
         `UPDATE cowork_sessions SET execution_mode = 'local' WHERE execution_mode = 'container';`,
       );

@@ -235,7 +235,6 @@ function syncIMChannels(configPath: string, imStore: IMStore): void {
       'qqbot': (cfg) => imStore.setQQConfig(cfg),
       'wecom': (cfg) => imStore.setWecomConfig(cfg),
       'moltbot-popo': (cfg) => imStore.setPopoConfig(cfg),
-      'nim': (cfg) => imStore.setNimConfig(cfg),
       'openclaw-weixin': (cfg) => imStore.setWeixinConfig(cfg),
       'netease-bee': (cfg) => imStore.setNeteaseBeeChanConfig(cfg),
     };

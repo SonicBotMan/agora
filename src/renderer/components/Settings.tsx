@@ -8,15 +8,6 @@ import {
   OpenCodePermissionMode as OpenCodePermissionModeValue,
   QwenCodePermissionMode as QwenCodePermissionModeValue,
 } from '@shared/cowork/constants';
-import {
-  DEFAULT_PET_CONFIG,
-  normalizePetConfig,
-  type PetConfig,
-  PetMotion,
-  type PetMotion as PetMotionType,
-  PetVariant,
-  type PetVariant as PetVariantType,
-} from '@shared/pet/constants';
 import React, { useCallback,useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -80,7 +71,6 @@ import {
 import TrashIcon from './icons/TrashIcon';
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
-import PetSprite, { PetMood } from './pet/PetSprite';
 import { ScheduledTasksView } from './scheduledTasks';
 import EmailSkillConfig from './skills/EmailSkillConfig';
 import ThemedSelect from './ui/ThemedSelect';
@@ -103,11 +93,6 @@ const COWORK_AGENT_ENGINE_OPTIONS: Array<{
     hintKey: 'coworkAgentEngineHermesHint',
   },
   {
-    value: CoworkAgentEngineValue.YdCowork,
-    labelKey: 'coworkAgentEngineClaudeLegacy',
-    hintKey: 'coworkAgentEngineClaudeLegacyHint',
-  },
-  {
     value: CoworkAgentEngineValue.ClaudeCode,
     labelKey: 'coworkAgentEngineClaudeCode',
     hintKey: 'coworkAgentEngineClaudeCodeHint',
@@ -116,11 +101,6 @@ const COWORK_AGENT_ENGINE_OPTIONS: Array<{
     value: CoworkAgentEngineValue.Codex,
     labelKey: 'coworkAgentEngineCodex',
     hintKey: 'coworkAgentEngineCodexHint',
-  },
-  {
-    value: CoworkAgentEngineValue.CodexApp,
-    labelKey: 'coworkAgentEngineCodexApp',
-    hintKey: 'coworkAgentEngineCodexAppHint',
   },
   {
     value: CoworkAgentEngineValue.OpenCode,
@@ -142,29 +122,6 @@ const COWORK_AGENT_ENGINE_OPTIONS: Array<{
     labelKey: 'coworkAgentEngineDeepSeekTui',
     hintKey: 'coworkAgentEngineDeepSeekTuiHint',
   },
-];
-
-const PET_VARIANT_OPTIONS: Array<{
-  value: PetVariantType;
-  labelKey: string;
-}> = [
-  { value: PetVariant.AgoraAgent, labelKey: 'petVariantAgoraAgent' },
-  { value: PetVariant.BlueBot, labelKey: 'petVariantBlueBot' },
-  { value: PetVariant.AquaDrop, labelKey: 'petVariantAquaDrop' },
-  { value: PetVariant.FlameBuddy, labelKey: 'petVariantFlameBuddy' },
-  { value: PetVariant.WoodBox, labelKey: 'petVariantWoodBox' },
-  { value: PetVariant.SproutBox, labelKey: 'petVariantSproutBox' },
-  { value: PetVariant.StackBot, labelKey: 'petVariantStackBot' },
-  { value: PetVariant.AstroBot, labelKey: 'petVariantAstroBot' },
-  { value: PetVariant.ShadowBot, labelKey: 'petVariantShadowBot' },
-];
-
-const PET_MOTION_OPTIONS: Array<{
-  value: PetMotionType;
-  labelKey: string;
-}> = [
-  { value: PetMotion.Calm, labelKey: 'petMotionCalm' },
-  { value: PetMotion.Playful, labelKey: 'petMotionPlayful' },
 ];
 
 export type SettingsOpenOptions = {
@@ -622,9 +579,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'general');
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [themeId, setThemeId] = useState<string>(themeService.getThemeId());
-  const [petEnabled, setPetEnabled] = useState(DEFAULT_PET_CONFIG.enabled);
-  const [petVariant, setPetVariant] = useState<PetVariantType>(DEFAULT_PET_CONFIG.variant);
-  const [petMotion, setPetMotion] = useState<PetMotionType>(DEFAULT_PET_CONFIG.motion);
   const [language, setLanguage] = useState<LanguageType>('zh');
   const [autoLaunch, setAutoLaunchState] = useState(false);
   const [useSystemProxy, setUseSystemProxy] = useState(false);
@@ -650,7 +604,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [isExportingProviders, setIsExportingProviders] = useState(false);
   const initialThemeRef = useRef<'light' | 'dark' | 'system'>(themeService.getTheme());
   const initialThemeIdRef = useRef<string>(themeService.getThemeId());
-  const initialPetConfigRef = useRef<PetConfig>(DEFAULT_PET_CONFIG);
   const initialLanguageRef = useRef<LanguageType>(i18nService.getLanguage());
   const didSaveRef = useRef(false);
 
@@ -716,14 +669,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   useEffect(() => {
     setShowApiKey(false);
   }, [activeProvider]);
-
-  const applyPetConfigPreview = useCallback((nextConfig: PetConfig) => {
-    const normalized = normalizePetConfig(nextConfig);
-    setPetEnabled(normalized.enabled);
-    setPetVariant(normalized.variant);
-    setPetMotion(normalized.motion);
-    void window.electron.desktopPet.applyPreview(normalized);
-  }, []);
 
   const handleCopyContactEmail = useCallback(async () => {
     const copied = await copyTextToClipboard(ABOUT_CONTACT_EMAIL);
@@ -820,7 +765,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
   const coworkConfig = useSelector((state: RootState) => state.cowork.config);
 
-  const [coworkAgentEngine, setCoworkAgentEngine] = useState<CoworkAgentEngine>(coworkConfig.agentEngine || CoworkAgentEngineValue.YdCowork);
+  const [coworkAgentEngine, setCoworkAgentEngine] = useState<CoworkAgentEngine>(coworkConfig.agentEngine || CoworkAgentEngineValue.OpenCode);
   const [expandedCoworkAgentEngine, setExpandedCoworkAgentEngine] = useState<CoworkAgentEngine | null>(null);
   const [coworkMemoryEnabled, setCoworkMemoryEnabled] = useState<boolean>(coworkConfig.memoryEnabled ?? true);
   const [coworkMemoryLlmJudgeEnabled, setCoworkMemoryLlmJudgeEnabled] = useState<boolean>(coworkConfig.memoryLlmJudgeEnabled ?? false);
@@ -838,7 +783,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [openClawEngineStatus, setOpenClawEngineStatus] = useState<OpenClawEngineStatus | null>(null);
   const [hermesEngineStatus, setHermesEngineStatus] = useState<HermesEngineStatus | null>(null);
   const [agentEnvironmentSnapshot, setAgentEnvironmentSnapshot] = useState<ExternalAgentEnvironmentSnapshot | null>(null);
-  const [codexAppStarting, setCodexAppStarting] = useState(false);
   const [openclawConfigSource, setOpenClawConfigSource] = useState<ExternalAgentConfigSource>(
     coworkConfig.openclawConfigSource ?? ExternalAgentConfigSourceValue.LocalCli,
   );
@@ -903,7 +847,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   }, [coworkAgentEngine]);
 
   useEffect(() => {
-    setCoworkAgentEngine(coworkConfig.agentEngine || CoworkAgentEngineValue.YdCowork);
+    setCoworkAgentEngine(coworkConfig.agentEngine || CoworkAgentEngineValue.OpenCode);
     setOpenClawConfigSource(coworkConfig.openclawConfigSource ?? ExternalAgentConfigSourceValue.LocalCli);
     setClaudeCodeConfigSource(coworkConfig.claudeCodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
     setClaudeCodePermissionMode(coworkConfig.claudeCodePermissionMode ?? ClaudeCodePermissionModeValue.BypassPermissions);
@@ -1038,14 +982,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
       // Set general settings
       initialThemeRef.current = config.theme;
       initialLanguageRef.current = config.language;
-      const savedPetConfig = normalizePetConfig(config.pet);
-      initialPetConfigRef.current = savedPetConfig;
       setTheme(config.theme);
       setLanguage(config.language);
       setUseSystemProxy(config.useSystemProxy ?? false);
-      setPetEnabled(savedPetConfig.enabled);
-      setPetVariant(savedPetConfig.variant);
-      setPetMotion(savedPetConfig.motion);
       const savedTestMode = config.app?.testMode ?? false;
       setTestMode(savedTestMode);
       if (savedTestMode) setTestModeUnlocked(true);
@@ -1266,7 +1205,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         return;
       }
       themeService.restoreTheme(initialThemeIdRef.current, initialThemeRef.current);
-      void window.electron.desktopPet.applyPreview(initialPetConfigRef.current);
       i18nService.setLanguage(initialLanguageRef.current, { persist: false });
     };
   }, []);
@@ -1980,8 +1918,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         ? firstEnabledProvider[1]
         : normalizedProviders[activeProvider];
 
-      const currentSavedPetConfig = normalizePetConfig(configService.getConfig().pet);
-
       await configService.updateConfig({
         api: {
           key: primaryProvider.apiKey,
@@ -1991,12 +1927,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         theme,
         language,
         useSystemProxy,
-        pet: {
-          ...currentSavedPetConfig,
-          enabled: petEnabled,
-          variant: petVariant,
-          motion: petMotion,
-        },
         shortcuts,
         app: {
           ...configService.getConfig().app,
@@ -2787,24 +2717,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }
   };
 
-  const handleStartCodexApp = async () => {
-    if (codexAppStarting) return;
-    setError(null);
-    setCodexAppStarting(true);
-    try {
-      const result = await coworkService.startCodexApp();
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentCodexAppMissing'));
-      }
-      await refreshAgentEnvironmentSnapshot();
-      if (result.success) {
-        setNoticeMessage(i18nService.t('coworkAgentCodexAppReady'));
-      }
-    } finally {
-      setCodexAppStarting(false);
-    }
-  };
-
   const handleSelectCoworkAgentEngine = (engine: CoworkAgentEngine) => {
     if (isSaving) return;
     setCoworkAgentEngine(engine);
@@ -3100,76 +3012,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     </div>
   );
 
-  const renderCodexAppAgentEngineDetails = () => {
-    const status = agentEnvironmentSnapshot?.codexApp;
-    const ready = Boolean(status?.cliFound && status.appInstalled && status.appServerSupported);
-    const rows = [
-      { label: i18nService.t('coworkAgentEngineCommandPath'), value: status?.cliPath || '-' },
-      { label: i18nService.t('coworkAgentEngineVersion'), value: status?.cliVersion || '-' },
-      { label: i18nService.t('coworkAgentCodexAppAppPath'), value: status?.appPath || '-' },
-      {
-        label: i18nService.t('coworkAgentCodexAppServer'),
-        value: status?.appServerSupported
-          ? i18nService.t('coworkAgentCodexAppServerReady')
-          : i18nService.t('coworkAgentCodexAppServerMissing'),
-      },
-      { label: i18nService.t('coworkAgentCodexAppSocket'), value: status?.socketPath || '-' },
-      { label: i18nService.t('coworkAgentCodexAppModelSource'), value: i18nService.t('coworkAgentCodexAppModelSourceValue') },
-    ];
-
-    return (
-      <div className="mt-4 space-y-4">
-        <div className={`rounded-xl border px-4 py-3 text-sm ${ready
-          ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/30 dark:text-green-300'
-          : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'}`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="font-medium">
-                {i18nService.t('coworkAgentCodexAppStatusTitle')}
-              </div>
-              <div className="mt-1 text-xs opacity-90">
-                {status?.message || i18nService.t('coworkAgentCodexAppMissing')}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void handleStartCodexApp();
-              }}
-              disabled={codexAppStarting}
-              className="shrink-0 rounded-md border border-current/20 px-2 py-1 text-[11px] font-medium hover:bg-black/5 disabled:cursor-wait disabled:opacity-50 dark:hover:bg-white/10"
-            >
-              {i18nService.t(status?.appRunning ? 'coworkAgentCodexAppReconnect' : 'coworkAgentCodexAppLaunch')}
-            </button>
-          </div>
-          {codexAppStarting && (
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
-              <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
-            </div>
-          )}
-          <div className="mt-3 space-y-1">
-            {rows.map((row) => (
-              <div key={row.label} className="grid grid-cols-[104px_minmax(0,1fr)] gap-2 text-[11px] leading-5">
-                <span className="text-secondary">{row.label}</span>
-                <span className="truncate font-mono text-foreground/80" title={row.value}>{row.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="rounded-xl border border-border px-3 py-3 text-xs leading-5 text-secondary">
-          {i18nService.t('coworkAgentEngineCodexAppHint')}
-        </div>
-      </div>
-    );
-  };
-
   const renderSelectedAgentEngineDetails = (engine: CoworkAgentEngine) => {
-    if (engine === CoworkAgentEngineValue.CodexApp) {
-      return renderCodexAppAgentEngineDetails();
-    }
     if (
       engine === CoworkAgentEngineValue.ClaudeCode
       || engine === CoworkAgentEngineValue.Codex
@@ -4255,120 +4098,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                       {otherThemes.map(renderTile)}
                     </div>
                   </>
-                );
-              })()}
-
-              {(() => {
-                const currentPetConfig: PetConfig = {
-                  enabled: petEnabled,
-                  variant: petVariant,
-                  motion: petMotion,
-                };
-
-                return (
-                  <div className="mt-6 rounded-xl border border-border bg-surface-raised/60 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-medium text-foreground">
-                          {i18nService.t('petCompanion')}
-                        </h4>
-                        <p className="mt-1 text-xs leading-5 text-secondary">
-                          {i18nService.t('petCompanionHint')}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={petEnabled}
-                        onClick={() => applyPetConfigPreview({
-                          ...currentPetConfig,
-                          enabled: !petEnabled,
-                        })}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                          petEnabled
-                            ? 'bg-primary'
-                            : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            petEnabled ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {petEnabled && (
-                      <div className="mt-4 space-y-4">
-                        <div>
-                          <div className="mb-2 text-xs font-medium text-secondary">
-                            {i18nService.t('petVariant')}
-                          </div>
-                          <div className="grid grid-cols-4 gap-3">
-                            {PET_VARIANT_OPTIONS.map((option) => {
-                              const isSelected = petVariant === option.value;
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => applyPetConfigPreview({
-                                    ...currentPetConfig,
-                                    variant: option.value,
-                                  })}
-                                  className="flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-xl border-2 px-2 py-2 transition-colors"
-                                  style={{
-                                    borderColor: isSelected ? 'var(--lobster-primary)' : 'var(--lobster-border)',
-                                    backgroundColor: isSelected ? 'var(--lobster-primary-muted)' : 'transparent',
-                                  }}
-                                >
-                                  <PetSprite
-                                    variant={option.value}
-                                    motion={petMotion}
-                                    mood={isSelected ? PetMood.Happy : PetMood.Idle}
-                                    size={62}
-                                  />
-                                  <span
-                                    className="text-xs font-medium"
-                                    style={{ color: isSelected ? 'var(--lobster-primary)' : 'var(--lobster-text-primary)' }}
-                                  >
-                                    {i18nService.t(option.labelKey)}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 text-xs font-medium text-secondary">
-                            {i18nService.t('petMotion')}
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 rounded-xl border border-border bg-background p-1">
-                            {PET_MOTION_OPTIONS.map((option) => {
-                              const isSelected = petMotion === option.value;
-                              return (
-                                <button
-                                  key={option.value}
-                                  type="button"
-                                  onClick={() => applyPetConfigPreview({
-                                    ...currentPetConfig,
-                                    motion: option.value,
-                                  })}
-                                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                                    isSelected
-                                      ? 'bg-primary text-white shadow-sm'
-                                      : 'text-secondary hover:bg-surface-raised hover:text-foreground'
-                                  }`}
-                                >
-                                  {i18nService.t(option.labelKey)}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 );
               })()}
             </div>

@@ -67,7 +67,6 @@ export interface CoworkSession {
   id: string;
   title: string;
   claudeSessionId: string | null;
-  codexAppThreadId?: string | null;
   status: CoworkSessionStatus;
   pinned: boolean;
   cwd: string;
@@ -211,7 +210,6 @@ export interface CoworkPermissionResponse {
 export interface CoworkSessionSummary {
   id: string;
   title: string;
-  codexAppThreadId?: string | null;
   status: CoworkSessionStatus;
   pinned: boolean;
   agentId?: string;
@@ -301,33 +299,9 @@ export interface CcSwitchSnapshot {
 export interface ExternalAgentEnvironmentSnapshot {
   ccSwitch: CcSwitchSnapshot;
   engines: CliCommandStatus[];
-  codexApp?: CodexAppStatus;
 }
 
 export type ExternalAgentProviderAppType = CliAppType;
-
-export type CodexAppStatusPhase = 'missing' | 'ready' | 'starting' | 'error';
-
-export interface CodexAppStatus {
-  phase: CodexAppStatusPhase;
-  cliFound: boolean;
-  cliPath: string | null;
-  cliVersion: string | null;
-  appInstalled: boolean;
-  appPath: string | null;
-  appRunning: boolean;
-  socketPath: string | null;
-  appServerSupported: boolean;
-  message: string;
-  error?: string;
-}
-
-export interface CodexAppTaskSyncResult {
-  synced: number;
-  imported: number;
-  updated: number;
-  lastSyncAt: number;
-}
 
 export type ExternalAgentCliInstallPhase =
   | 'starting'

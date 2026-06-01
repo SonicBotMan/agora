@@ -25,7 +25,6 @@ import {
   DEFAULT_FEISHU_OPENCLAW_CONFIG,
   DEFAULT_IM_SETTINGS,
   DEFAULT_NETEASE_BEE_CONFIG,
-  DEFAULT_NIM_CONFIG,
   DEFAULT_POPO_CONFIG,
   DEFAULT_QQ_CONFIG,
   DEFAULT_QQ_MULTI_INSTANCE_CONFIG,
@@ -43,7 +42,6 @@ import {
   IMSessionMapping,
   IMSettings,
   NeteaseBeeChanConfig,
-  NimConfig,
   Platform,
   PopoOpenClawConfig,
   QQConfig,
@@ -630,7 +628,6 @@ export class IMStore {
     const discord =
       this.getConfigValue<DiscordOpenClawConfig>('discordOpenClaw') ??
       DEFAULT_DISCORD_OPENCLAW_CONFIG;
-    const nimConfig = this.getConfigValue<NimConfig>('nim') ?? DEFAULT_NIM_CONFIG;
     const neteaseBeeChan =
       this.getConfigValue<NeteaseBeeChanConfig>('netease-bee') ?? DEFAULT_NETEASE_BEE_CONFIG;
     const qqMulti = this.getQQMultiInstanceConfig();
@@ -656,7 +653,6 @@ export class IMStore {
       feishu: feishuMulti,
       telegram: resolveEnabled(telegram, DEFAULT_TELEGRAM_OPENCLAW_CONFIG),
       discord: resolveEnabled(discord, DEFAULT_DISCORD_OPENCLAW_CONFIG),
-      nim: resolveEnabled(nimConfig, DEFAULT_NIM_CONFIG),
       'netease-bee': resolveEnabled(neteaseBeeChan, DEFAULT_NETEASE_BEE_CONFIG),
       qq: qqMulti,
       wecom: resolveEnabled(wecom, DEFAULT_WECOM_CONFIG),
@@ -678,9 +674,6 @@ export class IMStore {
     }
     if (config.discord) {
       this.setDiscordOpenClawConfig(config.discord);
-    }
-    if (config.nim) {
-      this.setNimConfig(config.nim);
     }
     if (config['netease-bee']) {
       this.setNeteaseBeeChanConfig(config['netease-bee']);
@@ -971,17 +964,7 @@ export class IMStore {
     this.setConfigValue('discordOpenClaw', { ...current, ...config });
   }
 
-  // ==================== NIM Config ====================
 
-  getNimConfig(): NimConfig {
-    const stored = this.getConfigValue<NimConfig>('nim');
-    return { ...DEFAULT_NIM_CONFIG, ...stored };
-  }
-
-  setNimConfig(config: Partial<NimConfig>): void {
-    const current = this.getNimConfig();
-    this.setConfigValue('nim', { ...current, ...config });
-  }
 
   // ==================== NeteaseBee Chan Config ====================
 
@@ -1211,7 +1194,6 @@ export class IMStore {
     const hasFeishu = config.feishu?.instances?.some(i => !!(i.appId && i.appSecret)) ?? false;
     const hasTelegram = !!config.telegram.botToken;
     const hasDiscord = !!config.discord.botToken;
-    const hasNim = !!(config.nim.appKey && config.nim.account && config.nim.token);
     const hasNeteaseBeeChan = !!(config['netease-bee']?.clientId && config['netease-bee']?.secret);
     const hasQQ = config.qq?.instances?.some(i => !!(i.appId && i.appSecret)) ?? false;
     const hasWecom = !!(config.wecom?.botId && config.wecom?.secret);
@@ -1220,7 +1202,6 @@ export class IMStore {
       hasFeishu ||
       hasTelegram ||
       hasDiscord ||
-      hasNim ||
       hasNeteaseBeeChan ||
       hasQQ ||
       hasWecom

@@ -64,15 +64,6 @@ const engineAvatarManifest: Record<CoworkAgentEngine, CoworkStudioAvatar> = {
     faceColor: 0xb6f1ea,
     prop: 'terminal',
   },
-  [CoworkAgentEngine.CodexApp]: {
-    id: 'codex_app',
-    nameTag: 'Codex App',
-    primaryColor: 0x3454d1,
-    secondaryColor: 0x172554,
-    accentColor: 0xa7c7ff,
-    faceColor: 0xdbeafe,
-    prop: 'terminal',
-  },
   [CoworkAgentEngine.Hermes]: {
     id: 'hermes',
     nameTag: 'Hermes',
@@ -118,15 +109,6 @@ const engineAvatarManifest: Record<CoworkAgentEngine, CoworkStudioAvatar> = {
     faceColor: 0xbfdbfe,
     prop: 'tui',
   },
-  [CoworkAgentEngine.YdCowork]: {
-    id: 'yd_cowork',
-    nameTag: 'Agora',
-    primaryColor: 0x6c63ff,
-    secondaryColor: 0x34306d,
-    accentColor: 0x9ef7ff,
-    faceColor: 0xd7d9ff,
-    prop: 'default',
-  },
 };
 
 const normalizeToolName = (value: string | null | undefined): string => (
@@ -145,7 +127,6 @@ const getRuntimeElapsedMs = (runtimeCall: RuntimeCallRecord | null | undefined):
 const getConfigSource = (config: CoworkConfig): ExternalAgentConfigSource | null => {
   if (config.agentEngine === CoworkAgentEngine.ClaudeCode) return config.claudeCodeConfigSource;
   if (config.agentEngine === CoworkAgentEngine.Codex) return config.codexConfigSource;
-  if (config.agentEngine === CoworkAgentEngine.CodexApp) return ExternalAgentConfigSource.LocalCli;
   if (config.agentEngine === CoworkAgentEngine.Hermes) return config.hermesConfigSource;
   if (config.agentEngine === CoworkAgentEngine.OpenCode) return config.opencodeConfigSource;
   if (config.agentEngine === CoworkAgentEngine.GrokBuild) return ExternalAgentConfigSource.LocalCli;
@@ -184,7 +165,7 @@ const resolveStateFromTool = (tool: CoworkActivityToolItem | null): CoworkStudio
 };
 
 export const getCoworkStudioAvatar = (engine: CoworkAgentEngine): CoworkStudioAvatar => (
-  engineAvatarManifest[engine] ?? engineAvatarManifest[CoworkAgentEngine.YdCowork]
+  engineAvatarManifest[engine] ?? engineAvatarManifest[CoworkAgentEngine.DeepSeekTui]
 );
 
 export const buildCoworkStudioSnapshot = (input: {

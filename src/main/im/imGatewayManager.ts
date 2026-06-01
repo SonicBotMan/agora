@@ -616,17 +616,6 @@ export class IMGatewayManager extends EventEmitter {
         })),
       },
       discord: discordStatus,
-      nim: (() => {
-        const nmConfig = config.nim;
-        return {
-          connected: Boolean(nmConfig?.enabled && nmConfig.appKey && nmConfig.account && nmConfig.token),
-          startedAt: null as number | null,
-          lastError: null as string | null,
-          botAccount: nmConfig?.account || null,
-          lastInboundAt: null as number | null,
-          lastOutboundAt: null as number | null,
-        };
-      })(),
       'netease-bee': (() => {
         const beeConfig = config['netease-bee'];
         return {
@@ -707,10 +696,6 @@ export class IMGatewayManager extends EventEmitter {
     // DingTalk always uses OpenClaw mode
     if (platform === 'dingtalk') {
       return this.testDingTalkOpenClawConnectivity(configOverride);
-    }
-
-    if (platform === 'nim') {
-      return this.testNimOpenClawConnectivity(configOverride);
     }
 
     // WeCom always uses OpenClaw mode
@@ -962,12 +947,6 @@ export class IMGatewayManager extends EventEmitter {
       await this.syncOpenClawConfig?.();
       await this.ensureOpenClawGatewayConnected?.();
       return;
-    } else if (platform === 'nim') {
-      // NIM runs via OpenClaw gateway (openclaw-nim plugin)
-      console.log('[IMGatewayManager] NIM in OpenClaw mode, syncing config instead of starting direct gateway');
-      await this.syncOpenClawConfig?.();
-      await this.ensureOpenClawGatewayConnected?.();
-      return;
     } else if (platform === 'netease-bee') {
       // netease-bee runs via OpenClaw gateway
       console.log('[IMGatewayManager] netease-bee in OpenClaw mode, syncing config instead of starting direct gateway');
@@ -1043,11 +1022,6 @@ export class IMGatewayManager extends EventEmitter {
       console.log('[IMGatewayManager] Discord in OpenClaw mode, syncing disabled config');
       await this.syncOpenClawConfig?.();
       return;
-    } else if (platform === 'nim') {
-      // NIM runs via OpenClaw gateway
-      console.log('[IMGatewayManager] NIM in OpenClaw mode, syncing disabled config');
-      await this.syncOpenClawConfig?.();
-      return;
     } else if (platform === 'netease-bee') {
       // netease-bee runs via OpenClaw gateway
       console.log('[IMGatewayManager] netease-bee in OpenClaw mode, syncing disabled config');
@@ -1079,7 +1053,7 @@ export class IMGatewayManager extends EventEmitter {
   /**
    * Start all enabled gateways.
    *
-   * OpenClaw platforms (dingtalk/feishu/telegram/discord/qq/wecom/weixin/popo/nim) are batched
+   * OpenClaw platforms (dingtalk/feishu/telegram/discord/qq/wecom/weixin/popo) are batched
    * so that `syncOpenClawConfig` + `ensureOpenClawGatewayConnected` are called
    * only **once** regardless of how many OpenClaw platforms are enabled.
    * This avoids N serial gateway restarts which cause message loss, Telegram
@@ -1158,9 +1132,6 @@ export class IMGatewayManager extends EventEmitter {
     if (config.popo?.enabled && config.popo?.appKey && config.popo?.appSecret && config.popo?.aesKey && (config.popo.connectionMode === 'websocket' || config.popo.token)) {
       openClawPlatformsToStart.push('popo');
     }
-    if (config.nim?.enabled && config.nim.appKey && config.nim.account && config.nim.token) {
-      openClawPlatformsToStart.push('nim');
-    }
     if (config['netease-bee']?.enabled && config['netease-bee']?.clientId && config['netease-bee']?.secret) {
       openClawPlatformsToStart.push('netease-bee');
     }
@@ -1212,11 +1183,6 @@ export class IMGatewayManager extends EventEmitter {
       // Discord runs via OpenClaw; consider it connected when enabled and configured
       const config = this.getConfig();
       return Boolean(config.discord?.enabled && config.discord.botToken);
-    }
-    if (platform === 'nim') {
-      // NIM runs via OpenClaw; consider it connected when enabled and configured
-      const config = this.getConfig();
-      return Boolean(config.nim?.enabled && config.nim.appKey && config.nim.account && config.nim.token);
     }
     if (platform === 'netease-bee') {
       // netease-bee runs via OpenClaw; status comes from OpenClaw
@@ -2080,58 +2046,6 @@ export class IMGatewayManager extends EventEmitter {
     }
   }
 
-  private async testNimOpenClawConnectivity(
-    configOverride?: Partial<IMGatewayConfig>
-  ): Promise<IMConnectivityTestResult> {
-    const checks: IMConnectivityCheck[] = [];
-    const testedAt = Date.now();
-    const platform: Platform = 'nim';
-
-    const mergedConfig = this.buildMergedConfig(configOverride);
-    const nimConfig = mergedConfig.nim;
-
-    if (!nimConfig?.appKey || !nimConfig?.account || !nimConfig?.token) {
-      const missing: string[] = [];
-      if (!nimConfig?.appKey) missing.push('appKey');
-      if (!nimConfig?.account) missing.push('account');
-      if (!nimConfig?.token) missing.push('token');
-      checks.push({
-        code: 'missing_credentials',
-        level: 'fail',
-        message: t('imMissingCredentials', { fields: missing.join(', ') }),
-        suggestion: t('imNimFillCredentials'),
-      });
-      return { platform, testedAt, verdict: 'fail', checks };
-    }
-
-    checks.push({
-      code: 'auth_check',
-      level: 'pass',
-      message: t('imNimConfigReady', { account: nimConfig.account }),
-    });
-
-    checks.push({
-      code: 'gateway_running',
-      level: 'info',
-      message: t('imNimOpenClawHint'),
-    });
-
-    checks.push({
-      code: 'nim_p2p_only_hint',
-      level: 'info',
-      message: t('imNimP2pOnly'),
-      suggestion: t('imNimP2pOnlySuggestion'),
-    });
-
-    const verdict: IMConnectivityVerdict = checks.some(c => c.level === 'fail')
-      ? 'fail'
-      : checks.some(c => c.level === 'warn')
-        ? 'warn'
-        : 'pass';
-
-    return { platform, testedAt, verdict, checks };
-  }
-
   /**
    * Test POPO connectivity when running via OpenClaw runtime.
    * Validates config completeness; actual connection is handled by OpenClaw.
@@ -2316,13 +2230,7 @@ export class IMGatewayManager extends EventEmitter {
       return config.telegram.botToken ? [] : ['botToken'];
     }
     if (platform === 'nim') {
-      const fields: string[] = [];
-      if (!config.nim.appKey) fields.push('appKey');
-      if (!config.nim.account) fields.push('account');
-      if (!config.nim.token) fields.push('token');
-      return fields;
-    }
-    if (platform === 'netease-bee') {
+      if (platform === 'netease-bee') {
       const fields: string[] = [];
       if (!config['netease-bee']?.clientId) fields.push('clientId');
       if (!config['netease-bee']?.secret) fields.push('secret');
@@ -2396,14 +2304,6 @@ export class IMGatewayManager extends EventEmitter {
       }
       const botName = response.data?.app_name ?? response.data?.bot?.app_name ?? 'unknown';
       return t('imFeishuAuthPassedWithBot', { botName });
-    }
-
-    if (platform === 'nim') {
-      const { appKey, account, token } = config.nim;
-      if (!appKey || !account || !token) {
-        throw new Error(t('imConfigIncomplete'));
-      }
-      return t('imNimConfigReady', { account });
     }
 
     if (platform === 'netease-bee') {

@@ -67,7 +67,6 @@ const usesLocalCliModelConfigForEngine = (
     engine === CoworkAgentEngine.Codex
     && config.codexConfigSource === ExternalAgentConfigSource.LocalCli
   )
-  || engine === CoworkAgentEngine.CodexApp
   || (
     engine === CoworkAgentEngine.Hermes
     && config.hermesConfigSource === ExternalAgentConfigSource.LocalCli
@@ -115,7 +114,6 @@ const getEngineLabelKey = (engine: CoworkAgentEngine): string => {
   if (engine === CoworkAgentEngine.GrokBuild) return 'coworkAgentEngineGrokBuild';
   if (engine === CoworkAgentEngine.QwenCode) return 'coworkAgentEngineQwenCode';
   if (engine === CoworkAgentEngine.DeepSeekTui) return 'coworkAgentEngineDeepSeekTui';
-  if (engine === CoworkAgentEngine.CodexApp) return 'coworkAgentEngineCodexApp';
   return 'coworkAgentEngineClaudeLegacy';
 };
 
@@ -170,7 +168,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
   const canSelectRuntimeEngine = currentTargetType === AgentRunTargetType.Agent
     && currentAgentId === DefaultAgent.Id;
   const isOpenClawEngine = selectedRuntimeEngine === CoworkAgentEngine.OpenClaw;
-  const isBuiltinCoworkEngine = selectedRuntimeEngine === CoworkAgentEngine.YdCowork;
 
   useEffect(() => {
     const unsubscribe = i18nService.subscribe(() => {
@@ -426,12 +423,8 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       dispatch(clearSelection());
 
       // Combine skill prompt with system prompt.
-      // OpenClaw loads skills natively via skills.load.extraDirs, so skip the
-      // auto-routing prompt to avoid injecting Claude SDK tool-calling instructions
-      // that confuse non-Claude models (e.g. kimi-k2.5 falls back to text-based
-      // tool calls, producing empty tool names and err=true failures).
       let effectiveSkillPrompt = skillPrompt;
-      if (!skillPrompt && isBuiltinCoworkEngine) {
+      if (!skillPrompt) {
         effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
       }
       const combinedSystemPrompt = [effectiveSkillPrompt, config.systemPrompt]
@@ -523,16 +516,15 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       }
 
       // Combine skill prompt with system prompt for continuation.
-      // Skip auto-routing prompt for OpenClaw — skills are loaded natively.
       let effectiveSkillPrompt = skillPrompt;
-      if (!skillPrompt && isBuiltinCoworkEngine) {
+      if (!skillPrompt) {
         effectiveSkillPrompt = await skillService.getAutoRoutingPrompt() || undefined;
       }
       const combinedSystemPrompt = [effectiveSkillPrompt, config.systemPrompt]
         .filter(p => p?.trim())
         .join('\n\n') || undefined;
 
-      await coworkService.continueSession({
+      const result = await coworkService.continueSession({
         sessionId: currentSession.id,
         prompt,
         systemPrompt: combinedSystemPrompt,
@@ -588,8 +580,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         return i18nService.t('coworkAgentEngineClaudeCode');
       case CoworkAgentEngine.Codex:
         return i18nService.t('coworkAgentEngineCodex');
-      case CoworkAgentEngine.CodexApp:
-        return i18nService.t('coworkAgentEngineCodexApp');
       case CoworkAgentEngine.OpenCode:
         return i18nService.t('coworkAgentEngineOpenCode');
       case CoworkAgentEngine.GrokBuild:
@@ -602,9 +592,8 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         return i18nService.t('coworkAgentEngineOpenClaw');
       case CoworkAgentEngine.Hermes:
         return i18nService.t('coworkAgentEngineHermes');
-      case CoworkAgentEngine.YdCowork:
       default:
-        return i18nService.t('coworkAgentEngineClaudeLegacy');
+        return i18nService.t('coworkAgentEngineOpenCode');
     }
   };
 
@@ -750,9 +739,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
       && config.codexConfigSource === ExternalAgentConfigSource.LocalCli
     ) {
       return i18nService.t('coworkAgentConfigSourceLocalCli');
-    }
-    if (selectedRuntimeEngine === CoworkAgentEngine.CodexApp) {
-      return i18nService.t('coworkAgentCodexAppModelSourceValue');
     }
     if (
       selectedRuntimeEngine === CoworkAgentEngine.Hermes

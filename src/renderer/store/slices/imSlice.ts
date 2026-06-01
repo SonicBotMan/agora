@@ -18,7 +18,6 @@ import type {
   IMGatewayStatus,
   IMSettings,
   NeteaseBeeChanConfig,
-  NimConfig,
   PopoOpenClawConfig,
   QQInstanceConfig,
   QQMultiInstanceConfig,
@@ -174,9 +173,6 @@ const imSlice = createSlice({
     setDiscordConfig: (state, action: PayloadAction<Partial<DiscordOpenClawConfig>>) => {
       state.config.discord = { ...state.config.discord, ...action.payload };
     },
-    setNimConfig: (state, action: PayloadAction<Partial<NimConfig>>) => {
-      state.config.nim = { ...state.config.nim, ...action.payload };
-    },
     setNeteaseBeeChanConfig: (state, action: PayloadAction<Partial<NeteaseBeeChanConfig>>) => {
       state.config['netease-bee'] = { ...state.config['netease-bee'], ...action.payload };
     },
@@ -229,7 +225,6 @@ export const {
   addQQInstance,
   removeQQInstance,
   setDiscordConfig,
-  setNimConfig,
   setNeteaseBeeChanConfig,
   setWecomConfig,
   setPopoConfig,

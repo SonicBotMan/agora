@@ -280,7 +280,7 @@ contextBridge.exposeInMainWorld('electron', {
     setConfig: (config: {
       workingDirectory?: string;
       executionMode?: 'auto' | 'local' | 'sandbox';
-      agentEngine?: 'openclaw' | 'hermes' | 'yd_cowork' | 'claude_code' | 'codex' | 'codex_app' | 'opencode' | 'grok_build' | 'qwen_code' | 'deepseek_tui';
+      agentEngine?: 'openclaw' | 'hermes' | 'claude_code' | 'codex' | 'opencode' | 'grok_build' | 'qwen_code' | 'deepseek_tui';
       openclawConfigSource?: 'agora_model' | 'local_cli';
       claudeCodeConfigSource?: 'agora_model' | 'local_cli';
       codexConfigSource?: 'agora_model' | 'local_cli';

@@ -39,7 +39,6 @@ interface CoworkSession {
   id: string;
   title: string;
   claudeSessionId: string | null;
-  codexAppThreadId?: string | null;
   status: 'idle' | 'running' | 'completed' | 'error';
   pinned: boolean;
   cwd: string;
@@ -67,7 +66,6 @@ interface CoworkMessage {
 interface CoworkSessionSummary {
   id: string;
   title: string;
-  codexAppThreadId?: string | null;
   status: 'idle' | 'running' | 'completed' | 'error';
   pinned: boolean;
   agentId?: string;
@@ -163,33 +161,9 @@ interface CcSwitchSnapshot {
 interface ExternalAgentEnvironmentSnapshot {
   ccSwitch: CcSwitchSnapshot;
   engines: CliCommandStatus[];
-  codexApp?: CodexAppStatus;
 }
 
 type ExternalAgentProviderAppType = CliAppType;
-
-type CodexAppStatusPhase = 'missing' | 'ready' | 'starting' | 'error';
-
-interface CodexAppStatus {
-  phase: CodexAppStatusPhase;
-  cliFound: boolean;
-  cliPath: string | null;
-  cliVersion: string | null;
-  appInstalled: boolean;
-  appPath: string | null;
-  appRunning: boolean;
-  socketPath: string | null;
-  appServerSupported: boolean;
-  message: string;
-  error?: string;
-}
-
-interface CodexAppTaskSyncResult {
-  synced: number;
-  imported: number;
-  updated: number;
-  lastSyncAt: number;
-}
 
 type ExternalAgentCliInstallPhase =
   | 'starting'
@@ -613,16 +587,6 @@ interface IElectronAPI {
       onProgress: (callback: (status: HermesEngineStatus) => void) => () => void;
     };
   };
-  codexApp: {
-    engine: {
-      getStatus: () => Promise<{ success: boolean; status?: CodexAppStatus; error?: string }>;
-      start: () => Promise<{ success: boolean; status?: CodexAppStatus; error?: string }>;
-    };
-    tasks: {
-      sync: (input?: { cwd?: string; includeAll?: boolean; limit?: number }) => Promise<{ success: boolean; result?: CodexAppTaskSyncResult; error?: string }>;
-      open: (input: { threadId: string }) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
-    };
-  };
   ipcRenderer: {
     send: (channel: string, ...args: any[]) => void;
     on: (channel: string, func: (...args: any[]) => void) => () => void;
@@ -869,18 +833,6 @@ interface IElectronAPI {
   enterprise: {
     getConfig: () => Promise<{ ui?: Record<string, 'hide' | 'disable' | 'readonly'>; disableUpdate?: boolean; version: string; name: string } | null>;
   };
-  desktopPet: {
-    getConfig: () => Promise<PetConfig>;
-    applyPreview: (config: Partial<PetConfig>) => Promise<PetConfig>;
-    getBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
-    setPosition: (position: PetPosition & { persist?: boolean }) => Promise<{ x: number; y: number; width: number; height: number } | null>;
-    openMainWindow: () => Promise<boolean>;
-    getTaskSnapshot: () => Promise<DesktopPetTaskSnapshot | null>;
-    openTask: (sessionId: string) => Promise<boolean>;
-    onConfigChanged: (callback: (config: PetConfig) => void) => () => void;
-    onTaskChanged: (callback: (snapshot: DesktopPetTaskSnapshot | null) => void) => () => void;
-    onOpenTaskRequested: (callback: (data: { sessionId: string }) => void) => () => void;
-  };
   networkStatus: {
     send: (status: 'online' | 'offline') => void;
   };
@@ -955,14 +907,12 @@ interface IMGatewayConfig {
   telegram: TelegramOpenClawConfig;
   qq: QQMultiInstanceConfig;
   discord: DiscordOpenClawConfig;
-  nim: NimConfig;
   'netease-bee': NeteaseBeeChanConfig;
   wecom: WecomConfig;
   popo: PopoOpenClawConfig;
   weixin: WeixinOpenClawConfig;
   settings: IMSettings;
 }
-
 interface DingTalkOpenClawConfig {
   enabled: boolean;
   clientId: string;
@@ -1140,38 +1090,6 @@ interface DiscordOpenClawConfig {
   debug: boolean;
 }
 
-interface NimP2pConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-interface NimTeamConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-interface NimQChatConfig {
-  policy: 'open' | 'allowlist' | 'disabled';
-  allowFrom?: (string | number)[];
-}
-
-interface NimAdvancedConfig {
-  mediaMaxMb?: number;
-  textChunkLimit?: number;
-  debug?: boolean;
-}
-
-interface NimConfig {
-  enabled: boolean;
-  appKey: string;
-  account: string;
-  token: string;
-  p2p?: NimP2pConfig;
-  team?: NimTeamConfig;
-  qchat?: NimQChatConfig;
-  advanced?: NimAdvancedConfig;
-}
-
 interface NeteaseBeeChanConfig {
   enabled: boolean;
   clientId: string;
@@ -1270,7 +1188,6 @@ interface IMGatewayStatus {
   popo: PopoGatewayStatus;
   weixin: WeixinGatewayStatus;
 }
-
 type IMConnectivityVerdict = 'pass' | 'warn' | 'fail';
 
 type IMConnectivityCheckLevel = 'pass' | 'info' | 'warn' | 'fail';
@@ -1287,7 +1204,6 @@ type IMConnectivityCheckCode =
   | 'discord_group_requires_mention'
   | 'telegram_privacy_mode_hint'
   | 'dingtalk_bot_membership_hint'
-  | 'nim_p2p_only_hint'
   | 'qq_guild_mention_hint';
 
 interface IMConnectivityCheck {
@@ -1336,15 +1252,6 @@ interface DiscordGatewayStatus {
   startedAt: number | null;
   lastError: string | null;
   botUsername: string | null;
-  lastInboundAt: number | null;
-  lastOutboundAt: number | null;
-}
-
-interface NimGatewayStatus {
-  connected: boolean;
-  startedAt: number | null;
-  lastError: string | null;
-  botAccount: string | null;
   lastInboundAt: number | null;
   lastOutboundAt: number | null;
 }

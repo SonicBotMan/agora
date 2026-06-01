@@ -262,7 +262,6 @@ class CoworkService {
 
   async loadSessions(agentId?: string): Promise<void> {
     const requestId = ++this.latestLoadSessionsRequestId;
-    await this.syncCodexAppTasksForCurrentConfig(agentId);
     const result = await window.electron?.cowork?.listSessions(agentId);
     if (result?.success && result.sessions) {
       // High-frequency IM traffic can trigger overlapping list refreshes.
@@ -307,56 +306,6 @@ class CoworkService {
       return result.status;
     }
     return this.hermesStatus;
-  }
-
-  async getCodexAppStatus() {
-    const engineApi = window.electron?.codexApp?.engine;
-    if (!engineApi?.getStatus) {
-      return null;
-    }
-    const result = await engineApi.getStatus();
-    return result?.status ?? null;
-  }
-
-  async startCodexApp() {
-    const engineApi = window.electron?.codexApp?.engine;
-    if (!engineApi?.start) {
-      return { success: false, error: 'Codex App API not available' };
-    }
-    return engineApi.start();
-  }
-
-  async syncCodexAppTasks(options?: { cwd?: string; includeAll?: boolean; limit?: number }) {
-    const tasksApi = window.electron?.codexApp?.tasks;
-    if (!tasksApi?.sync) {
-      return { success: false, error: 'Codex App task API not available' };
-    }
-    return tasksApi.sync(options);
-  }
-
-  async openCodexAppTask(threadId: string) {
-    const tasksApi = window.electron?.codexApp?.tasks;
-    if (!tasksApi?.open) {
-      return { success: false, error: 'Codex App task API not available' };
-    }
-    return tasksApi.open({ threadId });
-  }
-
-  private async syncCodexAppTasksForCurrentConfig(agentId?: string): Promise<void> {
-    if (agentId) return;
-    const state = store.getState().cowork;
-    if (state.config.agentEngine !== CoworkAgentEngine.CodexApp) return;
-    const tasksApi = window.electron?.codexApp?.tasks;
-    if (!tasksApi?.sync) return;
-    try {
-      await tasksApi.sync({
-        cwd: state.config.workingDirectory,
-        includeAll: false,
-        limit: 50,
-      });
-    } catch (error) {
-      console.debug('[CoworkService] Codex App task sync failed:', error);
-    }
   }
 
   async startSession(options: CoworkStartOptions): Promise<{ session: CoworkSession | null; error?: string }> {
@@ -590,17 +539,7 @@ class CoworkService {
     if (!cowork) return null;
     const requestId = ++this.latestLoadSessionRequestId;
 
-    let result = await cowork.getSession(sessionId);
-    if (result.success && result.session?.codexAppThreadId) {
-      const shouldRefreshCodexThread = result.session.messages.length === 0
-        || result.session.status === 'running';
-      if (shouldRefreshCodexThread) {
-        await this.openCodexAppTask(result.session.codexAppThreadId).catch((error) => {
-          console.debug('[CoworkService] Codex App thread read failed:', error);
-        });
-        result = await cowork.getSession(sessionId);
-      }
-    }
+    const result = await cowork.getSession(sessionId);
     if (result.success && result.session) {
       // Keep only the latest session load result to avoid stale async overwrites.
       if (requestId !== this.latestLoadSessionRequestId) {

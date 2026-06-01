@@ -144,12 +144,11 @@ const getEngineLabel = (engine: string): string => {
   if (engine === CoworkAgentEngine.Hermes) return i18nService.t('coworkAgentEngineHermes');
   if (engine === CoworkAgentEngine.ClaudeCode) return i18nService.t('coworkAgentEngineClaudeCode');
   if (engine === CoworkAgentEngine.Codex) return i18nService.t('coworkAgentEngineCodex');
-  if (engine === CoworkAgentEngine.CodexApp) return i18nService.t('coworkAgentEngineCodexApp');
   if (engine === CoworkAgentEngine.OpenCode) return i18nService.t('coworkAgentEngineOpenCode');
   if (engine === CoworkAgentEngine.GrokBuild) return i18nService.t('coworkAgentEngineGrokBuild');
   if (engine === CoworkAgentEngine.QwenCode) return i18nService.t('coworkAgentEngineQwenCode');
   if (engine === CoworkAgentEngine.DeepSeekTui) return i18nService.t('coworkAgentEngineDeepSeekTui');
-  return i18nService.t('coworkAgentEngineClaudeLegacy');
+  return i18nService.t('coworkAgentEngineOpenCode');
 };
 
 const getStatusLabel = (status: string): string => {

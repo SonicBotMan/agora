@@ -44,15 +44,6 @@ import {
   isFeishuManagementMode,
   isFeishuRuntimeOwnership,
 } from '../shared/im/constants';
-import {
-  DesktopPetIpcChannel,
-  type DesktopPetTaskSnapshot,
-  DesktopPetTaskSource,
-  DesktopPetTaskStatus,
-  normalizePetConfig,
-  type PetConfig,
-  type PetPosition,
-} from '../shared/pet/constants';
 import { PlatformRegistry } from '../shared/platform';
 import { SkillsIpcChannel } from '../shared/skills/constants';
 import { AgentManager } from './agentManager';
@@ -1048,7 +1039,6 @@ const getCoworkStore = () => {
 const getCoworkFileActivityTracker = (): CoworkFileActivityTracker => {
   if (!coworkFileActivityTracker) {
     coworkFileActivityTracker = new CoworkFileActivityTracker((activity) => {
-      updateDesktopPetTaskSnapshot(activity.sessionId, DesktopPetTaskStatus.Coding);
       const safeActivity = sanitizeCoworkFileActivityForIpc(activity);
       const windows = BrowserWindow.getAllWindows();
       windows.forEach((win) => {
@@ -1581,27 +1571,7 @@ const getOpenClawConfigSync = (): OpenClawConfigSync => {
           return null;
         }
       },
-      getPopoConfig: () => {
-        try {
-          return getIMGatewayManager().getConfig().popo;
-          } catch {
-          return null;
-        }
-      },
-      getNimConfig: () => {
-        try {
-          return getIMGatewayManager().getConfig().nim;
-        } catch {
-          return null;
-        }
-      },
-      getNeteaseBeeChanConfig: () => {
-        try {
-          return getIMGatewayManager().getConfig()['netease-bee'];
-        } catch {
-          return null;
-        }
-      },
+
       getWeixinConfig: () => {
         try {
           return getIMGatewayManager().getConfig().weixin;
@@ -1823,7 +1793,6 @@ const bindCoworkRuntimeForwarder = (): void => {
 
   runtime.on('message', (sessionId: string, message: CoworkMessage) => {
     startCoworkFileActivityForSession(sessionId);
-    updateDesktopPetTaskSnapshot(sessionId, getDesktopPetStatusForMessage(message));
     try {
       const session = getCoworkStore().getSession(sessionId);
       if (session?.cwd) {
@@ -1847,7 +1816,6 @@ const bindCoworkRuntimeForwarder = (): void => {
 
   runtime.on('messageUpdate', (sessionId: string, messageId: string, content: string) => {
     startCoworkFileActivityForSession(sessionId);
-    updateDesktopPetTaskSnapshot(sessionId, DesktopPetTaskStatus.Replying);
     const safeContent = truncateIpcString(content, IPC_UPDATE_CONTENT_MAX_CHARS);
     const windows = BrowserWindow.getAllWindows();
     windows.forEach((win) => {
@@ -1861,7 +1829,6 @@ const bindCoworkRuntimeForwarder = (): void => {
   });
 
   runtime.on('permissionRequest', (sessionId: string, request: any) => {
-    updateDesktopPetTaskSnapshot(sessionId, DesktopPetTaskStatus.Permission);
     if (runtime.getSessionConfirmationMode(sessionId) === 'text') {
       return;
     }
@@ -1879,7 +1846,6 @@ const bindCoworkRuntimeForwarder = (): void => {
 
   runtime.on('complete', (sessionId: string, claudeSessionId: string | null) => {
     getCoworkFileActivityTracker().stopSession(sessionId, 1200);
-    updateDesktopPetTaskSnapshot(sessionId, DesktopPetTaskStatus.Completed);
     const windows = BrowserWindow.getAllWindows();
     windows.forEach((win) => {
       if (win.isDestroyed()) return;
@@ -1902,7 +1868,6 @@ const bindCoworkRuntimeForwarder = (): void => {
 
   runtime.on('error', (sessionId: string, error: string) => {
     getCoworkFileActivityTracker().stopSession(sessionId, 1200);
-    updateDesktopPetTaskSnapshot(sessionId, DesktopPetTaskStatus.Error);
     // Mark session as error in store so the .catch() fallback can detect duplicates.
     try { getCoworkStore().updateSession(sessionId, { status: 'error' }); } catch { /* ignore */ }
     const windows = BrowserWindow.getAllWindows();
@@ -1914,7 +1879,6 @@ const bindCoworkRuntimeForwarder = (): void => {
 
   runtime.on('sessionStopped', (sessionId: string) => {
     getCoworkFileActivityTracker().stopSession(sessionId);
-    updateDesktopPetTaskSnapshot(sessionId, DesktopPetTaskStatus.Stopped);
   });
 
   coworkRuntimeForwarderBound = true;
@@ -2468,8 +2432,6 @@ const getAppIconPath = (): string | undefined => {
 
 // 保存对主窗口的引用
 let mainWindow: BrowserWindow | null = null;
-let desktopPetWindow: BrowserWindow | null = null;
-let desktopPetPreviewConfig: PetConfig | null = null;
 
 let isQuitting = false;
 
@@ -2481,7 +2443,6 @@ type AppConfigSettings = {
   theme?: string;
   language?: string;
   useSystemProxy?: boolean;
-  pet?: Partial<PetConfig> | null;
 };
 
 const getUseSystemProxyFromConfig = (config?: { useSystemProxy?: boolean }): boolean => {
@@ -2522,339 +2483,6 @@ const updateTitleBarOverlay = () => {
   const config = getStore().get<AppConfigSettings>('app_config');
   const theme = resolveThemeFromConfig(config);
   mainWindow.setBackgroundColor(theme === 'dark' ? '#0F1117' : '#F8F9FB');
-};
-
-const DESKTOP_PET_WINDOW_SIZE = {
-  width: 292,
-  height: 236,
-} as const;
-
-const DESKTOP_PET_TASK_TITLE_MAX_CHARS = 42;
-let desktopPetTaskSnapshot: DesktopPetTaskSnapshot | null = null;
-
-const getStoredDesktopPetConfig = (): PetConfig => {
-  const config = getStore().get<AppConfigSettings>('app_config');
-  return normalizePetConfig(config?.pet);
-};
-
-const getEffectiveDesktopPetConfig = (): PetConfig => {
-  return desktopPetPreviewConfig ?? getStoredDesktopPetConfig();
-};
-
-const getDefaultDesktopPetPosition = (): PetPosition => {
-  const workArea = screen.getPrimaryDisplay().workArea;
-  return {
-    x: workArea.x + workArea.width - DESKTOP_PET_WINDOW_SIZE.width - 64,
-    y: workArea.y + workArea.height - DESKTOP_PET_WINDOW_SIZE.height - 72,
-  };
-};
-
-const clampDesktopPetPosition = (position: PetPosition): PetPosition => {
-  const display = screen.getDisplayNearestPoint({
-    x: Math.round(position.x),
-    y: Math.round(position.y),
-  });
-  const workArea = display.workArea;
-  return {
-    x: Math.min(
-      workArea.x + workArea.width - DESKTOP_PET_WINDOW_SIZE.width,
-      Math.max(workArea.x, Math.round(position.x)),
-    ),
-    y: Math.min(
-      workArea.y + workArea.height - DESKTOP_PET_WINDOW_SIZE.height,
-      Math.max(workArea.y, Math.round(position.y)),
-    ),
-  };
-};
-
-const resolveDesktopPetPosition = (config: PetConfig): PetPosition => {
-  return clampDesktopPetPosition(config.position ?? getDefaultDesktopPetPosition());
-};
-
-const buildDesktopPetLoadUrl = (): string => {
-  if (isDev) {
-    const url = new URL(DEV_SERVER_URL);
-    url.searchParams.set('window', 'desktop-pet');
-    return url.toString();
-  }
-  return '';
-};
-
-const sendDesktopPetConfig = (config: PetConfig): void => {
-  if (!desktopPetWindow || desktopPetWindow.isDestroyed() || desktopPetWindow.webContents.isDestroyed()) {
-    return;
-  }
-  desktopPetWindow.webContents.send(DesktopPetIpcChannel.ConfigChanged, config);
-};
-
-const sendDesktopPetTaskSnapshot = (): void => {
-  if (!desktopPetWindow || desktopPetWindow.isDestroyed() || desktopPetWindow.webContents.isDestroyed()) {
-    return;
-  }
-  desktopPetWindow.webContents.send(DesktopPetIpcChannel.TaskChanged, desktopPetTaskSnapshot);
-};
-
-const trimDesktopPetTaskText = (value: string, maxChars = DESKTOP_PET_TASK_TITLE_MAX_CHARS): string => {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= maxChars) return normalized;
-  return `${normalized.slice(0, Math.max(0, maxChars - 1))}…`;
-};
-
-const getDesktopPetEngineLabel = (engine: CoworkAgentEngine): string => {
-  if (engine === CoworkAgentEngineValue.ClaudeCode) return 'Claude Code';
-  if (engine === CoworkAgentEngineValue.Codex) return 'Codex CLI';
-  if (engine === CoworkAgentEngineValue.CodexApp) return 'Codex App';
-  if (engine === CoworkAgentEngineValue.OpenClaw) return 'OpenClaw';
-  if (engine === CoworkAgentEngineValue.Hermes) return 'Hermes Agent';
-  if (engine === CoworkAgentEngineValue.OpenCode) return 'OpenCode';
-  if (engine === CoworkAgentEngineValue.GrokBuild) return 'Grok Build';
-  if (engine === CoworkAgentEngineValue.QwenCode) return 'Qwen Code';
-  if (engine === CoworkAgentEngineValue.DeepSeekTui) return 'DeepSeek-TUI';
-  return 'Agora';
-};
-
-const getDesktopPetTaskActivityText = (status: DesktopPetTaskStatus): string => {
-  switch (status) {
-    case DesktopPetTaskStatus.Waiting:
-      return 'waiting';
-    case DesktopPetTaskStatus.Thinking:
-      return 'thinking';
-    case DesktopPetTaskStatus.Replying:
-      return 'replying';
-    case DesktopPetTaskStatus.Coding:
-      return 'coding';
-    case DesktopPetTaskStatus.Permission:
-      return 'needs_confirmation';
-    case DesktopPetTaskStatus.Completed:
-      return 'completed';
-    case DesktopPetTaskStatus.Error:
-      return 'error';
-    case DesktopPetTaskStatus.Stopped:
-      return 'stopped';
-    default:
-      return 'waiting';
-  }
-};
-
-const getDesktopPetTaskSource = (session: CoworkSession): DesktopPetTaskSnapshot['source'] => {
-  if (/^\[[^\]]+\]\s/.test(session.title)) {
-    return DesktopPetTaskSource.Im;
-  }
-  return DesktopPetTaskSource.Chat;
-};
-
-const isDesktopPetRunningTaskStatus = (status: DesktopPetTaskStatus): boolean => (
-  status === DesktopPetTaskStatus.Waiting
-  || status === DesktopPetTaskStatus.Thinking
-  || status === DesktopPetTaskStatus.Replying
-  || status === DesktopPetTaskStatus.Coding
-  || status === DesktopPetTaskStatus.Permission
-);
-
-const shouldReplaceDesktopPetTaskSnapshot = (sessionId: string, status: DesktopPetTaskStatus): boolean => {
-  if (!desktopPetTaskSnapshot) return true;
-  if (desktopPetTaskSnapshot.sessionId === sessionId) return true;
-  if (isDesktopPetRunningTaskStatus(status)) return true;
-  return !isDesktopPetRunningTaskStatus(desktopPetTaskSnapshot.status);
-};
-
-const updateDesktopPetTaskSnapshot = (sessionId: string, status: DesktopPetTaskStatus): void => {
-  if (!shouldReplaceDesktopPetTaskSnapshot(sessionId, status)) {
-    return;
-  }
-
-  const session = getCoworkStore().getSession(sessionId);
-  if (!session) {
-    return;
-  }
-
-  const config = getCoworkStore().getConfig();
-  const engine = config.agentEngine;
-  const model = resolveRuntimeModelSnapshot(engine);
-  const projectName = session.cwd ? path.basename(session.cwd) || APP_NAME : APP_NAME;
-  desktopPetTaskSnapshot = {
-    sessionId,
-    title: trimDesktopPetTaskText(session.title || projectName),
-    projectName: trimDesktopPetTaskText(projectName, 28),
-    source: getDesktopPetTaskSource(session),
-    status,
-    engineLabel: getDesktopPetEngineLabel(engine),
-    modelLabel: model.modelName || model.modelId || '-',
-    activityText: getDesktopPetTaskActivityText(status),
-    updatedAt: Date.now(),
-  };
-  sendDesktopPetTaskSnapshot();
-};
-
-const getDesktopPetStatusForMessage = (message: CoworkMessage): DesktopPetTaskStatus => {
-  if (message.type === 'user') return DesktopPetTaskStatus.Thinking;
-  if (message.type === 'assistant') return DesktopPetTaskStatus.Replying;
-  if (message.type === 'tool_use' || message.type === 'tool_result') {
-    const toolName = String(message.metadata?.toolName ?? '').toLowerCase();
-    if (
-      toolName.includes('write')
-      || toolName.includes('edit')
-      || toolName.includes('multiedit')
-      || toolName.includes('file')
-    ) {
-      return DesktopPetTaskStatus.Coding;
-    }
-    return DesktopPetTaskStatus.Thinking;
-  }
-  return DesktopPetTaskStatus.Thinking;
-};
-
-const ensureMacDockVisible = (): void => {
-  if (isMac) {
-    app.dock.show();
-  }
-};
-
-const createDesktopPetWindow = (config: PetConfig): BrowserWindow => {
-  const position = resolveDesktopPetPosition(config);
-  ensureMacDockVisible();
-  const petWindow = new BrowserWindow({
-    width: DESKTOP_PET_WINDOW_SIZE.width,
-    height: DESKTOP_PET_WINDOW_SIZE.height,
-    x: position.x,
-    y: position.y,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    movable: true,
-    fullscreenable: false,
-    skipTaskbar: !isMac,
-    alwaysOnTop: true,
-    hasShadow: false,
-    focusable: false,
-    acceptFirstMouse: true,
-    show: false,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-      preload: PRELOAD_PATH,
-      backgroundThrottling: false,
-      devTools: isDev,
-      spellcheck: false,
-      enableWebSQL: false,
-      autoplayPolicy: 'no-user-gesture-required',
-      disableDialogs: true,
-      navigateOnDragDrop: false,
-    },
-  });
-
-  petWindow.setMenu(null);
-  petWindow.setAlwaysOnTop(true, isMac ? 'floating' : 'normal');
-  petWindow.setVisibleOnAllWorkspaces(true, {
-    visibleOnFullScreen: true,
-  });
-
-  petWindow.once('ready-to-show', () => {
-    if (petWindow.isDestroyed()) return;
-    petWindow.showInactive();
-    sendDesktopPetConfig(config);
-  });
-
-  petWindow.webContents.on('did-finish-load', () => {
-    sendDesktopPetConfig(getEffectiveDesktopPetConfig());
-    sendDesktopPetTaskSnapshot();
-  });
-
-  petWindow.on('closed', () => {
-    if (desktopPetWindow === petWindow) {
-      desktopPetWindow = null;
-    }
-  });
-
-  if (isDev) {
-    petWindow.loadURL(buildDesktopPetLoadUrl()).catch((error) => {
-      console.error('[DesktopPet] failed to load dev window:', error);
-    });
-  } else {
-    petWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
-      query: { window: 'desktop-pet' },
-    }).catch((error) => {
-      console.error('[DesktopPet] failed to load window:', error);
-    });
-  }
-
-  return petWindow;
-};
-
-const applyDesktopPetConfig = (config: PetConfig): void => {
-  const normalized = normalizePetConfig(config);
-  if (!normalized.enabled) {
-    if (desktopPetWindow && !desktopPetWindow.isDestroyed()) {
-      desktopPetWindow.close();
-    }
-    desktopPetWindow = null;
-    return;
-  }
-
-  if (!desktopPetWindow || desktopPetWindow.isDestroyed()) {
-    ensureMacDockVisible();
-    desktopPetWindow = createDesktopPetWindow(normalized);
-    return;
-  }
-
-  const position = resolveDesktopPetPosition(normalized);
-  desktopPetWindow.setBounds({
-    ...position,
-    ...DESKTOP_PET_WINDOW_SIZE,
-  });
-  if (!desktopPetWindow.isVisible()) {
-    desktopPetWindow.showInactive();
-  }
-  ensureMacDockVisible();
-  sendDesktopPetConfig(normalized);
-};
-
-const applyDesktopPetConfigFromStore = (): void => {
-  desktopPetPreviewConfig = null;
-  applyDesktopPetConfig(getStoredDesktopPetConfig());
-};
-
-const restoreMainWindowFromDesktopPet = (): boolean => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return false;
-  }
-
-  if (isMac) {
-    ensureMacDockVisible();
-  }
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore();
-  }
-  if (!mainWindow.isVisible()) {
-    mainWindow.show();
-  }
-  mainWindow.moveTop();
-  mainWindow.focus();
-  app.focus({ steal: true });
-  return true;
-};
-
-const persistDesktopPetPosition = (position: PetPosition): void => {
-  if (desktopPetPreviewConfig) {
-    desktopPetPreviewConfig = {
-      ...desktopPetPreviewConfig,
-      position: clampDesktopPetPosition(position),
-    };
-    sendDesktopPetConfig(desktopPetPreviewConfig);
-    return;
-  }
-  const currentConfig = getStore().get<AppConfigSettings>('app_config') ?? {};
-  const currentPet = normalizePetConfig(currentConfig.pet);
-  getStore().set('app_config', {
-    ...currentConfig,
-    pet: {
-      ...currentPet,
-      position: clampDesktopPetPosition(position),
-    },
-  });
 };
 
 const applyProxyPreference = async (useSystemProxy: boolean): Promise<void> => {
@@ -3090,58 +2718,6 @@ if (!gotTheLock) {
     } catch {
       return null;
     }
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.GetConfig, () => {
-    return getEffectiveDesktopPetConfig();
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.ApplyPreview, (_event, config: Partial<PetConfig>) => {
-    desktopPetPreviewConfig = normalizePetConfig({
-      ...getStoredDesktopPetConfig(),
-      ...config,
-    });
-    applyDesktopPetConfig(desktopPetPreviewConfig);
-    return desktopPetPreviewConfig;
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.GetBounds, () => {
-    if (!desktopPetWindow || desktopPetWindow.isDestroyed()) {
-      return null;
-    }
-    return desktopPetWindow.getBounds();
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.SetPosition, (_event, input: PetPosition & { persist?: boolean }) => {
-    if (!desktopPetWindow || desktopPetWindow.isDestroyed()) {
-      return null;
-    }
-    const position = clampDesktopPetPosition(input);
-    desktopPetWindow.setBounds({
-      ...position,
-      ...DESKTOP_PET_WINDOW_SIZE,
-    });
-    if (input.persist) {
-      persistDesktopPetPosition(position);
-    }
-    return desktopPetWindow.getBounds();
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.OpenMainWindow, () => {
-    return restoreMainWindowFromDesktopPet();
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.GetTaskSnapshot, () => {
-    return desktopPetTaskSnapshot;
-  });
-
-  ipcMain.handle(DesktopPetIpcChannel.OpenTask, (_event, input: { sessionId?: string }) => {
-    const sessionId = typeof input?.sessionId === 'string' ? input.sessionId : '';
-    const restored = restoreMainWindowFromDesktopPet();
-    if (restored && sessionId && mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(DesktopPetIpcChannel.OpenTaskRequested, { sessionId });
-    }
-    return restored;
   });
 
   // Network status change handler
@@ -4086,7 +3662,6 @@ if (!gotTheLock) {
         content: options.prompt,
         metadata: Object.keys(messageMetadata).length > 0 ? messageMetadata : undefined,
       });
-      updateDesktopPetTaskSnapshot(session.id, DesktopPetTaskStatus.Thinking);
 
       if (options.teamId) {
         getCoworkFileActivityTracker().startSession(session.id, taskWorkingDirectory);
@@ -4100,7 +3675,6 @@ if (!gotTheLock) {
           const existing = coworkStoreInstance.getSession(session.id);
           if (existing?.status === 'error') return;
           const errorMessage = error instanceof Error ? error.message : String(error);
-          updateDesktopPetTaskSnapshot(session.id, DesktopPetTaskStatus.Error);
           broadcastCoworkError(session.id, errorMessage);
         });
         const sessionWithMessages = coworkStoreInstance.getSession(session.id) || {
@@ -4135,7 +3709,6 @@ if (!gotTheLock) {
         const existing = coworkStoreInstance.getSession(session.id);
         if (existing?.status === 'error') return;
         const errorMessage = error instanceof Error ? error.message : String(error);
-        updateDesktopPetTaskSnapshot(session.id, DesktopPetTaskStatus.Error);
         const windows = BrowserWindow.getAllWindows();
         windows.forEach((win) => {
           if (win.isDestroyed()) return;
@@ -4188,7 +3761,6 @@ if (!gotTheLock) {
       if (existingSession?.cwd) {
         getCoworkFileActivityTracker().startSession(options.sessionId, existingSession.cwd);
       }
-      updateDesktopPetTaskSnapshot(options.sessionId, DesktopPetTaskStatus.Thinking);
       if (existingSession?.teamId) {
         const userMessage = getCoworkStore().addMessage(options.sessionId, {
           type: 'user',
@@ -4207,7 +3779,6 @@ if (!gotTheLock) {
           const existing = getCoworkStore().getSession(options.sessionId);
           if (existing?.status === 'error') return;
           const errorMessage = error instanceof Error ? error.message : String(error);
-          updateDesktopPetTaskSnapshot(options.sessionId, DesktopPetTaskStatus.Error);
           broadcastCoworkError(options.sessionId, errorMessage);
         });
         const session = getCoworkStore().getSession(options.sessionId);
@@ -4231,7 +3802,6 @@ if (!gotTheLock) {
         const existing = getCoworkStore().getSession(options.sessionId);
         if (existing?.status === 'error') return;
         const errorMessage = error instanceof Error ? error.message : String(error);
-        updateDesktopPetTaskSnapshot(options.sessionId, DesktopPetTaskStatus.Error);
         const windows = BrowserWindow.getAllWindows();
         windows.forEach((win) => {
           if (win.isDestroyed()) return;
@@ -4760,70 +4330,7 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle('codexApp:engine:getStatus', async () => {
-    try {
-      return { success: true, status: getCodexAppManager().getStatus() };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to read Codex App status',
-      };
-    }
-  });
 
-  ipcMain.handle('codexApp:engine:start', async () => {
-    try {
-      const cwd = getCoworkStore().getConfig().workingDirectory || os.homedir();
-      const status = await getCodexAppManager().start(cwd);
-      if (status.phase !== 'error') {
-        await getCodexAppServerClient().ensureConnected(cwd);
-      }
-      return { success: status.phase !== 'error', status: getCodexAppManager().getStatus(), error: status.error };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to start Codex App',
-      };
-    }
-  });
-
-  ipcMain.handle(CoworkIpcChannel.CodexAppTasksSync, async (_event, input: {
-    cwd?: string;
-    includeAll?: boolean;
-    limit?: number;
-  } = {}) => {
-    try {
-      const cwd = input.cwd || getCoworkStore().getConfig().workingDirectory || os.homedir();
-      const result = await getCodexAppTaskSync().syncThreads({
-        cwd,
-        includeAll: Boolean(input.includeAll),
-        limit: input.limit,
-      });
-      return { success: true, result };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to sync Codex App tasks',
-      };
-    }
-  });
-
-  ipcMain.handle(CoworkIpcChannel.CodexAppTaskOpen, async (_event, input: { threadId?: string }) => {
-    try {
-      const threadId = input.threadId?.trim();
-      if (!threadId) {
-        return { success: false, error: 'Codex App thread id is required.' };
-      }
-      const result = await getCodexAppTaskSync().openThread(threadId);
-      broadcastCoworkSessionsChanged();
-      return { success: true, sessionId: result.sessionId, threadId: result.threadId };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to open Codex App task',
-      };
-    }
-  });
 
   ipcMain.handle(CoworkIpcChannel.RuntimeMetricsSummary, async (_event, input: unknown) => {
     try {
@@ -7089,10 +6596,6 @@ if (!gotTheLock) {
     console.log('[Main] App is quitting, starting cleanup...');
     destroyTray();
     stopHermesIMSessionSyncPolling();
-    if (desktopPetWindow && !desktopPetWindow.isDestroyed()) {
-      desktopPetWindow.close();
-      desktopPetWindow = null;
-    }
     skillManager?.stopWatching();
 
     // Stop Cowork sessions without blocking shutdown.
@@ -7520,7 +7023,6 @@ if (!gotTheLock) {
     console.log('[Main] initApp: creating window');
     createWindow();
     console.log('[Main] initApp: window created');
-    applyDesktopPetConfigFromStore();
 
     // Windows/Linux cold start: parse deep link from process.argv
     // Always buffer since renderer is not ready yet after createWindow()
@@ -7597,11 +7099,6 @@ if (!gotTheLock) {
             void getOpenClawEngineManager().restartGateway();
           }
         });
-      }
-      const previousPetConfig = normalizePetConfig(oldConfig?.pet);
-      const currentPetConfig = normalizePetConfig(newConfig?.pet);
-      if (JSON.stringify(previousPetConfig) !== JSON.stringify(currentPetConfig)) {
-        applyDesktopPetConfigFromStore();
       }
       lastUseSystemProxy = currentUseSystemProxy;
     });

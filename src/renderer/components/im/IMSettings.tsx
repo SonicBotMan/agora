@@ -18,7 +18,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { i18nService } from '../../services/i18n';
 import { imService } from '../../services/im';
 import { RootState } from '../../store';
-import { clearError, setDingTalkConfig, setDingTalkInstanceConfig, setDiscordConfig, setFeishuConfig, setFeishuInstanceConfig, setNeteaseBeeChanConfig, setNimConfig, setPopoConfig, setQQConfig, setQQInstanceConfig, setTelegramOpenClawConfig, setWecomConfig, setWeixinConfig } from '../../store/slices/imSlice';
+import { clearError, setDingTalkConfig, setDingTalkInstanceConfig, setDiscordConfig, setFeishuConfig, setFeishuInstanceConfig, setNeteaseBeeChanConfig, setPopoConfig, setQQConfig, setQQInstanceConfig, setTelegramOpenClawConfig, setWecomConfig, setWeixinConfig } from '../../store/slices/imSlice';
 import type { DiscordOpenClawConfig, IMConnectivityCheck, IMConnectivityTestResult, IMGatewayConfig, PopoOpenClawConfig, TelegramOpenClawConfig, WecomOpenClawConfig } from '../../types/im';
 import { MAX_DINGTALK_INSTANCES, MAX_FEISHU_INSTANCES, MAX_QQ_INSTANCES } from '../../types/im';
 import { getVisibleIMPlatforms } from '../../utils/regionFilter';
@@ -312,31 +312,6 @@ const IMSettings: React.FC = () => {
       imService.destroy();
     };
   }, []);
-
-  // Extract NIM channel schema and hints from the full OpenClaw config schema
-  const nimSchemaData = useMemo(() => {
-    if (!openclawSchema) return null;
-    const { schema, uiHints } = openclawSchema;
-
-    // Find the NIM channel key — could be 'nim' or 'openclaw-nim'
-    const channelsProps = (schema as any)?.properties?.channels?.properties ?? {};
-    const channelKey = channelsProps['openclaw-nim'] ? 'openclaw-nim' : channelsProps['nim'] ? 'nim' : null;
-    if (!channelKey) return null;
-
-    const channelSchema = channelsProps[channelKey] as Record<string, unknown>;
-    if (!channelSchema) return null;
-
-    // Filter and strip prefix from uiHints
-    const prefix = `channels.${channelKey}.`;
-    const hints: Record<string, UiHint> = {};
-    for (const [key, value] of Object.entries(uiHints)) {
-      if (key.startsWith(prefix)) {
-        hints[key.slice(prefix.length)] = value as unknown as UiHint;
-      }
-    }
-
-    return { schema: channelSchema, hints };
-  }, [openclawSchema]);
 
   // Handle DingTalk multi-instance config
   const dingtalkMultiConfig = config.dingtalk;
@@ -747,17 +722,6 @@ const IMSettings: React.FC = () => {
         }
         return;
       }
-      if (platform === 'nim') {
-        const newEnabled = !config.nim.enabled;
-        const success = await imService.updateConfig({ nim: { ...config.nim, enabled: newEnabled } });
-        if (success) {
-          dispatch(setNimConfig({ enabled: newEnabled }));
-          if (newEnabled) dispatch(clearError());
-          await imService.loadStatus();
-        }
-        return;
-      }
-
       const isEnabled = config[platform].enabled;
       const newEnabled = !isEnabled;
 
@@ -794,7 +758,6 @@ const IMSettings: React.FC = () => {
   const feishuConnected = status.feishu?.instances?.some(i => i.connected) ?? false;
   const telegramConnected = status.telegram.connected;
   const discordConnected = status.discord.connected;
-  const nimConnected = status.nim.connected;
   const neteaseBeeChanConnected = status['netease-bee']?.connected ?? false;
   const qqConnected = status.qq?.instances?.some(i => i.connected) ?? false;
   const wecomConnected = status.wecom?.connected ?? false;
@@ -824,9 +787,6 @@ const IMSettings: React.FC = () => {
     }
     if (platform === 'discord') {
       return !!config.discord.botToken;
-    }
-    if (platform === 'nim') {
-      return !!(config.nim.appKey && config.nim.account && config.nim.token);
     }
     if (platform === 'netease-bee') {
       return !!(config['netease-bee'].clientId && config['netease-bee'].secret);
@@ -869,7 +829,6 @@ const IMSettings: React.FC = () => {
     if (platform === 'dingtalk') return dingtalkConnected;
     if (platform === 'telegram') return telegramConnected;
     if (platform === 'discord') return discordConnected;
-    if (platform === 'nim') return nimConnected;
     if (platform === 'netease-bee') return neteaseBeeChanConnected;
     if (platform === 'qq') return qqConnected;
     if (platform === 'wecom') return wecomConnected;
@@ -1004,16 +963,6 @@ const IMSettings: React.FC = () => {
 
     const isEnabled = isPlatformEnabled(platform);
 
-    // For NIM, skip the frontend stop/start cycle entirely.
-    // The backend's testNimConnectivity already manages the SDK lifecycle
-    // (stop main → probe with temp instance → restart main) under a mutex,
-    // so doing stop/start here would cause a race condition and potential crash.
-    // When the gateway is OFF we skip stop/start entirely.
-    // The main process testGateway → runAuthProbe will spawn an isolated
-    // temporary NimGateway (for NIM) or use stateless HTTP calls for other
-    // platforms, so no historical messages are ingested and the main
-    // gateway state is never touched.
-
     // Run connectivity test (always passes configOverride so the backend uses
     // the latest unsaved credential values from the form).
     const result = await runConnectivityTest(platform, {
@@ -1050,7 +999,6 @@ const IMSettings: React.FC = () => {
       telegram: setTelegramOpenClawConfig,
       qq: setQQConfig,
       discord: setDiscordConfig,
-      nim: setNimConfig,
       'netease-bee': setNeteaseBeeChanConfig,
       wecom: setWecomConfig,
       weixin: setWeixinConfig,
@@ -2486,89 +2434,6 @@ const IMSettings: React.FC = () => {
             {status.discord.lastError && (
               <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
                 {status.discord.lastError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* NIM (NetEase IM) Settings */}
-        {activePlatform === 'nim' && (
-          <div className="space-y-3">
-            <PlatformGuide
-              title={i18nService.t('nimCredentialsGuide')}
-              steps={[
-                i18nService.t('nimGuideStep1'),
-                i18nService.t('nimGuideStep2'),
-                i18nService.t('nimGuideStep3'),
-                i18nService.t('nimGuideStep4'),
-              ]}
-            />
-
-            {nimSchemaData ? (
-              <SchemaForm
-                schema={nimSchemaData.schema}
-                hints={nimSchemaData.hints}
-                value={config.nim as unknown as Record<string, unknown>}
-                onChange={(path, value) => {
-                  const updated = deepSet({ ...config.nim } as unknown as Record<string, unknown>, path, value);
-                  dispatch(setNimConfig(updated as any));
-                }}
-                onBlur={handleSaveConfig}
-                showSecrets={showSecrets}
-                onToggleSecret={(path) => setShowSecrets(prev => ({ ...prev, [path]: !prev[path] }))}
-              />
-            ) : (
-              /* Fallback: minimal credential inputs when schema not yet loaded */
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-secondary">App Key</label>
-                  <input
-                    type="text"
-                    value={config.nim.appKey}
-                    onChange={(e) => dispatch(setNimConfig({ appKey: e.target.value }))}
-                    onBlur={handleSaveConfig}
-                    className="block w-full rounded-lg bg-surface border-border-subtle border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-sm transition-colors"
-                    placeholder="your_app_key"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-secondary">Account</label>
-                  <input
-                    type="text"
-                    value={config.nim.account}
-                    onChange={(e) => dispatch(setNimConfig({ account: e.target.value }))}
-                    onBlur={handleSaveConfig}
-                    className="block w-full rounded-lg bg-surface border-border-subtle border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-sm transition-colors"
-                    placeholder="bot_account_id"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-secondary">Token</label>
-                  <input
-                    type="password"
-                    value={config.nim.token}
-                    onChange={(e) => dispatch(setNimConfig({ token: e.target.value }))}
-                    onBlur={handleSaveConfig}
-                    className="block w-full rounded-lg bg-surface border-border-subtle border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-sm transition-colors"
-                    placeholder="••••••••••••"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="pt-1">
-              {renderConnectivityTestButton('nim')}
-            </div>
-
-            {status.nim.botAccount && (
-              <div className="text-xs text-green-600 dark:text-green-400 bg-green-500/10 px-3 py-2 rounded-lg">
-                Account: {status.nim.botAccount}
-              </div>
-            )}
-
-            {status.nim.lastError && (
-              <div className="text-xs text-red-500 bg-red-500/10 px-3 py-2 rounded-lg">
-                {translateIMError(status.nim.lastError)}
               </div>
             )}
           </div>

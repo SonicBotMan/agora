@@ -33,7 +33,6 @@ import {
   type QwenCodePermissionMode as QwenCodePermissionModeType,
 } from '../shared/cowork/constants';
 import type { CoworkSessionRuntimeSnapshot } from '../shared/cowork/runtimeSnapshot';
-import { encodeCodexAppThreadId } from './libs/codexAppIds';
 import {
   type CoworkMemoryGuardLevel,
   extractTurnMemoryChanges,
@@ -541,7 +540,6 @@ export interface CoworkSession {
   id: string;
   title: string;
   claudeSessionId: string | null;
-  codexAppThreadId: string | null;
   status: CoworkSessionStatus;
   pinned: boolean;
   cwd: string;
@@ -561,7 +559,6 @@ export interface CoworkSession {
 export interface CoworkSessionSummary {
   id: string;
   title: string;
-  codexAppThreadId: string | null;
   status: CoworkSessionStatus;
   pinned: boolean;
   agentId: string;
@@ -577,7 +574,6 @@ export interface CoworkImportedSessionInput {
   id: string;
   title: string;
   claudeSessionId: string | null;
-  codexAppThreadId?: string | null;
   status: CoworkSessionStatus;
   cwd: string;
   systemPrompt: string;
@@ -816,7 +812,6 @@ export class CoworkStore {
       id,
       title,
       claudeSessionId: null,
-      codexAppThreadId: null,
       status: 'idle',
       pinned: false,
       cwd,
@@ -839,7 +834,6 @@ export class CoworkStore {
       id: string;
       title: string;
       claude_session_id: string | null;
-      codex_app_thread_id?: string | null;
       status: string;
       pinned?: number | null;
       cwd: string;
@@ -857,7 +851,7 @@ export class CoworkStore {
 
     const row = this.getOne<SessionRow>(
       `
-      SELECT id, title, claude_session_id, codex_app_thread_id, status, pinned, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
+      SELECT id, title, claude_session_id, status, pinned, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
       FROM cowork_sessions
       WHERE id = ?
     `,
@@ -882,7 +876,6 @@ export class CoworkStore {
       id: row.id,
       title: row.title,
       claudeSessionId: row.claude_session_id,
-      codexAppThreadId: row.codex_app_thread_id || null,
       status: row.status as CoworkSessionStatus,
       pinned: Boolean(row.pinned),
       cwd: row.cwd,
@@ -905,7 +898,7 @@ export class CoworkStore {
     updates: Partial<
       Pick<
         CoworkSession,
-        'title' | 'claudeSessionId' | 'codexAppThreadId' | 'status' | 'cwd' | 'systemPrompt' | 'executionMode' | 'runtimeSnapshot'
+        'title' | 'claudeSessionId' | 'status' | 'cwd' | 'systemPrompt' | 'executionMode' | 'runtimeSnapshot'
       >
     >,
   ): void {
@@ -920,10 +913,6 @@ export class CoworkStore {
     if (updates.claudeSessionId !== undefined) {
       setClauses.push('claude_session_id = ?');
       values.push(updates.claudeSessionId);
-    }
-    if (updates.codexAppThreadId !== undefined) {
-      setClauses.push('codex_app_thread_id = ?');
-      values.push(updates.codexAppThreadId);
     }
     if (updates.status !== undefined) {
       setClauses.push('status = ?');
@@ -982,7 +971,6 @@ export class CoworkStore {
     interface SessionSummaryRow {
       id: string;
       title: string;
-      codex_app_thread_id: string | null;
       status: string;
       pinned: number | null;
       agent_id: string | null;
@@ -998,7 +986,7 @@ export class CoworkStore {
     if (agentId) {
       rows = this.getAll<SessionSummaryRow>(
         `
-        SELECT id, title, codex_app_thread_id, status, pinned, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
+        SELECT id, title, status, pinned, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
         FROM cowork_sessions
         WHERE agent_id = ?
           AND COALESCE(session_kind, 'single') != ?
@@ -1008,7 +996,7 @@ export class CoworkStore {
       );
     } else {
       rows = this.getAll<SessionSummaryRow>(`
-        SELECT id, title, codex_app_thread_id, status, pinned, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
+        SELECT id, title, status, pinned, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
         FROM cowork_sessions
         WHERE COALESCE(session_kind, 'single') != '${CoworkSessionKind.TeamChild}'
         ORDER BY pinned DESC, updated_at DESC
@@ -1018,7 +1006,6 @@ export class CoworkStore {
     return rows.map(row => ({
       id: row.id,
       title: row.title,
-      codexAppThreadId: row.codex_app_thread_id || null,
       status: row.status as CoworkSessionStatus,
       pinned: Boolean(row.pinned),
       agentId: row.agent_id || 'main',
@@ -1029,23 +1016,6 @@ export class CoworkStore {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
-  }
-
-  findSessionIdByCodexAppThreadId(threadId: string): string | null {
-    const normalized = threadId.trim();
-    if (!normalized) return null;
-    const row = this.getOne<{ id: string }>(
-      `
-      SELECT id
-      FROM cowork_sessions
-      WHERE codex_app_thread_id = ?
-         OR claude_session_id = ?
-      ORDER BY updated_at DESC
-      LIMIT 1
-    `,
-      [normalized, encodeCodexAppThreadId(normalized)],
-    );
-    return row?.id ?? null;
   }
 
   resetRunningSessions(): number {
@@ -1298,7 +1268,6 @@ export class CoworkStore {
     interface ImportedSessionRow {
       title: string;
       claude_session_id: string | null;
-      codex_app_thread_id: string | null;
       status: string;
       cwd: string;
       system_prompt: string;
@@ -1320,7 +1289,7 @@ export class CoworkStore {
     const runtimeSnapshotJson = input.runtimeSnapshot ? JSON.stringify(input.runtimeSnapshot) : null;
     const existing = this.getOne<ImportedSessionRow>(
       `
-      SELECT title, claude_session_id, codex_app_thread_id, status, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
+      SELECT title, claude_session_id, status, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, created_at, updated_at
       FROM cowork_sessions
       WHERE id = ?
     `,
@@ -1331,15 +1300,14 @@ export class CoworkStore {
       this.db
         .prepare(
           `
-        INSERT INTO cowork_sessions (id, title, claude_session_id, codex_app_thread_id, status, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, pinned, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        INSERT INTO cowork_sessions (id, title, claude_session_id, status, cwd, system_prompt, execution_mode, active_skill_ids, agent_id, session_kind, parent_session_id, team_id, runtime_snapshot_json, pinned, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
       `,
         )
         .run(
           input.id,
           input.title,
           input.claudeSessionId,
-          input.codexAppThreadId || null,
           input.status,
           input.cwd,
           input.systemPrompt,
@@ -1358,7 +1326,6 @@ export class CoworkStore {
 
     const changed = existing.title !== input.title
       || existing.claude_session_id !== input.claudeSessionId
-      || (existing.codex_app_thread_id || null) !== (input.codexAppThreadId || null)
       || existing.status !== input.status
       || existing.cwd !== input.cwd
       || existing.system_prompt !== input.systemPrompt
@@ -1380,7 +1347,6 @@ export class CoworkStore {
       UPDATE cowork_sessions
       SET title = ?,
           claude_session_id = ?,
-          codex_app_thread_id = ?,
           status = ?,
           cwd = ?,
           system_prompt = ?,
@@ -1399,7 +1365,6 @@ export class CoworkStore {
       .run(
         input.title,
         input.claudeSessionId,
-        input.codexAppThreadId || null,
         input.status,
         input.cwd,
         input.systemPrompt,

@@ -2490,8 +2490,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           return i18nService.t('coworkAgentEngineClaudeCode');
         case CoworkAgentEngine.Codex:
           return i18nService.t('coworkAgentEngineCodex');
-        case CoworkAgentEngine.CodexApp:
-          return i18nService.t('coworkAgentEngineCodexApp');
         case CoworkAgentEngine.OpenCode:
           return i18nService.t('coworkAgentEngineOpenCode');
         case CoworkAgentEngine.GrokBuild:
@@ -2504,7 +2502,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           return i18nService.t('coworkAgentEngineOpenClaw');
         case CoworkAgentEngine.Hermes:
           return i18nService.t('coworkAgentEngineHermes');
-        case CoworkAgentEngine.YdCowork:
         default:
           return i18nService.t('coworkAgentEngineClaudeLegacy');
       }
@@ -2514,8 +2511,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         return i18nService.t('coworkAgentEngineClaudeCode');
       case CoworkAgentEngine.Codex:
         return i18nService.t('coworkAgentEngineCodex');
-      case CoworkAgentEngine.CodexApp:
-        return i18nService.t('coworkAgentEngineCodexApp');
       case CoworkAgentEngine.OpenCode:
         return i18nService.t('coworkAgentEngineOpenCode');
       case CoworkAgentEngine.GrokBuild:
@@ -2528,7 +2523,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         return i18nService.t('coworkAgentEngineOpenClaw');
       case CoworkAgentEngine.Hermes:
         return i18nService.t('coworkAgentEngineHermes');
-      case CoworkAgentEngine.YdCowork:
       default:
         return i18nService.t('coworkAgentEngineClaudeLegacy');
     }
