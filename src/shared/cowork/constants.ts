@@ -10,8 +10,6 @@ export const CoworkAgentEngine = {
   ClaudeCode: 'claude_code',
   Codex: 'codex',
   OpenCode: 'opencode',
-  GrokBuild: 'grok_build',
-  QwenCode: 'qwen_code',
   DeepSeekTui: 'deepseek_tui',
 } as const;
 
@@ -25,8 +23,6 @@ export const CoworkAgentEngineValues = [
   CoworkAgentEngine.ClaudeCode,
   CoworkAgentEngine.Codex,
   CoworkAgentEngine.OpenCode,
-  CoworkAgentEngine.GrokBuild,
-  CoworkAgentEngine.QwenCode,
   CoworkAgentEngine.DeepSeekTui,
 ] as const;
 
@@ -36,8 +32,6 @@ export const CliCoworkAgentEngines = [
   CoworkAgentEngine.Codex,
   CoworkAgentEngine.Hermes,
   CoworkAgentEngine.OpenCode,
-  CoworkAgentEngine.GrokBuild,
-  CoworkAgentEngine.QwenCode,
   CoworkAgentEngine.DeepSeekTui,
 ] as const;
 
@@ -83,18 +77,6 @@ export const OpenCodePermissionModeValues = [
   OpenCodePermissionMode.Conservative,
 ] as const;
 
-export const QwenCodePermissionMode = {
-  Auto: 'auto',
-  Conservative: 'conservative',
-} as const;
-
-export type QwenCodePermissionMode = typeof QwenCodePermissionMode[keyof typeof QwenCodePermissionMode];
-
-export const QwenCodePermissionModeValues = [
-  QwenCodePermissionMode.Auto,
-  QwenCodePermissionMode.Conservative,
-] as const;
-
 export const DeepSeekTuiPermissionMode = {
   Auto: 'auto',
   Conservative: 'conservative',
@@ -125,11 +107,6 @@ export function isClaudeCodePermissionMode(value: unknown): value is ClaudeCodeP
 export function isOpenCodePermissionMode(value: unknown): value is OpenCodePermissionMode {
   return typeof value === 'string'
     && OpenCodePermissionModeValues.includes(value as OpenCodePermissionMode);
-}
-
-export function isQwenCodePermissionMode(value: unknown): value is QwenCodePermissionMode {
-  return typeof value === 'string'
-    && QwenCodePermissionModeValues.includes(value as QwenCodePermissionMode);
 }
 
 export function isDeepSeekTuiPermissionMode(value: unknown): value is DeepSeekTuiPermissionMode {
@@ -248,7 +225,6 @@ export const CoworkIpcChannel = {
   AgentConfigImportLocalToModelSettings: 'cowork:agentConfig:importLocalToModelSettings',
   AgentConfigSyncOpenClawGlobal: 'cowork:agentConfig:syncOpenClawGlobal',
   AgentConfigSyncOpenCodeGlobal: 'cowork:agentConfig:syncOpenCodeGlobal',
-  AgentConfigSyncQwenCodeGlobal: 'cowork:agentConfig:syncQwenCodeGlobal',
   AgentConfigSyncDeepSeekTuiGlobal: 'cowork:agentConfig:syncDeepSeekTuiGlobal',
   AgentCliInstall: 'cowork:agentCli:install',
   AgentCliInstallProgress: 'cowork:agentCli:installProgress',

@@ -23,8 +23,6 @@ type RouterDeps = {
   claudeCodeRuntime: CoworkRuntime;
   codexRuntime: CoworkRuntime;
   openCodeRuntime: CoworkRuntime;
-  grokBuildRuntime: CoworkRuntime;
-  qwenCodeRuntime: CoworkRuntime;
   deepSeekTuiRuntime: CoworkRuntime;
   telemetryTracker?: RuntimeTelemetryTracker;
 };
@@ -47,8 +45,6 @@ export class CoworkEngineRouter extends EventEmitter implements CoworkRuntime {
       [CoworkAgentEngineValue.ClaudeCode]: deps.claudeCodeRuntime,
       [CoworkAgentEngineValue.Codex]: deps.codexRuntime,
       [CoworkAgentEngineValue.OpenCode]: deps.openCodeRuntime,
-      [CoworkAgentEngineValue.GrokBuild]: deps.grokBuildRuntime,
-      [CoworkAgentEngineValue.QwenCode]: deps.qwenCodeRuntime,
       [CoworkAgentEngineValue.DeepSeekTui]: deps.deepSeekTuiRuntime,
     };
     this.currentEngine = this.safeResolveEngine();
@@ -59,8 +55,6 @@ export class CoworkEngineRouter extends EventEmitter implements CoworkRuntime {
     this.bindRuntimeEvents(CoworkAgentEngineValue.ClaudeCode, deps.claudeCodeRuntime);
     this.bindRuntimeEvents(CoworkAgentEngineValue.Codex, deps.codexRuntime);
     this.bindRuntimeEvents(CoworkAgentEngineValue.OpenCode, deps.openCodeRuntime);
-    this.bindRuntimeEvents(CoworkAgentEngineValue.GrokBuild, deps.grokBuildRuntime);
-    this.bindRuntimeEvents(CoworkAgentEngineValue.QwenCode, deps.qwenCodeRuntime);
     this.bindRuntimeEvents(CoworkAgentEngineValue.DeepSeekTui, deps.deepSeekTuiRuntime);
   }
 
