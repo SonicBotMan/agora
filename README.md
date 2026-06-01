@@ -5,52 +5,62 @@
 </p>
 
 <h3 align="center">
-  Desktop AI Agent Workspace for Local Coding Agents
+  Desktop AI Agent Workspace
 </h3>
 
 <p align="center">
-  <a href="https://github.com/freestylefly/agora/stargazers"><img src="https://img.shields.io/github/stars/freestylefly/agora?style=flat-square&color=1b79ff" alt="GitHub stars"></a>
-  <a href="https://github.com/freestylefly/agora/network/members"><img src="https://img.shields.io/github/forks/freestylefly/agora?style=flat-square&color=14b8a6" alt="GitHub forks"></a>
-  <a href="https://github.com/freestylefly/agora/releases/latest"><img src="https://img.shields.io/github/v/release/freestylefly/agora?style=flat-square&color=f59e0b" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/freestylefly/agora?style=flat-square&color=64748b" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-111827?style=flat-square&logo=apple&logoColor=white" alt="macOS Apple Silicon">
+  <a href="https://github.com/SonicBotMan/agora/stargazers"><img src="https://img.shields.io/github/stars/SonicBotMan/agora?style=flat-square&color=1b79ff" alt="GitHub stars"></a>
+  <a href="https://github.com/SonicBotMan/agora/network/members"><img src="https://img.shields.io/github/forks/SonicBotMan/agora?style=flat-square&color=14b8a6" alt="GitHub forks"></a>
+  <a href="https://github.com/SonicBotMan/agora/releases/latest"><img src="https://img.shields.io/github/v/release/SonicBotMan/agora?style=flat-square&color=f59e0b" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/SonicBotMan/agora?style=flat-square&color=64748b" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20|%20Windows%20|%20Linux-111827?style=flat-square" alt="Cross-platform">
 </p>
 
 <p align="center">
   <strong>English</strong> | <a href="README_zh.md">简体中文</a>
 </p>
 
-Agora is an open-source desktop control console for local AI agents. It helps you install or reuse OpenCode (default), Claude Code, Codex, Qwen Code, DeepSeek-TUI, and the built-in agent runtime, then gives them a visual workspace for chat, tools, files, IM channels, skills, model providers, runtime metrics, and desktop companion workflows.
+Agora is an open-source desktop workspace for AI coding agents. Built with Electron, React, and TypeScript, it provides a unified visual interface for installing, configuring, and running multiple local agent engines — including OpenCode (default), OpenClaw, Claude Code, Hermes, DeepSeek-TUI, and Codex. Agora connects these engines to chat, tools, files, IM platforms, model providers, and runtime analytics in a single desktop application.
 
-> Early public releases ship macOS Apple Silicon first. If Agora helps your agent workflow, a Star makes the project easier for more builders to discover.
+> If Agora improves your agent workflow, give it a star — it helps more developers discover the project.
 
-## Quick Links
-
-- Website: [agora.app](https://agora.app/)
-- Latest release: [github.com/freestylefly/agora/releases/latest](https://github.com/freestylefly/agora/releases/latest)
-- Screenshots: [Screenshots](#screenshots)
-- Core features: [Core Features](#core-features)
-- Agent engines: [Agent Engines](#agent-engines)
-- Development: [Quick Start](#quick-start)
+---
 
 ## Why Agora
 
-Terminal-native coding agents are powerful, while their setup, model routing, permissions, IM entry points, file changes, and runtime metrics often live in separate places. Agora turns those moving pieces into one desktop workspace:
+Terminal-native coding agents are powerful, but their setup, model routing, permissions, IM entry points, file changes, and runtime metrics are scattered across separate contexts. Agora consolidates them into one cohesive desktop workspace:
 
-- Install, detect, and reuse local agent CLIs from a beginner-friendly UI.
-- Run coding agents through a visual chat with tool panels, slash commands, file diffs, and permission prompts.
-- Connect agent tasks to 7 IM platforms: Feishu, DingTalk, Telegram, Discord, WeChat Work, NetEase IM, and WeChat Official Account.
-- Track every task with engine, model, token usage, TTFT, TPS, tool latency, steps, status, and duration.
-- Extend workflows through SkillHub skills, built-in skills, scheduled tasks, memory, and a desktop pet that follows active work.
+- **Unified engine hub** — Install, detect, and switch between multiple local agent CLIs from a single UI.
+- **Visual chat surface** — Run agents through a rich chat interface with tool panels, slash commands, file diffs, and permission prompts.
+- **IM integration** — Route agent tasks through Feishu, DingTalk, Telegram, Discord, WeChat, WeCom, and QQ.
+- **Runtime observability** — Track every task's engine, model, token usage, time-to-first-token (TTFT), tokens-per-second (TPS), tool latency, steps, status, and duration.
+- **Extensible** — Extend workflows with SkillHub marketplace skills, built-in skills, scheduled tasks, and cross-session memory.
 
-## Features
+---
 
-1. **Agent Engine Hub** — Run OpenCode (default), Claude Code, Codex, Qwen Code, DeepSeek-TUI, or the built-in runtime from the same workspace, with one-click setup or existing local CLI config reuse.
-2. **Unified Model Providers** — Configure OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Moonshot, Ollama, OpenRouter, GitHub Copilot, and custom OpenAI-compatible endpoints.
-3. **IM Agent Hub** — Route messages from Feishu, DingTalk, Telegram, Discord, WeChat Work, NetEase IM, and WeChat Official Account into any engine with per-platform bot profiles.
-4. **AI Runtime Dashboard** — Measure calls by engine, model, source, status, tokens, completion time, TTFT, output-phase TPS, estimated model TPS, tool latency, and agent steps.
-5. **SkillHub Marketplace** — Discover, categorize, install, enable, disable, update, and remove local skills through an integrated marketplace.
-6. **Scheduled Tasks & Memory** — Create recurring agent jobs for research, reports, monitoring, and reminders, with automatic memory extraction and personalization across sessions.
+## Core Features
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | **Agent Engine Hub** | Run OpenCode (default), OpenClaw, Claude Code, Hermes, DeepSeek-TUI, or Codex — one-click install or reuse existing local CLI configs. |
+| 2 | **Unified Model Providers** | Configure OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Moonshot, Ollama, OpenRouter, GitHub Copilot, and custom OpenAI-compatible endpoints. |
+| 3 | **IM Agent Hub** | Route messages from Feishu, DingTalk, Telegram, Discord, WeChat, WeCom, and QQ into any engine with per-platform bot profiles. |
+| 4 | **AI Runtime Dashboard** | Measure calls by engine, model, source, status, tokens, completion time, TTFT, output-phase TPS, estimated model TPS, tool latency, and agent steps. |
+| 5 | **SkillHub Marketplace** | Discover, install, enable, disable, update, and remove skills through an integrated marketplace. |
+| 6 | **Scheduled Tasks & Memory** | Create recurring agent jobs for research, reports, monitoring, and reminders with automatic memory extraction across sessions. |
+
+### Planned Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔬 **Deep Research** | Autonomous multi-source research agent with citation tracking and report generation. |
+| 🧩 **Agent Orchestration** | Multi-agent coordination for complex workflows with task delegation and handoff. |
+| 📚 **Knowledge Base** | Persistent vector store for documents, codebases, and project context. |
+| 🔥 **Hot Topics** | Real-time trend discovery and auto-summarization from community sources. |
+| ⚙️ **Skill Center** | Dedicated hub for creating, testing, and publishing custom agent skills. |
+| 🖥️ **Frontend Station** | Visual component playground for AI-generated UI previews and iteration. |
+
+---
 
 ## Screenshots
 
@@ -65,7 +75,7 @@ Terminal-native coding agents are powerful, while their setup, model routing, pe
   </tr>
   <tr>
     <td><strong>Cowork Chat</strong><br>Run local coding agents as a desktop chat with engine and model controls.</td>
-    <td><strong>Agent Engines</strong><br>Configure OpenCode, Claude Code, Codex, Qwen Code, DeepSeek-TUI, and the built-in runtime.</td>
+    <td><strong>Agent Engines</strong><br>Configure OpenCode, OpenClaw, Claude Code, Hermes, DeepSeek-TUI, and Codex.</td>
   </tr>
   <tr>
     <td width="50%">
@@ -84,43 +94,45 @@ Terminal-native coding agents are powerful, while their setup, model routing, pe
       <img src="public/readme/screenshots/skills-marketplace.png" alt="Agora skills marketplace">
     </td>
     <td width="50%">
-      <img src="public/readme/screenshots/studio-pet.png" alt="Agora studio and desktop companion">
+      <img src="public/readme/screenshots/studio-pet.png" alt="Agora studio">
     </td>
   </tr>
   <tr>
     <td><strong>Skills Marketplace</strong><br>Browse SkillHub categories, install skills locally, and manage installed skills from Agora.</td>
-    <td><strong>Studio & Pet</strong><br>Use a visual office-style workspace and desktop companion to follow active agent tasks.</td>
+    <td><strong>Studio</strong><br>Visual workspace to observe agent activity and task progress.</td>
   </tr>
 </table>
 
+---
+
 ## Agent Engines
 
-| Engine           | Best For                                                    | Setup Path                                      |
-| ---------------- | ----------------------------------------------------------- | ----------------------------------------------- |
-| OpenCode         | Default terminal agent workflow                             | One-click install or existing local CLI config  |
-| Claude Code      | Claude Code workflows with a graphical chat surface         | One-click install or existing local CLI config  |
-| Codex            | Codex CLI workflows, local task execution, and IM control   | One-click install or existing local CLI config  |
-| Qwen Code        | Qwen-friendly coding workflows and DashScope setups         | One-click install or existing local CLI config  |
-| DeepSeek-TUI     | DeepSeek-TUI HTTP/SSE runtime and tool streaming            | One-click install or existing local CLI config  |
-| Built-in runtime | General desktop cowork sessions and skills                  | Included in Agora                               |
+| Engine | Best For | Setup |
+|--------|----------|-------|
+| **OpenCode** | Default terminal agent workflow (default engine) | One-click install or existing CLI config reuse |
+| **OpenClaw** | Local agent runtime with gateway and IM capabilities | One-click install or existing CLI config reuse |
+| **Claude Code** | Claude Code workflows with a graphical chat surface | One-click install or existing CLI config reuse |
+| **Hermes** | Nous Research Hermes agent runtime and gateway | One-click install or existing CLI config reuse |
+| **DeepSeek-TUI** | DeepSeek HTTP/SSE runtime and tool streaming | One-click install or existing CLI config reuse |
+| **Codex** | Codex CLI workflows, local task execution, and IM control | One-click install or existing CLI config reuse |
 
 ## IM Platforms
 
-Agora routes agent tasks through 7 IM platforms with per-engine bot profiles:
+Agora routes agent tasks through IM platforms with per-engine bot profiles:
 
-| Platform          | Integration Type |
-| ----------------- | ---------------- |
-| Feishu            | Native gateway   |
-| DingTalk          | Native gateway   |
-| Telegram          | Native gateway   |
-| Discord           | Native gateway   |
-| WeChat Work       | Native gateway   |
-| NetEase IM (NIM)  | Native gateway   |
-| WeChat OA         | Webhook          |
+| Platform | Integration |
+|----------|-------------|
+| Feishu (Lark) | Native gateway |
+| DingTalk | Native gateway |
+| Telegram | Native gateway |
+| Discord | Native gateway |
+| WeCom (WeChat Work) | Native gateway |
+| WeChat | Native gateway |
+| QQ | Native gateway |
 
 ## Model Providers
 
-Agora keeps model setup in one place, then maps it into the selected engine when that engine follows Agora settings.
+Agora centralizes model configuration and maps it into the selected engine when the engine follows Agora settings.
 
 - Add multiple providers and models.
 - Use official OpenAI, Anthropic Claude, and Google Gemini providers.
@@ -128,62 +140,19 @@ Agora keeps model setup in one place, then maps it into the selected engine when
 - Switch between Agora-managed model settings and existing local CLI configuration.
 - Import or sync local engine configuration when you want Agora to manage it.
 
-## Download
-
-Public desktop builds are published through GitHub Releases:
-
-- Website: [agora.app](https://agora.app/)
-- Latest release: [github.com/freestylefly/agora/releases/latest](https://github.com/freestylefly/agora/releases/latest)
-
-Early public releases currently ship macOS Apple Silicon builds first. Release assets are intended for end users. CI artifacts are short-lived build outputs for maintainers to test before a release is published.
-
-## Download And Install
-
-### 1. Download the DMG
-
-Download `Agora-*-arm64.dmg` from the [latest release](https://github.com/freestylefly/agora/releases/latest), open it, and drag `Agora.app` into the `Applications` folder.
-
-<p align="center">
-  <img src="public/readme/tutorial/install-dmg.svg" alt="Agora DMG install guide" width="760">
-</p>
-
-### 2. If macOS says the app is damaged
-
-Preview builds are not signed and notarized yet. macOS may show a message like:
-
-> "Agora.app" is damaged and cannot be opened. You should move it to the Trash.
-
-This is usually a Gatekeeper quarantine warning for an unsigned app. It does not mean the downloaded package is corrupted. Click Cancel first.
-
-<p align="center">
-  <img src="public/readme/tutorial/macos-damaged-warning.svg" alt="macOS unsigned app warning" width="620">
-</p>
-
-### 3. Remove the quarantine attribute
-
-Open the built-in macOS Terminal app and run:
-
-```bash
-xattr -cr /Applications/Agora.app
-```
-
-<p align="center">
-  <img src="public/readme/tutorial/xattr-terminal.svg" alt="Run xattr in Terminal" width="760">
-</p>
-
-After the command finishes, open Agora again. If you installed Agora somewhere else, replace `/Applications/Agora.app` with the actual path to your `Agora.app`.
+---
 
 ## Quick Start
 
-### Requirements
+### Prerequisites
 
-- Node.js `>=24 <25`
-- npm
+- **Node.js** `>=24`
+- **npm** (or `pnpm` / `yarn`)
 
 ### Development
 
 ```bash
-git clone https://github.com/freestylefly/agora.git
+git clone https://github.com/SonicBotMan/agora.git
 cd agora
 npm install
 npm run electron:dev
@@ -191,18 +160,18 @@ npm run electron:dev
 
 The Vite dev server runs at `http://localhost:5175`.
 
-### Development With Agent Runtimes
+### Development with Agent Runtimes
 
 ```bash
-# Start Agora and detect supported local agent CLIs from Settings
+# Start Agora and detect supported local agent CLIs
 npm run electron:dev
 
-# Convenience aliases currently point to the same development entry
+# Shorthand aliases for specific engine development
 npm run electron:dev:openclaw
 npm run electron:dev:hermes
 ```
 
-Useful OpenClaw development variables:
+Useful environment variables for OpenClaw development:
 
 ```bash
 # Override OpenClaw source location
@@ -211,11 +180,11 @@ OPENCLAW_SRC=/path/to/openclaw npm run electron:dev:openclaw
 # Force OpenClaw runtime rebuild
 OPENCLAW_FORCE_BUILD=1 npm run electron:dev:openclaw
 
-# Skip OpenClaw version checkout for local OpenClaw development
+# Skip OpenClaw version checkout for local development
 OPENCLAW_SKIP_ENSURE=1 npm run electron:dev:openclaw
 ```
 
-## Build
+### Build
 
 ```bash
 # TypeScript + Vite
@@ -224,11 +193,11 @@ npm run build
 # Electron main process
 npm run compile:electron
 
-# ESLint
+# Lint
 npm run lint
 ```
 
-## Packaging
+### Package for Distribution
 
 ```bash
 # macOS
@@ -244,120 +213,114 @@ npm run dist:win
 npm run dist:linux
 ```
 
-Managed runtime metadata is declared in `package.json`. Generated runtime folders, build artifacts, local secrets, and packaged release output are ignored by Git.
+Managed runtime metadata is declared in `package.json`. Generated runtime folders, build artifacts, local secrets, and packaged release output are gitignored.
 
-## Architecture
+---
+
+## Project Structure
 
 Agora uses Electron process isolation. The renderer never directly accesses Node.js APIs; privileged operations go through a typed preload bridge and IPC handlers in the main process.
 
-<p align="center">
-  <img src="public/readme-architecture.svg" alt="Agora architecture principle diagram" width="960">
-</p>
-
-### Main Process
-
-- Window lifecycle, tray behavior, desktop pet windows, and deep links
-- SQLite persistence for settings, sessions, messages, runtime calls, skills, and auth tokens
-- Agent engine routing and external CLI adapters
-- OpenClaw and Hermes gateway lifecycle helpers
-- IM gateway integrations and native Feishu routing
-- Skill management, scheduled tasks, file activity tracking, and runtime telemetry
-
-### Renderer
-
-- React + Redux Toolkit + Tailwind CSS
-- Cowork chat UI, studio view, live workspace, runtime dashboard, and artifacts
-- Engine selector, model selector, settings, skills, MCP, agents, IM, memory, and appearance UI
-- Stream rendering for messages, tool calls, command output, slash command panels, files, images, and permission prompts
-
-### Key Directories
-
-```text
-src/main/
-  main.ts                         Electron entry and IPC handlers
-  preload.ts                      Safe renderer bridge
-  sqliteStore.ts                  Local persistence
-  coworkStore.ts                  Session and message storage
-  libs/agentEngine/               Engine adapters and router
-  libs/externalAgent*.ts          External CLI setup and config helpers
-  im/                             IM gateway integrations
-
-src/renderer/
-  App.tsx                         App shell
-  components/cowork/              Chat, studio, activity workspace, engine UI
-  components/Settings.tsx         Model, engine, IM, skills, memory, and app settings
-  components/pet/                 Desktop companion UI
-  services/                       IPC wrappers and app services
-  store/slices/                   Redux state
-
-SKILLs/                           Built-in skills
-scripts/                          Runtime, packaging, and setup scripts
-src/shared/                       Shared constants and types
+```
+src/
+├── main/                        # Electron main process
+│   ├── main.ts                  # Entry point, IPC handlers, window lifecycle
+│   ├── preload.ts               # Safe renderer bridge via contextBridge
+│   ├── sqliteStore.ts           # Local persistence (settings, sessions, etc.)
+│   ├── coworkStore.ts           # Cowork session and message storage
+│   ├── skillManager.ts          # Skill loading and management
+│   ├── im/                      # IM gateway integrations
+│   │   ├── feishu/              # Feishu (Lark) gateway
+│   │   ├── dingtalk/            # DingTalk gateway
+│   │   ├── telegram/            # Telegram gateway
+│   │   ├── discord/             # Discord gateway
+│   │   ├── wecom/               # WeCom gateway
+│   │   ├── wechat/              # WeChat gateway
+│   │   └── qq/                  # QQ gateway
+│   └── libs/
+│       ├── agentEngine/         # Engine adapters and router
+│       │   ├── coworkEngineRouter.ts   # Routes to built-in or external engines
+│       │   ├── claudeRuntimeAdapter.ts # Built-in Claude Agent SDK adapter
+│       │   └── openclawRuntimeAdapter.ts # OpenClaw gateway adapter
+│       ├── coworkRunner.ts      # Agent execution engine
+│       ├── coworkMemoryExtractor.ts # Memory extraction from conversations
+│       └── openclawEngineManager.ts  # OpenClaw runtime lifecycle
+│
+├── renderer/                    # React frontend (renderer process)
+│   ├── App.tsx                  # App shell
+│   ├── components/
+│   │   ├── cowork/              # Chat, studio, activity workspace, engine UI
+│   │   ├── Settings.tsx         # Model, engine, IM, skills, memory, and app settings
+│   │   └── pet/                 # Desktop companion UI
+│   ├── services/                # IPC wrappers and app services
+│   └── store/slices/            # Redux state management
+│
+├── shared/                      # Shared constants and types
+│
+SKILLs/                          # Built-in skills
+scripts/                         # Runtime, packaging, and setup scripts
 ```
 
-## Built-in Skills
+### Built-in Skills
 
-Agora includes a broad skills library for day-to-day agent work and connects to SkillHub for marketplace installation.
-
-| Area           | Examples                                                                  |
-| -------------- | ------------------------------------------------------------------------- |
-| Research       | web search, tech news, stock research, film/music search                  |
-| Documents      | DOCX, XLSX, PPTX, PDF processing                                          |
-| Automation     | Playwright, local tools, scheduled tasks                                  |
-| Creative       | Remotion video, frontend design, canvas design, image and video workflows |
-| Communication  | IMAP/SMTP email and IM channels                                           |
-| Agent building | skill creator, skill vetting, custom planning                             |
+| Area | Examples |
+|------|----------|
+| Research | Web search, tech news, stock research, film/music search |
+| Documents | DOCX, XLSX, PPTX, PDF processing |
+| Automation | Playwright, local tools, scheduled tasks |
+| Creative | Remotion video, frontend design, canvas design, image and video workflows |
+| Communication | IMAP/SMTP email and IM channels |
+| Agent building | Skill creator, skill vetting, custom planning |
 
 Skills can be installed, enabled, disabled, deleted, and routed from the desktop UI.
 
+---
+
 ## Security Model
 
-- Context isolation is enabled.
-- Node integration is disabled in the renderer.
-- Sensitive operations run through main-process IPC.
-- Tool execution can surface permission requests before running.
+- **Context isolation** is enabled in the renderer.
+- **Node integration** is disabled in the renderer.
+- Sensitive operations run through main-process IPC only.
+- Tool execution surfaces permission requests before running.
 - Local data is stored in SQLite under the app data directory.
-- Runtime folders, build artifacts, generated assets, and local secrets are ignored by Git.
+- Runtime folders, build artifacts, generated assets, and local secrets are gitignored.
 
-## Roadmap Ideas
+---
 
-- More engine adapters and runtime profiles
-- Better local configuration import and provider sync flows
-- Richer IM agent profiles and message formats
-- Shareable task templates
-- More visual inspection tools for long-running agent tasks
-- Skill marketplace updates, reviews, and version management
+## Contributing
 
-## Community WeChat Group
+Contributions are welcome! Whether it's bug fixes, new features, documentation improvements, or community support — every contribution helps.
 
-Scan the QR code below to join the Agora WeChat group and talk with other builders. The QR code is valid until June 8, 2026; if it expires, follow the official account below to get the latest invite.
+1. **Fork** the repository.
+2. **Create a feature branch**: `git checkout -b feat/my-feature`.
+3. **Commit your changes**: `git commit -m 'feat: add some feature'`.
+4. **Push to the branch**: `git push origin feat/my-feature`.
+5. **Open a Pull Request**.
 
-<p align="center">
-  <img src="public/readme/community/wechat-group.jpg" alt="Agora WeChat Group" width="320">
-</p>
+Please ensure your code passes linting (`npm run lint`) and follows the existing code style.
 
-## Star History
+### Development Guidelines
 
-[![Star History Chart](https://api.star-history.com/svg?repos=freestylefly/agora&type=Date)](https://star-history.com/#freestylefly/agora&Date)
+- Use conventional commit messages (`feat:`, `fix:`, `docs:`, `refactor:`, etc.).
+- Keep the renderer free of Node.js direct dependencies — use IPC bridges.
+- Add tests for new features when applicable (run with `npm run test:memory`).
 
-## WeChat Official Account
-
-Search **苍何** on WeChat or scan the QR code below to follow Canghe's original WeChat official account. Reply with **AI** to get more AI prompt and agent workflow resources.
-
-<p align="center">
-  <img src="public/wechat-official-account.png" alt="Canghe WeChat Official Account" width="280">
-</p>
+---
 
 ## Acknowledgements
 
-Agora is shaped by many excellent open-source projects and agent community practices. Special thanks to:
+Agora is shaped by many excellent open-source projects and agent community practices:
 
-- [OpenCode](https://github.com/opencode-ai/opencode) for pioneering open terminal agent workflows and serving as the default engine.
-- [OpenClaw](https://github.com/openclaw/openclaw) for exploring local agent runtimes, gateways, and IM agent capabilities.
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) for local agent runtime, gateway, and model configuration ideas.
-- [Star-Office-UI](https://github.com/ringhyacinth/Star-Office-UI) for the pixel-style AI studio inspiration.
-- [SkillHub](https://skillhub.lol/skills) for ideas around skill discovery, installation, and marketplace flows.
-- The terminal-agent ecosystem around Claude Code, Codex, OpenCode, Qwen Code, DeepSeek-TUI, and the builders pushing local AI agent workflows forward.
+- [OpenCode](https://github.com/opencode-ai/opencode) — pioneering open terminal agent workflows, serving as the default engine.
+- [OpenClaw](https://github.com/openclaw/openclaw) — local agent runtime, gateway, and IM agent capabilities.
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — local agent runtime, gateway, and model configuration ideas.
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code/) — terminal-based agent workflow inspiration.
+- [Codex](https://github.com/openai/codex) — CLI agent for local task execution.
+- [DeepSeek-TUI](https://github.com/deepseek-ai/deepseek-tui) — terminal UI for DeepSeek models.
+- [SkillHub](https://skillhub.lol/skills) — skill discovery, installation, and marketplace flows.
+- The broader terminal-agent ecosystem and everyone pushing local AI agent workflows forward.
+
+---
 
 ## License
 
