@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24.x'
+
+jobs:
+  # ========== Stage 1: 变更检测 ==========
+  changed-files:
+    runs-on: ubuntu-latest
+    outputs:
+      renderer: ${{ steps.changes.outputs.renderer }}
+      main: ${{ steps.changes.outputs.main }}
+      skills: ${{ steps.changes.outputs.skills }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            renderer:
+              - 'src/renderer/**'
+              - 'vite.config.ts'
+              - 'tsconfig.json'
+              - 'tailwind.config.js'
+              - 'postcss.config.js'
+            main:
+              - 'src/main/**'
+              - 'src/common/**'
+              - 'src/shared/**'
+              - 'electron-tsconfig.json'
+            skills:
+              - 'SKILLs/**'
+
+  # ========== Stage 2: 代码质量 ==========
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Lint changed files
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only --diff-filter=ACMR origin/${BASE_REF}...HEAD -- '*.ts' '*.tsx')
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            FILES=$(git diff --name-only --diff-filter=ACMR ${BEFORE_SHA}...HEAD -- '*.ts' '*.tsx')
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR HEAD~1 -- '*.ts' '*.tsx')
+          fi
+          if [ -n "$FILES" ]; then
+            echo "Linting changed files:"
+            echo "$FILES"
+            echo "$FILES" | xargs -d '\n' npx eslint --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+          else
+            echo "No TypeScript files changed, skipping lint"
+          fi
+
+  # ========== Stage 3: Renderer 构建 ==========
+  build-renderer:
+    needs: [changed-files, lint]
+    if: ${{ needs.changed-files.outputs.renderer == 'true' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vite build
+
+  # ========== Stage 4: Main 进程构建 ==========
+  build-main:
+    needs: [changed-files, lint]
+    if: ${{ needs.changed-files.outputs.main == 'true' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --project electron-tsconfig.json --noEmit
+
+  # ========== Stage 5: 测试 ==========
+  test:
+    needs: [lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm rebuild better-sqlite3
+      - run: npm test
+
+  # ========== Stage 6: Skills 检查 ==========
+  check-skills:
+    needs: [changed-files]
+    if: ${{ needs.changed-files.outputs.skills == 'true' || github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate skill frontmatter
+        run: |
+          for skill_dir in SKILLs/*/; do
+            skill_file="${skill_dir}SKILL.md"
+            if [ -f "$skill_file" ]; then
+              echo "Checking $skill_file"
+              head -1 "$skill_file" | grep -q "^---" || { echo "ERROR: $skill_file missing YAML frontmatter"; exit 1; }
+            fi
+          done
+          echo "All skills validated"
