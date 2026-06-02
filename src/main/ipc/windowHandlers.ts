@@ -1,11 +1,11 @@
 /**
  * Agora — Window IPC Handlers
- * 
+ *
  * Window control: minimize, maximize, close, system menu.
- * Pure pass-through to Electron BrowserWindow API.
+ * Extracted from main.ts to keep the main process entrypoint focused.
  */
 
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, Menu } from 'electron';
 
 export function registerWindowHandlers(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.on('window-minimize', () => {
@@ -29,14 +29,28 @@ export function registerWindowHandlers(getMainWindow: () => BrowserWindow | null
     return getMainWindow()?.isMaximized() ?? false;
   });
 
+  /**
+   * Show the window system menu (Windows-only custom title bar context menu).
+   * Builds a template with Restore / Minimize / Maximize / Close entries.
+   * Mirrors the original implementation from main.ts.
+   */
   ipcMain.on('window:showSystemMenu', (_event, position?: { x?: number; y?: number }) => {
     const win = getMainWindow();
-    if (!win) return;
-    const menu = Menu.getApplicationMenu();
-    if (!menu) return;
-    const { x, y } = position ?? { x: undefined, y: undefined };
-    menu.popup({ window: win, x, y });
+    if (!win || win.isDestroyed()) return;
+
+    const isMaximized = win.isMaximized();
+    const menu = Menu.buildFromTemplate([
+      { label: 'Restore', enabled: isMaximized, click: () => win.restore() },
+      { role: 'minimize' },
+      { label: 'Maximize', enabled: !isMaximized, click: () => win.maximize() },
+      { type: 'separator' },
+      { role: 'close' },
+    ]);
+
+    menu.popup({
+      window: win,
+      x: Math.max(0, Math.round(position?.x ?? 0)),
+      y: Math.max(0, Math.round(position?.y ?? 0)),
+    });
   });
 }
-
-import { Menu } from 'electron';

@@ -8,7 +8,7 @@
  *
  * Usage in main.ts:
  *   import { registerAllHandlers } from './ipc';
- *   registerAllHandlers({ getMainWindow, getStore, ... });
+ *   registerAllHandlers({ getMainWindow, app, store, ... });
  */
 
 import { BrowserWindow } from 'electron';
@@ -33,10 +33,11 @@ import { registerEngineHandlers, type EngineDeps } from './engineHandlers';
 export interface AllHandlerDeps {
   getMainWindow: () => BrowserWindow | null;
 
-  // Store
+  // Store (direct pass-through)
   getStore: <T = unknown>(key: string, defaultValue?: T) => T;
   setStore: (key: string, value: unknown) => void;
   deleteStoreKey: (key: string) => void;
+  onAppConfigChanged?: () => Promise<void>;
 
   // App
   app: AppDeps;
@@ -80,6 +81,7 @@ export function registerAllHandlers(deps: AllHandlerDeps): void {
     getStore: deps.getStore,
     setStore: deps.setStore,
     deleteStoreKey: deps.deleteStoreKey,
+    onAppConfigChanged: deps.onAppConfigChanged,
   });
   registerDialogHandlers({ getMainWindow: deps.getMainWindow });
   registerShellHandlers(deps.shell);
