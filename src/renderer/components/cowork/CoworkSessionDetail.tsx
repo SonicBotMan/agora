@@ -2492,10 +2492,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
           return i18nService.t('coworkAgentEngineCodex');
         case CoworkAgentEngine.OpenCode:
           return i18nService.t('coworkAgentEngineOpenCode');
-        case CoworkAgentEngine.GrokBuild:
-          return i18nService.t('coworkAgentEngineGrokBuild');
-        case CoworkAgentEngine.QwenCode:
-          return i18nService.t('coworkAgentEngineQwenCode');
         case CoworkAgentEngine.DeepSeekTui:
           return i18nService.t('coworkAgentEngineDeepSeekTui');
         case CoworkAgentEngine.OpenClaw:
@@ -2513,10 +2509,6 @@ const CoworkSessionDetail: React.FC<CoworkSessionDetailProps> = ({
         return i18nService.t('coworkAgentEngineCodex');
       case CoworkAgentEngine.OpenCode:
         return i18nService.t('coworkAgentEngineOpenCode');
-      case CoworkAgentEngine.GrokBuild:
-        return i18nService.t('coworkAgentEngineGrokBuild');
-      case CoworkAgentEngine.QwenCode:
-        return i18nService.t('coworkAgentEngineQwenCode');
       case CoworkAgentEngine.DeepSeekTui:
         return i18nService.t('coworkAgentEngineDeepSeekTui');
       case CoworkAgentEngine.OpenClaw:

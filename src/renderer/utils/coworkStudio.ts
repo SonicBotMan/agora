@@ -82,24 +82,6 @@ const engineAvatarManifest: Record<CoworkAgentEngine, CoworkStudioAvatar> = {
     faceColor: 0xb6f7c6,
     prop: 'console',
   },
-  [CoworkAgentEngine.GrokBuild]: {
-    id: 'grok_build',
-    nameTag: 'Grok Build',
-    primaryColor: 0x111827,
-    secondaryColor: 0x020617,
-    accentColor: 0x34d399,
-    faceColor: 0xd1fae5,
-    prop: 'console',
-  },
-  [CoworkAgentEngine.QwenCode]: {
-    id: 'qwen_code',
-    nameTag: 'Qwen Code',
-    primaryColor: 0x2f9ccf,
-    secondaryColor: 0x17527a,
-    accentColor: 0xa7e8ff,
-    faceColor: 0xc9f0ff,
-    prop: 'book',
-  },
   [CoworkAgentEngine.DeepSeekTui]: {
     id: 'deepseek_tui',
     nameTag: 'DeepSeek',
@@ -129,8 +111,6 @@ const getConfigSource = (config: CoworkConfig): ExternalAgentConfigSource | null
   if (config.agentEngine === CoworkAgentEngine.Codex) return config.codexConfigSource;
   if (config.agentEngine === CoworkAgentEngine.Hermes) return config.hermesConfigSource;
   if (config.agentEngine === CoworkAgentEngine.OpenCode) return config.opencodeConfigSource;
-  if (config.agentEngine === CoworkAgentEngine.GrokBuild) return ExternalAgentConfigSource.LocalCli;
-  if (config.agentEngine === CoworkAgentEngine.QwenCode) return config.qwenCodeConfigSource;
   if (config.agentEngine === CoworkAgentEngine.DeepSeekTui) return config.deepseekTuiConfigSource;
   if (config.agentEngine === CoworkAgentEngine.OpenClaw) return config.openclawConfigSource;
   return null;

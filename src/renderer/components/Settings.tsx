@@ -6,7 +6,6 @@ import {
   DeepSeekTuiPermissionMode as DeepSeekTuiPermissionModeValue,
   ExternalAgentConfigSource as ExternalAgentConfigSourceValue,
   OpenCodePermissionMode as OpenCodePermissionModeValue,
-  QwenCodePermissionMode as QwenCodePermissionModeValue,
 } from '@shared/cowork/constants';
 import React, { useCallback,useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -40,7 +39,6 @@ import type {
   HermesEngineStatus,
   OpenClawEngineStatus,
   OpenCodePermissionMode,
-  QwenCodePermissionMode,
 } from '../types/cowork';
 import AgentsView from './agent/AgentsView';
 import Modal from './common/Modal';
@@ -106,16 +104,6 @@ const COWORK_AGENT_ENGINE_OPTIONS: Array<{
     value: CoworkAgentEngineValue.OpenCode,
     labelKey: 'coworkAgentEngineOpenCode',
     hintKey: 'coworkAgentEngineOpenCodeHint',
-  },
-  {
-    value: CoworkAgentEngineValue.GrokBuild,
-    labelKey: 'coworkAgentEngineGrokBuild',
-    hintKey: 'coworkAgentEngineGrokBuildHint',
-  },
-  {
-    value: CoworkAgentEngineValue.QwenCode,
-    labelKey: 'coworkAgentEngineQwenCode',
-    hintKey: 'coworkAgentEngineQwenCodeHint',
   },
   {
     value: CoworkAgentEngineValue.DeepSeekTui,
@@ -804,12 +792,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [opencodePermissionMode, setOpenCodePermissionMode] = useState<OpenCodePermissionMode>(
     coworkConfig.opencodePermissionMode ?? OpenCodePermissionModeValue.Auto,
   );
-  const [qwenCodeConfigSource, setQwenCodeConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.qwenCodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [qwenCodePermissionMode, setQwenCodePermissionMode] = useState<QwenCodePermissionMode>(
-    coworkConfig.qwenCodePermissionMode ?? QwenCodePermissionModeValue.Auto,
-  );
   const [deepseekTuiConfigSource, setDeepSeekTuiConfigSource] = useState<ExternalAgentConfigSource>(
     coworkConfig.deepseekTuiConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
   );
@@ -819,7 +801,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [agentConfigImportingAppType, setAgentConfigImportingAppType] = useState<ExternalAgentProviderAppType | null>(null);
   const [openclawGlobalSyncing, setOpenClawGlobalSyncing] = useState(false);
   const [opencodeGlobalSyncing, setOpenCodeGlobalSyncing] = useState(false);
-  const [qwenCodeGlobalSyncing, setQwenCodeGlobalSyncing] = useState(false);
   const [deepseekTuiGlobalSyncing, setDeepSeekTuiGlobalSyncing] = useState(false);
   const [agentCliInstallingAppType, setAgentCliInstallingAppType] = useState<ExternalAgentProviderAppType | null>(null);
   const [agentCliInstallProgress, setAgentCliInstallProgress] = useState<Record<ExternalAgentProviderAppType, string>>({
@@ -828,8 +809,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     hermes: '',
     openclaw: '',
     opencode: '',
-    grok: '',
-    qwen: '',
     deepseek_tui: '',
   });
   const [agentProviderLists, setAgentProviderLists] = useState<Partial<Record<ExternalAgentProviderAppType, ExternalAgentProviderListResult>>>({});
@@ -841,7 +820,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     if (coworkAgentEngine === CoworkAgentEngineValue.Codex) return 'codex';
     if (coworkAgentEngine === CoworkAgentEngineValue.Hermes) return 'hermes';
     if (coworkAgentEngine === CoworkAgentEngineValue.OpenCode) return 'opencode';
-    if (coworkAgentEngine === CoworkAgentEngineValue.QwenCode) return 'qwen';
     if (coworkAgentEngine === CoworkAgentEngineValue.DeepSeekTui) return 'deepseek_tui';
     return null;
   }, [coworkAgentEngine]);
@@ -855,8 +833,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     setHermesConfigSource(coworkConfig.hermesConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
     setOpenCodeConfigSource(coworkConfig.opencodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
     setOpenCodePermissionMode(coworkConfig.opencodePermissionMode ?? OpenCodePermissionModeValue.Auto);
-    setQwenCodeConfigSource(coworkConfig.qwenCodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setQwenCodePermissionMode(coworkConfig.qwenCodePermissionMode ?? QwenCodePermissionModeValue.Auto);
     setDeepSeekTuiConfigSource(coworkConfig.deepseekTuiConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
     setDeepSeekTuiPermissionMode(coworkConfig.deepseekTuiPermissionMode ?? DeepSeekTuiPermissionModeValue.Auto);
     setCoworkMemoryEnabled(coworkConfig.memoryEnabled ?? true);
@@ -870,8 +846,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     coworkConfig.hermesConfigSource,
     coworkConfig.opencodeConfigSource,
     coworkConfig.opencodePermissionMode,
-    coworkConfig.qwenCodeConfigSource,
-    coworkConfig.qwenCodePermissionMode,
     coworkConfig.deepseekTuiConfigSource,
     coworkConfig.deepseekTuiPermissionMode,
     coworkConfig.memoryEnabled,
@@ -1568,8 +1542,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     || hermesConfigSource !== coworkConfig.hermesConfigSource
     || opencodeConfigSource !== coworkConfig.opencodeConfigSource
     || opencodePermissionMode !== coworkConfig.opencodePermissionMode
-    || qwenCodeConfigSource !== coworkConfig.qwenCodeConfigSource
-    || qwenCodePermissionMode !== coworkConfig.qwenCodePermissionMode
     || deepseekTuiConfigSource !== coworkConfig.deepseekTuiConfigSource
     || deepseekTuiPermissionMode !== coworkConfig.deepseekTuiPermissionMode
     || coworkMemoryEnabled !== coworkConfig.memoryEnabled
@@ -1587,9 +1559,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     || (coworkAgentEngine === CoworkAgentEngineValue.OpenCode
       && (opencodeConfigSource !== coworkConfig.opencodeConfigSource
         || opencodePermissionMode !== coworkConfig.opencodePermissionMode))
-    || (coworkAgentEngine === CoworkAgentEngineValue.QwenCode
-      && (qwenCodeConfigSource !== coworkConfig.qwenCodeConfigSource
-        || qwenCodePermissionMode !== coworkConfig.qwenCodePermissionMode))
     || (coworkAgentEngine === CoworkAgentEngineValue.DeepSeekTui
       && (deepseekTuiConfigSource !== coworkConfig.deepseekTuiConfigSource
         || deepseekTuiPermissionMode !== coworkConfig.deepseekTuiPermissionMode));
@@ -1986,8 +1955,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
           hermesConfigSource,
           opencodeConfigSource,
           opencodePermissionMode,
-          qwenCodeConfigSource,
-          qwenCodePermissionMode,
           deepseekTuiConfigSource,
           deepseekTuiPermissionMode,
           memoryEnabled: coworkMemoryEnabled,
@@ -3018,8 +2985,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
       || engine === CoworkAgentEngineValue.Codex
       || engine === CoworkAgentEngineValue.Hermes
       || engine === CoworkAgentEngineValue.OpenCode
-      || engine === CoworkAgentEngineValue.GrokBuild
-      || engine === CoworkAgentEngineValue.QwenCode
       || engine === CoworkAgentEngineValue.DeepSeekTui
     ) {
       return (
@@ -3104,7 +3069,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     if (selectedExternalAgentAppType === 'codex') return codexConfigSource;
     if (selectedExternalAgentAppType === 'hermes') return hermesConfigSource;
     if (selectedExternalAgentAppType === 'opencode') return opencodeConfigSource;
-    if (selectedExternalAgentAppType === 'qwen') return qwenCodeConfigSource;
     if (selectedExternalAgentAppType === 'deepseek_tui') return deepseekTuiConfigSource;
     return null;
   }, [
@@ -3112,8 +3076,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     codexConfigSource,
     deepseekTuiConfigSource,
     hermesConfigSource,
-    opencodeConfigSource,
-    qwenCodeConfigSource,
+    deepseekTuiConfigSource,
     selectedExternalAgentAppType,
   ]);
 
@@ -3133,10 +3096,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }
     if (selectedExternalAgentAppType === 'opencode') {
       setOpenCodeConfigSource(source);
-      return;
-    }
-    if (selectedExternalAgentAppType === 'qwen') {
-      setQwenCodeConfigSource(source);
       return;
     }
     if (selectedExternalAgentAppType === 'deepseek_tui') {
@@ -3288,28 +3247,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
       }));
     } finally {
       setOpenCodeGlobalSyncing(false);
-    }
-  };
-
-  const handleSyncQwenCodeGlobalConfig = async () => {
-    setError(null);
-    setQwenCodeGlobalSyncing(true);
-    try {
-      const result = await coworkService.syncQwenCodeGlobalConfig();
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentQwenCodeSyncGlobalFailed'));
-        return;
-      }
-      setAgentProviderLists((prev) => ({
-        ...prev,
-        qwen: result,
-      }));
-      setNoticeMessage(i18nService.t('coworkAgentQwenCodeSyncGlobalSuccess'));
-      window.dispatchEvent(new CustomEvent('agora-agent-provider-changed', {
-        detail: { appType: 'qwen' },
-      }));
-    } finally {
-      setQwenCodeGlobalSyncing(false);
     }
   };
 
@@ -3509,56 +3446,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
           </div>
         )}
 
-        {selectedExternalAgentAppType === 'qwen' && (
-          <div className="rounded-xl border border-border px-3 py-3">
-            <div className="text-xs font-medium text-foreground">
-              {i18nService.t('coworkAgentQwenCodePermissionTitle')}
-            </div>
-            <div className="mt-1 text-[11px] leading-5 text-secondary">
-              {i18nService.t('coworkAgentQwenCodePermissionHint')}
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {[
-                {
-                  value: QwenCodePermissionModeValue.Auto,
-                  labelKey: 'coworkAgentQwenCodePermissionAuto',
-                  hintKey: 'coworkAgentQwenCodePermissionAutoHint',
-                },
-                {
-                  value: QwenCodePermissionModeValue.Conservative,
-                  labelKey: 'coworkAgentQwenCodePermissionConservative',
-                  hintKey: 'coworkAgentQwenCodePermissionConservativeHint',
-                },
-              ].map((option) => {
-                const checked = qwenCodePermissionMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="qwen-code-permission-mode"
-                      checked={checked}
-                      disabled={isSaving}
-                      onChange={() => setQwenCodePermissionMode(option.value)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block text-xs font-medium text-foreground">
-                        {i18nService.t(option.labelKey)}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-5 text-secondary">
-                        {i18nService.t(option.hintKey)}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {selectedExternalAgentAppType === 'deepseek_tui' && (
           <div className="rounded-xl border border-border px-3 py-3">
             <div className="text-xs font-medium text-foreground">
@@ -3674,24 +3561,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
               {i18nService.t(opencodeGlobalSyncing
                 ? 'coworkAgentOpenCodeSyncGlobalSyncing'
                 : 'coworkAgentOpenCodeSyncGlobal')}
-            </button>
-          </div>
-        )}
-
-        {selectedExternalAgentAppType === 'qwen' && selectedAgentConfigSource === ExternalAgentConfigSourceValue.AgoraModel && (
-          <div className="flex flex-col gap-2 rounded-xl border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs leading-5 text-secondary">
-              {i18nService.t('coworkAgentQwenCodeSyncGlobalHint')}
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleSyncQwenCodeGlobalConfig()}
-              disabled={qwenCodeGlobalSyncing}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:cursor-wait disabled:opacity-50"
-            >
-              {i18nService.t(qwenCodeGlobalSyncing
-                ? 'coworkAgentQwenCodeSyncGlobalSyncing'
-                : 'coworkAgentQwenCodeSyncGlobal')}
             </button>
           </div>
         )}

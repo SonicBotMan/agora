@@ -274,7 +274,7 @@ class IMService {
   isAnyConnected(): boolean {
     const status = this.getStatus();
     return PlatformRegistry.platforms.some(p => {
-      const s = status[p];
+      const s = (status as any)[p];
       if (p === 'qq' || p === 'feishu' || p === 'dingtalk') {
         return (s as any)?.instances?.some((i: any) => i.connected);
       }

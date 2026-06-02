@@ -49,8 +49,6 @@ const makeConfig = (agentEngine: CoworkAgentEngine): CoworkConfig => ({
   hermesConfigSource: ExternalAgentConfigSource.AgoraModel,
   opencodeConfigSource: ExternalAgentConfigSource.AgoraModel,
   opencodePermissionMode: 'auto',
-  qwenCodeConfigSource: ExternalAgentConfigSource.AgoraModel,
-  qwenCodePermissionMode: 'auto',
   deepseekTuiConfigSource: ExternalAgentConfigSource.AgoraModel,
   deepseekTuiPermissionMode: 'auto',
   memoryEnabled: true,

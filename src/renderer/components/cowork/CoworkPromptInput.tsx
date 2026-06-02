@@ -65,8 +65,6 @@ const getSlashCommandsForEngine = (engine: CoworkAgentEngine | undefined): Slash
   if (
     engine === CoworkAgentEngine.ClaudeCode
     || engine === CoworkAgentEngine.Codex
-    || engine === CoworkAgentEngine.GrokBuild
-    || engine === CoworkAgentEngine.QwenCode
     || engine === CoworkAgentEngine.DeepSeekTui
   ) {
     return SUPPORTED_COWORK_SLASH_COMMANDS;
@@ -930,13 +928,9 @@ const CoworkPromptInput = React.forwardRef<CoworkPromptInputRef, CoworkPromptInp
                   ? 'coworkSlashCommandsClaudeCode'
                   : agentEngine === CoworkAgentEngine.Codex
                     ? 'coworkSlashCommandsCodex'
-                    : agentEngine === CoworkAgentEngine.GrokBuild
-                      ? 'coworkSlashCommandsGrokBuild'
-                    : agentEngine === CoworkAgentEngine.QwenCode
-                      ? 'coworkSlashCommandsQwenCode'
-                      : agentEngine === CoworkAgentEngine.DeepSeekTui
-                        ? 'coworkSlashCommandsDeepSeekTui'
-                        : 'coworkSlashCommandsAgora'
+                    : agentEngine === CoworkAgentEngine.DeepSeekTui
+                      ? 'coworkSlashCommandsDeepSeekTui'
+                      : 'coworkSlashCommandsAgora'
               )}
             </div>
             <div className="max-h-72 overflow-y-auto p-1">

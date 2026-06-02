@@ -23,7 +23,6 @@ const IM_PLATFORMS: { key: IMPlatform; logo: string }[] = [
   { key: 'qq', logo: 'qq_bot.jpeg' },
   { key: 'telegram', logo: 'telegram.svg' },
   { key: 'discord', logo: 'discord.svg' },
-  { key: 'nim', logo: 'nim.png' },
   { key: 'xiaomifeng', logo: 'xiaomifeng.png' },
   { key: 'weixin', logo: 'weixin.png' },
   { key: 'wecom', logo: 'wecom.png' },

@@ -145,8 +145,6 @@ const getEngineLabel = (engine: string): string => {
   if (engine === CoworkAgentEngine.ClaudeCode) return i18nService.t('coworkAgentEngineClaudeCode');
   if (engine === CoworkAgentEngine.Codex) return i18nService.t('coworkAgentEngineCodex');
   if (engine === CoworkAgentEngine.OpenCode) return i18nService.t('coworkAgentEngineOpenCode');
-  if (engine === CoworkAgentEngine.GrokBuild) return i18nService.t('coworkAgentEngineGrokBuild');
-  if (engine === CoworkAgentEngine.QwenCode) return i18nService.t('coworkAgentEngineQwenCode');
   if (engine === CoworkAgentEngine.DeepSeekTui) return i18nService.t('coworkAgentEngineDeepSeekTui');
   return i18nService.t('coworkAgentEngineOpenCode');
 };
@@ -192,15 +190,6 @@ const resolveLocalCliAppType = (
     && config.opencodeConfigSource === ExternalAgentConfigSource.LocalCli
   ) {
     return 'opencode';
-  }
-  if (engine === CoworkAgentEngine.GrokBuild) {
-    return 'grok';
-  }
-  if (
-    engine === CoworkAgentEngine.QwenCode
-    && config.qwenCodeConfigSource === ExternalAgentConfigSource.LocalCli
-  ) {
-    return 'qwen';
   }
   if (
     engine === CoworkAgentEngine.DeepSeekTui

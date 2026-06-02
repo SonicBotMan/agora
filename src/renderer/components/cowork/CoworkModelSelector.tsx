@@ -57,15 +57,6 @@ const resolveLocalCliAppType = (config: RootState['cowork']['config']): External
   ) {
     return 'opencode';
   }
-  if (config.agentEngine === CoworkAgentEngine.GrokBuild) {
-    return 'grok';
-  }
-  if (
-    config.agentEngine === CoworkAgentEngine.QwenCode
-    && config.qwenCodeConfigSource === ExternalAgentConfigSource.LocalCli
-  ) {
-    return 'qwen';
-  }
   if (
     config.agentEngine === CoworkAgentEngine.DeepSeekTui
     && config.deepseekTuiConfigSource === ExternalAgentConfigSource.LocalCli

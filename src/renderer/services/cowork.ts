@@ -710,12 +710,6 @@ class CoworkService {
     return api();
   }
 
-  async syncQwenCodeGlobalConfig(): Promise<ExternalAgentProviderListResult> {
-    const api = window.electron?.cowork?.syncQwenCodeGlobalConfig;
-    if (!api) return { success: false, error: 'Cowork Qwen Code sync API not available' };
-    return api();
-  }
-
   async syncDeepSeekTuiGlobalConfig(): Promise<ExternalAgentProviderListResult> {
     const api = window.electron?.cowork?.syncDeepSeekTuiGlobalConfig;
     if (!api) return { success: false, error: 'Cowork DeepSeek-TUI sync API not available' };

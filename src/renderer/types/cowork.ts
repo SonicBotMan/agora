@@ -5,7 +5,6 @@ import type {
   DeepSeekTuiPermissionMode,
   ExternalAgentConfigSource,
   OpenCodePermissionMode,
-  QwenCodePermissionMode,
 } from '@shared/cowork/constants';
 export type { CoworkFileActivity } from '@shared/cowork/fileActivity';
 import type { CoworkSessionRuntimeSnapshot } from '@shared/cowork/runtimeSnapshot';
@@ -35,7 +34,7 @@ export type CoworkMessageType = 'user' | 'assistant' | 'tool_use' | 'tool_result
 export type CoworkExecutionMode = 'auto' | 'local' | 'sandbox';
 export type { CoworkAgentEngine, ExternalAgentConfigSource };
 export type { CoworkSessionKind };
-export type { ClaudeCodePermissionMode, DeepSeekTuiPermissionMode, OpenCodePermissionMode, QwenCodePermissionMode };
+export type { ClaudeCodePermissionMode, DeepSeekTuiPermissionMode, OpenCodePermissionMode };
 
 // Cowork message metadata
 export interface CoworkMessageMetadata {
@@ -96,8 +95,6 @@ export interface CoworkConfig {
   hermesConfigSource: ExternalAgentConfigSource;
   opencodeConfigSource: ExternalAgentConfigSource;
   opencodePermissionMode: OpenCodePermissionMode;
-  qwenCodeConfigSource: ExternalAgentConfigSource;
-  qwenCodePermissionMode: QwenCodePermissionMode;
   deepseekTuiConfigSource: ExternalAgentConfigSource;
   deepseekTuiPermissionMode: DeepSeekTuiPermissionMode;
   memoryEnabled: boolean;
@@ -119,8 +116,6 @@ export type CoworkConfigUpdate = Partial<Pick<
   | 'hermesConfigSource'
   | 'opencodeConfigSource'
   | 'opencodePermissionMode'
-  | 'qwenCodeConfigSource'
-  | 'qwenCodePermissionMode'
   | 'deepseekTuiConfigSource'
   | 'deepseekTuiPermissionMode'
   | 'memoryEnabled'
@@ -261,7 +256,7 @@ export interface CoworkConfigResult {
   error?: string;
 }
 
-export type CliAppType = 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui';
+export type CliAppType = 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui';
 
 export interface CliAppConfigSnapshot {
   appType: CliAppType;
@@ -275,7 +270,7 @@ export interface CliAppConfigSnapshot {
 }
 
 export interface CliCommandStatus {
-  engine: Extract<CoworkAgentEngine, 'openclaw' | 'claude_code' | 'codex' | 'hermes' | 'opencode' | 'grok_build' | 'qwen_code' | 'deepseek_tui'>;
+  engine: Extract<CoworkAgentEngine, 'openclaw' | 'claude_code' | 'codex' | 'hermes' | 'opencode' | 'deepseek_tui'>;
   appType: CliAppType;
   command: string;
   found: boolean;

@@ -76,33 +76,7 @@ const DEFINITIONS = [
     logo: 'qq_bot.jpeg',
     guideUrl: 'https://agora.ai/docs/im-bot-config/qqqq-bot',
   },
-  {
-    id: 'nim',
-    label: 'NIM',
-    region: 'china',
-    channel: 'nim',
-    channelAliases: [],
-    logo: 'nim.png',
-    guideUrl: '',
-  },
-  {
-    id: 'netease-bee',
-    label: 'NetEase Bee',
-    region: 'china',
-    channel: 'netease-bee',
-    channelAliases: [],
-    logo: 'netease-bee.png',
-    guideUrl: '',
-  },
-  {
-    id: 'popo',
-    label: 'POPO',
-    region: 'china',
-    channel: 'moltbot-popo',
-    channelAliases: ['popo'],
-    logo: 'popo.png',
-    guideUrl: '',
-  },
+
   // ── Global ──
   {
     id: 'telegram',

@@ -1,12 +1,10 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   ClaudeCodePermissionMode,
-  CoworkAgentEngine,
   DeepSeekTuiPermissionMode,
   DefaultCoworkAgentEngine,
   ExternalAgentConfigSource,
   OpenCodePermissionMode,
-  QwenCodePermissionMode,
 } from '@shared/cowork/constants';
 import { type CoworkFileActivity,CoworkFileActivityStatus } from '@shared/cowork/fileActivity';
 
@@ -67,8 +65,6 @@ const initialState: CoworkState = {
     hermesConfigSource: ExternalAgentConfigSource.AgoraModel,
     opencodeConfigSource: ExternalAgentConfigSource.AgoraModel,
     opencodePermissionMode: OpenCodePermissionMode.Auto,
-    qwenCodeConfigSource: ExternalAgentConfigSource.AgoraModel,
-    qwenCodePermissionMode: QwenCodePermissionMode.Auto,
     deepseekTuiConfigSource: ExternalAgentConfigSource.AgoraModel,
     deepseekTuiPermissionMode: DeepSeekTuiPermissionMode.Auto,
     memoryEnabled: true,

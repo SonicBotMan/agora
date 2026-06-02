@@ -53,16 +53,6 @@ const ENGINE_OPTIONS: Array<{
     hintKey: 'coworkAgentEngineOpenCodeHint',
   },
   {
-    engine: CoworkAgentEngine.GrokBuild,
-    labelKey: 'coworkAgentEngineGrokBuild',
-    hintKey: 'coworkAgentEngineGrokBuildHint',
-  },
-  {
-    engine: CoworkAgentEngine.QwenCode,
-    labelKey: 'coworkAgentEngineQwenCode',
-    hintKey: 'coworkAgentEngineQwenCodeHint',
-  },
-  {
     engine: CoworkAgentEngine.DeepSeekTui,
     labelKey: 'coworkAgentEngineDeepSeekTui',
     hintKey: 'coworkAgentEngineDeepSeekTuiHint',
@@ -73,8 +63,6 @@ const isCliEngine = (engine: CoworkAgentEngineType): boolean => {
   return engine === CoworkAgentEngine.ClaudeCode
     || engine === CoworkAgentEngine.Codex
     || engine === CoworkAgentEngine.OpenCode
-    || engine === CoworkAgentEngine.GrokBuild
-    || engine === CoworkAgentEngine.QwenCode
     || engine === CoworkAgentEngine.DeepSeekTui;
 };
 

@@ -75,15 +75,8 @@ const usesLocalCliModelConfigForEngine = (
     engine === CoworkAgentEngine.OpenCode
     && config.opencodeConfigSource === ExternalAgentConfigSource.LocalCli
   )
-  || engine === CoworkAgentEngine.GrokBuild
-  || (
-    engine === CoworkAgentEngine.QwenCode
-    && config.qwenCodeConfigSource === ExternalAgentConfigSource.LocalCli
-  )
-  || (
-    engine === CoworkAgentEngine.DeepSeekTui
+  || engine === CoworkAgentEngine.DeepSeekTui
     && config.deepseekTuiConfigSource === ExternalAgentConfigSource.LocalCli
-  )
 );
 
 const shouldRequireAgoraModelConfig = (engine?: CoworkAgentEngine): boolean => (
@@ -99,8 +92,6 @@ const getCliAppTypeForEngine = (engine: CoworkAgentEngine): ExternalAgentProvide
   if (engine === CoworkAgentEngine.OpenClaw) return 'openclaw';
   if (engine === CoworkAgentEngine.Hermes) return 'hermes';
   if (engine === CoworkAgentEngine.OpenCode) return 'opencode';
-  if (engine === CoworkAgentEngine.GrokBuild) return 'grok';
-  if (engine === CoworkAgentEngine.QwenCode) return 'qwen';
   if (engine === CoworkAgentEngine.DeepSeekTui) return 'deepseek_tui';
   return null;
 };
@@ -111,8 +102,6 @@ const getEngineLabelKey = (engine: CoworkAgentEngine): string => {
   if (engine === CoworkAgentEngine.ClaudeCode) return 'coworkAgentEngineClaudeCode';
   if (engine === CoworkAgentEngine.Codex) return 'coworkAgentEngineCodex';
   if (engine === CoworkAgentEngine.OpenCode) return 'coworkAgentEngineOpenCode';
-  if (engine === CoworkAgentEngine.GrokBuild) return 'coworkAgentEngineGrokBuild';
-  if (engine === CoworkAgentEngine.QwenCode) return 'coworkAgentEngineQwenCode';
   if (engine === CoworkAgentEngine.DeepSeekTui) return 'coworkAgentEngineDeepSeekTui';
   return 'coworkAgentEngineClaudeLegacy';
 };
@@ -524,7 +513,7 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         .filter(p => p?.trim())
         .join('\n\n') || undefined;
 
-      const result = await coworkService.continueSession({
+      await coworkService.continueSession({
         sessionId: currentSession.id,
         prompt,
         systemPrompt: combinedSystemPrompt,
@@ -582,10 +571,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
         return i18nService.t('coworkAgentEngineCodex');
       case CoworkAgentEngine.OpenCode:
         return i18nService.t('coworkAgentEngineOpenCode');
-      case CoworkAgentEngine.GrokBuild:
-        return i18nService.t('coworkAgentEngineGrokBuild');
-      case CoworkAgentEngine.QwenCode:
-        return i18nService.t('coworkAgentEngineQwenCode');
       case CoworkAgentEngine.DeepSeekTui:
         return i18nService.t('coworkAgentEngineDeepSeekTui');
       case CoworkAgentEngine.OpenClaw:
@@ -749,15 +734,6 @@ const CoworkView: React.FC<CoworkViewProps> = ({ onRequestAppSettings, onShowSki
     if (
       selectedRuntimeEngine === CoworkAgentEngine.OpenCode
       && config.opencodeConfigSource === ExternalAgentConfigSource.LocalCli
-    ) {
-      return i18nService.t('coworkAgentConfigSourceLocalCli');
-    }
-    if (selectedRuntimeEngine === CoworkAgentEngine.GrokBuild) {
-      return i18nService.t('coworkAgentConfigSourceLocalCli');
-    }
-    if (
-      selectedRuntimeEngine === CoworkAgentEngine.QwenCode
-      && config.qwenCodeConfigSource === ExternalAgentConfigSource.LocalCli
     ) {
       return i18nService.t('coworkAgentConfigSourceLocalCli');
     }

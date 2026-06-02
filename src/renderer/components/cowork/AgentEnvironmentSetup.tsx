@@ -83,22 +83,6 @@ const AGENT_SETUP_TARGETS: AgentSetupTarget[] = [
     recommended: false,
   },
   {
-    engine: CoworkAgentEngine.GrokBuild,
-    appType: 'grok',
-    labelKey: 'coworkAgentEngineGrokBuild',
-    hintKey: 'coworkAgentEngineGrokBuildHint',
-    primary: false,
-    recommended: false,
-  },
-  {
-    engine: CoworkAgentEngine.QwenCode,
-    appType: 'qwen',
-    labelKey: 'coworkAgentEngineQwenCode',
-    hintKey: 'coworkAgentEngineQwenCodeHint',
-    primary: false,
-    recommended: false,
-  },
-  {
     engine: CoworkAgentEngine.DeepSeekTui,
     appType: 'deepseek_tui',
     labelKey: 'coworkAgentEngineDeepSeekTui',
