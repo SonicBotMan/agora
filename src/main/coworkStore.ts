@@ -26,12 +26,9 @@ import {
   isDeepSeekTuiPermissionMode,
   isExternalAgentConfigSource,
   isOpenCodePermissionMode,
-  isQwenCodePermissionMode,
   OpenCodePermissionMode,
   type OpenCodePermissionMode as OpenCodePermissionModeType,
-  QwenCodePermissionMode,
-  type QwenCodePermissionMode as QwenCodePermissionModeType,
-} from '../shared/cowork/constants';
+|} from '../shared/cowork/constants';
 import type { CoworkSessionRuntimeSnapshot } from '../shared/cowork/runtimeSnapshot';
 import {
   type CoworkMemoryGuardLevel,
@@ -67,7 +64,6 @@ const OPENCLAW_GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.openclaw', 'opencl
 const HERMES_GLOBAL_CONFIG_PATH = path.join(os.homedir(), '.hermes', 'config.yaml');
 const DEFAULT_CLAUDE_CODE_PERMISSION_MODE: ClaudeCodePermissionModeType = ClaudeCodePermissionMode.BypassPermissions;
 const DEFAULT_OPENCODE_PERMISSION_MODE: OpenCodePermissionModeType = OpenCodePermissionMode.Auto;
-const DEFAULT_QWEN_CODE_PERMISSION_MODE: QwenCodePermissionModeType = QwenCodePermissionMode.Auto;
 const DEFAULT_DEEPSEEK_TUI_PERMISSION_MODE: DeepSeekTuiPermissionModeType = DeepSeekTuiPermissionMode.Auto;
 const MIN_MEMORY_USER_MEMORIES_MAX_ITEMS = 1;
 const MAX_MEMORY_USER_MEMORIES_MAX_ITEMS = 60;
@@ -500,13 +496,6 @@ function normalizeClaudeCodePermissionMode(value?: string | null): ClaudeCodePer
   return DEFAULT_CLAUDE_CODE_PERMISSION_MODE;
 }
 
-function normalizeQwenCodePermissionMode(value?: string | null): QwenCodePermissionModeType {
-  if (isQwenCodePermissionMode(value)) {
-    return value;
-  }
-  return DEFAULT_QWEN_CODE_PERMISSION_MODE;
-}
-
 function normalizeDeepSeekTuiPermissionMode(value?: string | null): DeepSeekTuiPermissionModeType {
   if (isDeepSeekTuiPermissionMode(value)) {
     return value;
@@ -655,8 +644,6 @@ export interface CoworkConfig {
   hermesConfigSource: ExternalAgentConfigSourceType;
   opencodeConfigSource: ExternalAgentConfigSourceType;
   opencodePermissionMode: OpenCodePermissionModeType;
-  qwenCodeConfigSource: ExternalAgentConfigSourceType;
-  qwenCodePermissionMode: QwenCodePermissionModeType;
   deepseekTuiConfigSource: ExternalAgentConfigSourceType;
   deepseekTuiPermissionMode: DeepSeekTuiPermissionModeType;
   memoryEnabled: boolean;
@@ -678,8 +665,6 @@ export type CoworkConfigUpdate = Partial<Pick<
   | 'hermesConfigSource'
   | 'opencodeConfigSource'
   | 'opencodePermissionMode'
-  | 'qwenCodeConfigSource'
-  | 'qwenCodePermissionMode'
   | 'deepseekTuiConfigSource'
   | 'deepseekTuiPermissionMode'
   | 'memoryEnabled'
@@ -1497,8 +1482,6 @@ export class CoworkStore {
       'hermesConfigSource',
       'opencodeConfigSource',
       'opencodePermissionMode',
-      'qwenCodeConfigSource',
-      'qwenCodePermissionMode',
       'deepseekTuiConfigSource',
       'deepseekTuiPermissionMode',
       'memoryEnabled',
@@ -1525,8 +1508,6 @@ export class CoworkStore {
       hermesConfigSource: normalizeHermesConfigSource(cfg.get('hermesConfigSource')),
       opencodeConfigSource: normalizeExternalAgentConfigSource(cfg.get('opencodeConfigSource')),
       opencodePermissionMode: normalizeOpenCodePermissionMode(cfg.get('opencodePermissionMode')),
-      qwenCodeConfigSource: normalizeExternalAgentConfigSource(cfg.get('qwenCodeConfigSource')),
-      qwenCodePermissionMode: normalizeQwenCodePermissionMode(cfg.get('qwenCodePermissionMode')),
       deepseekTuiConfigSource: normalizeExternalAgentConfigSource(cfg.get('deepseekTuiConfigSource')),
       deepseekTuiPermissionMode: normalizeDeepSeekTuiPermissionMode(cfg.get('deepseekTuiPermissionMode')),
       memoryEnabled: parseBooleanConfig(cfg.get('memoryEnabled'), DEFAULT_MEMORY_ENABLED),
@@ -1687,34 +1668,6 @@ export class CoworkStore {
       `,
         )
         .run(normalizeOpenCodePermissionMode(config.opencodePermissionMode), now);
-    }
-
-    if (config.qwenCodeConfigSource !== undefined) {
-      this.db
-        .prepare(
-          `
-        INSERT INTO cowork_config (key, value, updated_at)
-        VALUES ('qwenCodeConfigSource', ?, ?)
-        ON CONFLICT(key) DO UPDATE SET
-          value = excluded.value,
-          updated_at = excluded.updated_at
-      `,
-        )
-        .run(normalizeExternalAgentConfigSource(config.qwenCodeConfigSource), now);
-    }
-
-    if (config.qwenCodePermissionMode !== undefined) {
-      this.db
-        .prepare(
-          `
-        INSERT INTO cowork_config (key, value, updated_at)
-        VALUES ('qwenCodePermissionMode', ?, ?)
-        ON CONFLICT(key) DO UPDATE SET
-          value = excluded.value,
-          updated_at = excluded.updated_at
-      `,
-        )
-        .run(normalizeQwenCodePermissionMode(config.qwenCodePermissionMode), now);
     }
 
     if (config.deepseekTuiConfigSource !== undefined) {

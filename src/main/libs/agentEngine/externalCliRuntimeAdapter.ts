@@ -13,8 +13,7 @@ import {
   ExternalAgentConfigSource,
   isClaudeCodePermissionMode,
   OpenCodePermissionMode,
-  QwenCodePermissionMode,
-} from '../../../shared/cowork/constants';
+|} from '../../../shared/cowork/constants';
 import type { CoworkSessionRuntimeSnapshot } from '../../../shared/cowork/runtimeSnapshot';
 import type {
   CoworkMessage,
@@ -34,8 +33,6 @@ import type {
 } from '../externalAgentProviderStore';
 import { normalizeOpenCodeCliEvent } from '../openCodeCliEvent';
 import { buildOpenCodeRuntimeConfigContent } from '../openCodeConfig';
-import { normalizeQwenCodeCliEvent } from '../qwenCodeCliEvent';
-import { buildQwenCodeRuntimeEnv, qwenAuthTypeForCoworkConfig } from '../qwenCodeConfig';
 import type {
   CoworkContinueOptions,
   CoworkRuntime,
@@ -281,9 +278,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     if (this.engine === CoworkAgentEngine.OpenCode && this.getConfigSource() === ExternalAgentConfigSource.AgoraModel) {
       this.applyOpenCodeRuntimeConfig(env, apiConfigOverride);
     }
-    if (this.engine === CoworkAgentEngine.QwenCode && this.getConfigSource() === ExternalAgentConfigSource.AgoraModel) {
-      this.applyQwenCodeRuntimeConfig(env, apiConfigOverride);
-    }
     const command = this.getCommandName();
     const args = this.buildCommandArgs(
       cwd,
@@ -484,61 +478,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
       return args;
     }
 
-    if (this.engine === CoworkAgentEngine.QwenCode) {
-      const promptWithFiles = imagePaths.length > 0
-        ? `${prompt}\n\n${imagePaths.map((imagePath) => `@${imagePath}`).join('\n')}`
-        : prompt;
-      const args = [
-        '--bare',
-        '--output-format',
-        'stream-json',
-        '--include-partial-messages',
-      ];
-      if (this.store.getConfig().qwenCodePermissionMode === QwenCodePermissionMode.Auto) {
-        args.push('--yolo');
-      } else {
-        args.push('--approval-mode', 'plan');
-      }
-      if (cliSessionId) {
-        args.push('--resume', cliSessionId);
-      }
-      if (this.getConfigSource() === ExternalAgentConfigSource.AgoraModel) {
-        const resolved = resolveRawApiConfig(apiConfigOverride);
-        if (resolved.config) {
-          args.push('--auth-type', qwenAuthTypeForCoworkConfig(resolved.config));
-          args.push('--model', resolved.config.model);
-        }
-      } else {
-        const model = selectedProvider?.summary.model?.trim();
-        if (model) {
-          args.push('--model', model);
-        }
-      }
-      args.push('-p', promptWithFiles);
-      return args;
-    }
-
-    if (this.engine === CoworkAgentEngine.GrokBuild) {
-      const promptWithFiles = imagePaths.length > 0
-        ? `${prompt}\n\nAttached local files:\n${imagePaths.map((imagePath) => imagePath).join('\n')}`
-        : prompt;
-      const args = [
-        '--cwd',
-        cwd,
-        '--output-format',
-        'streaming-json',
-        '--no-auto-update',
-        '--always-approve',
-        '-p',
-        promptWithFiles,
-      ];
-      const model = selectedProvider?.summary.model?.trim();
-      if (model) {
-        args.splice(6, 0, '--model', model);
-      }
-      return args;
-    }
-
     if (cliSessionId) {
       const resumeArgs = [
         'exec',
@@ -578,9 +517,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
   }
 
   private shouldInjectCoworkModelConfig(): boolean {
-    if (this.engine === CoworkAgentEngine.GrokBuild) {
-      return false;
-    }
     return this.getConfigSource() !== ExternalAgentConfigSource.LocalCli;
   }
 
@@ -594,12 +530,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     }
     if (this.engine === CoworkAgentEngine.OpenCode) {
       return config.opencodeConfigSource;
-    }
-    if (this.engine === CoworkAgentEngine.QwenCode) {
-      return config.qwenCodeConfigSource;
-    }
-    if (this.engine === CoworkAgentEngine.GrokBuild) {
-      return ExternalAgentConfigSource.LocalCli;
     }
     return ExternalAgentConfigSource.AgoraModel;
   }
@@ -617,12 +547,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     if (this.engine === CoworkAgentEngine.OpenCode) {
       return this.getCurrentProvider?.('opencode') ?? null;
     }
-    if (this.engine === CoworkAgentEngine.QwenCode) {
-      return this.getCurrentProvider?.('qwen') ?? null;
-    }
-    if (this.engine === CoworkAgentEngine.GrokBuild) {
-      return this.getCurrentProvider?.('grok') ?? null;
-    }
     return null;
   }
 
@@ -638,20 +562,10 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     );
   }
 
-  private applyQwenCodeRuntimeConfig(
-    env: Record<string, string | undefined>,
-    apiConfigOverride?: ApiConfigOverride,
-  ): void {
-    const resolved = resolveRawApiConfig(apiConfigOverride);
-    if (!resolved.config) return;
-    Object.assign(env, buildQwenCodeRuntimeEnv(resolved.config));
-  }
-
   private getCommandName(): string {
     if (this.engine === CoworkAgentEngine.ClaudeCode) return 'claude';
     if (this.engine === CoworkAgentEngine.Codex) return 'codex';
     if (this.engine === CoworkAgentEngine.OpenCode) return 'opencode';
-    if (this.engine === CoworkAgentEngine.GrokBuild) return 'grok';
     return 'qwen';
   }
 
@@ -898,10 +812,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
         this.handleCodexEvent(active, event);
       } else if (this.engine === CoworkAgentEngine.OpenCode) {
         this.handleOpenCodeEvent(active, event);
-      } else if (this.engine === CoworkAgentEngine.GrokBuild) {
-        this.handleGrokBuildEvent(active, event);
-      } else if (this.engine === CoworkAgentEngine.QwenCode) {
-        this.handleQwenCodeEvent(active, event);
       } else {
         this.handleClaudeCliEvent(active, event);
       }
@@ -1197,228 +1107,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     }
   }
 
-  private handleQwenCodeEvent(active: ActiveCliSession, event: unknown): void {
-    const normalized = normalizeQwenCodeCliEvent(event);
-    if (normalized.sessionId) {
-      active.cliSessionId = normalized.sessionId;
-      this.store.updateSession(active.sessionId, { claudeSessionId: normalized.sessionId });
-    }
-    switch (normalized.kind) {
-      case 'assistant_text':
-        if (normalized.replace) {
-          this.replaceAssistant(active, normalized.text, true);
-        } else {
-          this.appendAssistant(active, normalized.text);
-        }
-        break;
-      case 'tool_use':
-        this.addToolMessage(active.sessionId, {
-          type: 'tool_use',
-          content: `Using tool: ${normalized.toolName}`,
-          metadata: {
-            toolName: normalized.toolName,
-            toolInput: normalized.input,
-          },
-        });
-        break;
-      case 'tool_result':
-        this.addToolMessage(active.sessionId, {
-          type: 'tool_result',
-          content: normalized.output,
-          metadata: {
-            toolName: normalized.toolName,
-            toolResult: normalized.output,
-            isError: normalized.isError,
-          },
-        });
-        break;
-      case 'error':
-        this.handleError(active.sessionId, normalized.message);
-        break;
-      case 'none':
-        break;
-    }
-  }
-
-  private handleGrokBuildEvent(active: ActiveCliSession, event: unknown): void {
-    if (!isRecord(event)) return;
-    const type = String(event.type ?? event.event ?? event.kind ?? '').toLowerCase();
-    const payload = isRecord(event.payload) ? event.payload : {};
-    const item = isRecord(event.item) ? event.item : {};
-
-    const cliSessionId = firstString(
-      event.session_id,
-      event.sessionId,
-      event.thread_id,
-      event.threadId,
-      event.conversation_id,
-      event.conversationId,
-      payload.session_id,
-      payload.sessionId,
-      item.session_id,
-      item.sessionId,
-    );
-    if (cliSessionId) {
-      active.cliSessionId = cliSessionId;
-      this.store.updateSession(active.sessionId, { claudeSessionId: cliSessionId });
-    }
-
-    if (type.includes('error') || event.error) {
-      this.handleError(active.sessionId, this.extractGrokBuildError(event) ?? 'Grok Build CLI returned an error.');
-      return;
-    }
-
-    if (this.isGrokBuildToolEvent(type, event, payload, item)) {
-      this.handleGrokBuildToolEvent(active, type, event, payload, item);
-      return;
-    }
-
-    if (type.includes('step') || type.includes('status') || type.includes('thinking')) {
-      const label = firstString(event.message, event.status, payload.message, item.message);
-      if (label) {
-        this.emit('runtimeMetric', active.sessionId, {
-          type: 'step',
-          label,
-        });
-      }
-    }
-
-    const text = this.extractGrokBuildText(event);
-    if (text) {
-      this.appendAssistant(active, text);
-    }
-  }
-
-  private isGrokBuildToolEvent(
-    type: string,
-    event: Record<string, unknown>,
-    payload: Record<string, unknown>,
-    item: Record<string, unknown>,
-  ): boolean {
-    return type.includes('tool')
-      || type.includes('command')
-      || type.includes('exec')
-      || type.includes('shell')
-      || isRecord(event.tool)
-      || isRecord(event.command)
-      || isRecord(payload.tool)
-      || isRecord(item.tool);
-  }
-
-  private handleGrokBuildToolEvent(
-    active: ActiveCliSession,
-    type: string,
-    event: Record<string, unknown>,
-    payload: Record<string, unknown>,
-    item: Record<string, unknown>,
-  ): void {
-    const commandRecord = isRecord(event.command)
-      ? event.command
-      : isRecord(payload.command)
-        ? payload.command
-        : isRecord(item.command)
-          ? item.command
-          : {};
-    const toolName = firstString(
-      event.tool_name,
-      event.toolName,
-      event.name,
-      payload.tool_name,
-      payload.toolName,
-      payload.name,
-      item.tool_name,
-      item.toolName,
-      item.name,
-      commandRecord.name,
-      commandRecord.command,
-    ) ?? 'Grok';
-    const output = firstString(
-      event.output,
-      event.result,
-      event.text,
-      payload.output,
-      payload.result,
-      payload.text,
-      item.output,
-      item.result,
-      item.text,
-      commandRecord.output,
-      commandRecord.result,
-    );
-    const completed = type.includes('finish')
-      || type.includes('complete')
-      || type.includes('result')
-      || type.includes('done')
-      || type.includes('failed')
-      || type.includes('error');
-
-    if (!completed) {
-      this.addToolMessage(active.sessionId, {
-        type: 'tool_use',
-        content: `Using tool: ${toolName}`,
-        metadata: {
-          toolName,
-          toolInput: isRecord(event.input)
-            ? event.input
-            : isRecord(payload.input)
-              ? payload.input
-              : isRecord(item.input)
-                ? item.input
-                : commandRecord,
-        },
-      });
-      return;
-    }
-
-    this.addToolMessage(active.sessionId, {
-      type: 'tool_result',
-      content: output ?? stringifyPayload(event),
-      metadata: {
-        toolName,
-        toolResult: output ?? stringifyPayload(event),
-        isError: type.includes('failed') || type.includes('error') || event.status === 'failed',
-      },
-    });
-  }
-
-  private extractGrokBuildError(event: Record<string, unknown>): string | null {
-    const error = event.error;
-    if (typeof error === 'string' && error.trim()) return error;
-    if (isRecord(error)) {
-      return firstString(error.message, error.error, error.detail);
-    }
-    return firstString(event.message, event.detail);
-  }
-
-  private extractGrokBuildText(value: unknown): string | null {
-    if (typeof value === 'string') {
-      return value.trim() ? value : null;
-    }
-    if (Array.isArray(value)) {
-      const parts = value
-        .map((item) => this.extractGrokBuildText(item))
-        .filter((item): item is string => Boolean(item));
-      return parts.length > 0 ? parts.join('') : null;
-    }
-    if (!isRecord(value)) return null;
-    const direct = firstString(
-      value.delta,
-      value.text,
-      value.content,
-      value.message,
-      value.output,
-      value.response,
-      value.result,
-    );
-    if (direct) return direct;
-    return this.extractGrokBuildText(value.delta)
-      ?? this.extractGrokBuildText(value.content)
-      ?? this.extractGrokBuildText(value.message)
-      ?? this.extractGrokBuildText(value.payload)
-      ?? this.extractGrokBuildText(value.item)
-      ?? this.extractGrokBuildText(value.data);
-  }
-
   private handleClaudeCliEvent(active: ActiveCliSession, event: unknown): void {
     if (!isRecord(event)) return;
     const type = String(event.type ?? '');
@@ -1637,7 +1325,6 @@ export class ExternalCliRuntimeAdapter extends EventEmitter implements CoworkRun
     if (this.engine === CoworkAgentEngine.ClaudeCode) return 'Claude Code CLI';
     if (this.engine === CoworkAgentEngine.Codex) return 'Codex CLI';
     if (this.engine === CoworkAgentEngine.OpenCode) return 'OpenCode CLI';
-    if (this.engine === CoworkAgentEngine.GrokBuild) return 'Grok Build CLI';
     return 'Qwen Code CLI';
   }
 }

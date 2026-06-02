@@ -13,10 +13,6 @@ import {
   parseDeepSeekTuiConfigText,
 } from './deepSeekTuiConfig';
 import {
-  parseGrokBuildConfigText,
-  summarizeGrokBuildConfig,
-} from './grokBuildConfig';
-import {
   listHermesModelProviders,
   parseHermesConfigText,
   parseHermesDotenvText,
@@ -150,10 +146,6 @@ const getHermesConfigDir = (): string => path.join(homeDir(), '.hermes');
 
 const getOpenClawConfigDir = (): string => path.join(homeDir(), '.openclaw');
 
-const getGrokBuildConfigDir = (): string => path.join(homeDir(), '.grok');
-
-const getQwenCodeConfigDir = (): string => path.join(homeDir(), '.qwen');
-
 const getDeepSeekTuiConfigDir = (): string => path.join(homeDir(), '.deepseek');
 
 const readOpenCodeConfigSummary = (
@@ -178,36 +170,6 @@ const readOpenCodeConfigSummary = (
   return { providerId, providerName, count };
 };
 
-const readQwenCodeConfigSummary = (
-  configPath: string,
-): { providerId: string | null; providerName: string | null; count: number } => {
-  const config = readJsonObject(configPath);
-  if (!config) {
-    return { providerId: null, providerName: null, count: 0 };
-  }
-  const model = config.model && typeof config.model === 'object' && !Array.isArray(config.model)
-    ? typeof (config.model as Record<string, unknown>).name === 'string'
-      ? ((config.model as Record<string, unknown>).name as string)
-      : ''
-    : '';
-  const security = config.security && typeof config.security === 'object' && !Array.isArray(config.security)
-    ? config.security as Record<string, unknown>
-    : {};
-  const auth = security.auth && typeof security.auth === 'object' && !Array.isArray(security.auth)
-    ? security.auth as Record<string, unknown>
-    : {};
-  const providerId = typeof auth.selectedType === 'string' && auth.selectedType.trim()
-    ? auth.selectedType.trim()
-    : model || null;
-  const providers = config.modelProviders && typeof config.modelProviders === 'object' && !Array.isArray(config.modelProviders)
-    ? config.modelProviders as Record<string, unknown>
-    : {};
-  const count = Object.values(providers).reduce<number>((total, entries) => (
-    total + (Array.isArray(entries) ? entries.length : 0)
-  ), 0);
-  return { providerId, providerName: model || providerId, count };
-};
-
 const readDeepSeekTuiConfigSummary = (
   configPath: string,
 ): { providerId: string | null; providerName: string | null; count: number } => {
@@ -221,20 +183,6 @@ const readDeepSeekTuiConfigSummary = (
     providerId: current?.provider ?? config.provider ?? null,
     providerName: current?.name ?? current?.provider ?? null,
     count: records.length,
-  };
-};
-
-const readGrokBuildConfigSummary = (
-  configPath: string,
-): { providerId: string | null; providerName: string | null; count: number } => {
-  if (!fs.existsSync(configPath)) {
-    return { providerId: null, providerName: null, count: 0 };
-  }
-  const summary = summarizeGrokBuildConfig(parseGrokBuildConfigText(fs.readFileSync(configPath, 'utf8')));
-  return {
-    providerId: summary.providerId,
-    providerName: summary.providerName,
-    count: summary.count,
   };
 };
 
@@ -286,7 +234,7 @@ const readCurrentProviderFromDb = (
   appType: CliAppType,
   settingsCurrentProviderId: string | null,
 ): { provider: ProviderRow | null; count: number } => {
-  if (appType === 'openclaw' || appType === 'opencode' || appType === 'grok' || appType === 'qwen' || appType === 'deepseek_tui') {
+  if (appType === 'openclaw' || appType === 'opencode' || appType === 'deepseek_tui') {
     return { provider: null, count: 0 };
   }
   if (!fs.existsSync(dbPath)) {
@@ -388,11 +336,7 @@ const buildCliConfigSnapshot = (
         ? getOpenClawConfigDir()
       : appType === 'opencode'
         ? path.join(homeDir(), '.config', 'opencode')
-      : appType === 'grok'
-        ? getGrokBuildConfigDir()
-        : appType === 'qwen'
-          ? getQwenCodeConfigDir()
-          : getDeepSeekTuiConfigDir();
+        : getDeepSeekTuiConfigDir();
   const primaryConfigPath = appType === 'claude'
     ? resolveClaudeSettingsPath(configDir)
     : appType === 'codex'
@@ -403,11 +347,7 @@ const buildCliConfigSnapshot = (
       ? path.join(configDir, 'openclaw.json')
     : appType === 'opencode'
       ? path.join(configDir, 'opencode.json')
-      : appType === 'grok'
-        ? path.join(configDir, 'config.toml')
-        : appType === 'qwen'
-          ? path.join(configDir, 'settings.json')
-          : path.join(configDir, 'config.toml');
+      : path.join(configDir, 'config.toml');
   const secondaryConfigPaths = appType === 'claude'
     ? [resolveClaudeMcpPath(configDir, Boolean(claudeOverride))]
     : appType === 'codex'
@@ -418,11 +358,7 @@ const buildCliConfigSnapshot = (
       ? [path.join(configDir, '.env')]
     : appType === 'opencode'
       ? [path.join(getOpenCodeDataDir(), 'auth.json')]
-      : appType === 'grok'
-        ? [path.join(configDir, 'auth.json')]
-        : appType === 'qwen'
-          ? [path.join(configDir, 'oauth_creds.json')]
-          : [path.join(configDir, 'sessions')];
+      : [path.join(configDir, 'sessions')];
   const settingsCurrentProviderId = getCurrentProviderSetting(settings, appType);
   if (appType === 'opencode') {
     const summary = readOpenCodeConfigSummary(primaryConfigPath);
@@ -452,32 +388,6 @@ const buildCliConfigSnapshot = (
   }
   if (appType === 'openclaw') {
     const summary = readOpenClawConfigSummary(primaryConfigPath);
-    return {
-      appType,
-      configDir,
-      primaryConfigPath,
-      secondaryConfigPaths,
-      configExists: fs.existsSync(primaryConfigPath),
-      currentProviderId: summary.providerId,
-      currentProviderName: summary.providerName,
-      providerCount: summary.count,
-    };
-  }
-  if (appType === 'qwen') {
-    const summary = readQwenCodeConfigSummary(primaryConfigPath);
-    return {
-      appType,
-      configDir,
-      primaryConfigPath,
-      secondaryConfigPaths,
-      configExists: fs.existsSync(primaryConfigPath),
-      currentProviderId: summary.providerId,
-      currentProviderName: summary.providerName,
-      providerCount: summary.count,
-    };
-  }
-  if (appType === 'grok') {
-    const summary = readGrokBuildConfigSummary(primaryConfigPath);
     return {
       appType,
       configDir,
@@ -561,8 +471,6 @@ export function getExternalAgentEnvironmentSnapshot(): ExternalAgentEnvironmentS
       buildCommandStatus(CoworkAgentEngine.OpenClaw, 'openclaw', 'openclaw', settings, dbPath),
       buildCommandStatus(CoworkAgentEngine.Hermes, 'hermes', 'hermes', settings, dbPath),
       buildCommandStatus(CoworkAgentEngine.OpenCode, 'opencode', 'opencode', settings, dbPath),
-      buildCommandStatus(CoworkAgentEngine.GrokBuild, 'grok', 'grok', settings, dbPath),
-      buildCommandStatus(CoworkAgentEngine.QwenCode, 'qwen', 'qwen', settings, dbPath),
       buildCommandStatus(CoworkAgentEngine.DeepSeekTui, 'deepseek_tui', 'deepseek-tui', settings, dbPath),
     ],
   };

@@ -5,7 +5,6 @@ import type {
   DeepSeekTuiPermissionMode,
   ExternalAgentConfigSource,
   OpenCodePermissionMode,
-  QwenCodePermissionMode,
 } from '@shared/cowork/constants';
 import type { CoworkFileActivity } from '@shared/cowork/fileActivity';
 import type {

@@ -22,7 +22,6 @@ import {
   isExternalAgentConfigSource,
   isOpenClawCoworkAgentEngine,
   isOpenCodePermissionMode,
-  isQwenCodePermissionMode,
   isRuntimeCallSource,
   isRuntimeCallStatus,
   RuntimeCallSource,
@@ -100,7 +99,6 @@ import {
   importLocalAgentConfigToModelSettings,
   syncDeepSeekTuiGlobalConfigFromAgoraModel,
   syncOpenCodeGlobalConfigFromAgoraModel,
-  syncQwenCodeGlobalConfigFromAgoraModel,
 } from './libs/externalAgentConfigSync';
 import { getExternalAgentEnvironmentSnapshot } from './libs/externalAgentEnvironment';
 import {
@@ -711,8 +709,6 @@ let hermesRuntimeAdapter: HermesRuntimeAdapter | null = null;
 let claudeCodeRuntimeAdapter: ExternalCliRuntimeAdapter | null = null;
 let codexRuntimeAdapter: ExternalCliRuntimeAdapter | null = null;
 let openCodeRuntimeAdapter: ExternalCliRuntimeAdapter | null = null;
-let grokBuildRuntimeAdapter: ExternalCliRuntimeAdapter | null = null;
-let qwenCodeRuntimeAdapter: ExternalCliRuntimeAdapter | null = null;
 let deepSeekTuiRuntimeManager: DeepSeekTuiRuntimeManager | null = null;
 let deepSeekTuiRuntimeAdapter: DeepSeekTuiRuntimeAdapter | null = null;
 let coworkEngineRouter: CoworkEngineRouter | null = null;
@@ -1087,8 +1083,6 @@ const getConfigSourceForEngine = (engine: CoworkAgentEngine): string | null => {
   if (engine === CoworkAgentEngineValue.Codex) return config.codexConfigSource;
   if (engine === CoworkAgentEngineValue.Hermes) return config.hermesConfigSource;
   if (engine === CoworkAgentEngineValue.OpenCode) return config.opencodeConfigSource;
-  if (engine === CoworkAgentEngineValue.GrokBuild) return ExternalAgentConfigSource.LocalCli;
-  if (engine === CoworkAgentEngineValue.QwenCode) return config.qwenCodeConfigSource;
   if (engine === CoworkAgentEngineValue.DeepSeekTui) return config.deepseekTuiConfigSource;
   return ExternalAgentConfigSource.AgoraModel;
 };
@@ -1100,8 +1094,6 @@ const getExternalProviderAppTypeForEngine = (
   if (engine === CoworkAgentEngineValue.Codex) return 'codex';
   if (engine === CoworkAgentEngineValue.Hermes) return 'hermes';
   if (engine === CoworkAgentEngineValue.OpenCode) return 'opencode';
-  if (engine === CoworkAgentEngineValue.GrokBuild) return 'grok';
-  if (engine === CoworkAgentEngineValue.QwenCode) return 'qwen';
   if (engine === CoworkAgentEngineValue.DeepSeekTui) return 'deepseek_tui';
   return null;
 };
@@ -1146,8 +1138,6 @@ const getEngineSnapshotLabel = (engine: CoworkAgentEngine): string => {
   if (engine === CoworkAgentEngineValue.ClaudeCode) return 'Claude Code';
   if (engine === CoworkAgentEngineValue.Codex) return 'Codex CLI';
   if (engine === CoworkAgentEngineValue.OpenCode) return 'OpenCode';
-  if (engine === CoworkAgentEngineValue.GrokBuild) return 'Grok Build';
-  if (engine === CoworkAgentEngineValue.QwenCode) return 'Qwen Code';
   if (engine === CoworkAgentEngineValue.DeepSeekTui) return 'DeepSeek-TUI';
   return 'Cowork';
 };
@@ -1461,10 +1451,6 @@ const applyExternalAgentConfigSourceForEngine = (engine: CoworkAgentEngine): voi
   }
   if (engine === CoworkAgentEngineValue.OpenCode) {
     applyExternalAgentConfigForEngine(engine, config.opencodeConfigSource);
-    return;
-  }
-  if (engine === CoworkAgentEngineValue.QwenCode) {
-    applyExternalAgentConfigForEngine(engine, config.qwenCodeConfigSource);
     return;
   }
   if (engine === CoworkAgentEngineValue.DeepSeekTui) {
@@ -1955,20 +1941,6 @@ const getCoworkEngineRouter = () => {
         getCurrentProvider: (appType) => getExternalAgentProviderStore().getCurrentProvider(appType),
       });
     }
-    if (!grokBuildRuntimeAdapter) {
-      grokBuildRuntimeAdapter = new ExternalCliRuntimeAdapter({
-        engine: CoworkAgentEngineValue.GrokBuild,
-        store: getCoworkStore(),
-        getCurrentProvider: (appType) => getExternalAgentProviderStore().getCurrentProvider(appType),
-      });
-    }
-    if (!qwenCodeRuntimeAdapter) {
-      qwenCodeRuntimeAdapter = new ExternalCliRuntimeAdapter({
-        engine: CoworkAgentEngineValue.QwenCode,
-        store: getCoworkStore(),
-        getCurrentProvider: (appType) => getExternalAgentProviderStore().getCurrentProvider(appType),
-      });
-    }
     if (!deepSeekTuiRuntimeAdapter) {
       deepSeekTuiRuntimeAdapter = new DeepSeekTuiRuntimeAdapter({
         store: getCoworkStore(),
@@ -1990,8 +1962,6 @@ const getCoworkEngineRouter = () => {
       claudeCodeRuntime: claudeCodeRuntimeAdapter,
       codexRuntime: codexRuntimeAdapter,
       openCodeRuntime: openCodeRuntimeAdapter,
-      grokBuildRuntime: grokBuildRuntimeAdapter,
-      qwenCodeRuntime: qwenCodeRuntimeAdapter,
       deepSeekTuiRuntime: deepSeekTuiRuntimeAdapter,
       telemetryTracker: getRuntimeTelemetryTracker(),
     });
@@ -4470,19 +4440,6 @@ if (!gotTheLock) {
     }
   });
 
-  ipcMain.handle(CoworkIpcChannel.AgentConfigSyncQwenCodeGlobal, async () => {
-    try {
-      syncQwenCodeGlobalConfigFromAgoraModel();
-      const list = getExternalAgentProviderStore().listProviders('qwen');
-      return { success: true, ...list };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to sync Qwen Code config',
-      };
-    }
-  });
-
   ipcMain.handle(CoworkIpcChannel.AgentConfigSyncDeepSeekTuiGlobal, async () => {
     try {
       syncDeepSeekTuiGlobalConfigFromAgoraModel();
@@ -4732,8 +4689,6 @@ if (!gotTheLock) {
     hermesConfigSource?: unknown;
     opencodeConfigSource?: unknown;
     opencodePermissionMode?: unknown;
-    qwenCodeConfigSource?: unknown;
-    qwenCodePermissionMode?: unknown;
     deepseekTuiConfigSource?: unknown;
     deepseekTuiPermissionMode?: unknown;
     memoryEnabled?: boolean;
@@ -4767,12 +4722,6 @@ if (!gotTheLock) {
         : undefined;
       const normalizedOpenCodePermissionMode = isOpenCodePermissionMode(config.opencodePermissionMode)
         ? config.opencodePermissionMode
-        : undefined;
-      const normalizedQwenCodeConfigSource = isExternalAgentConfigSource(config.qwenCodeConfigSource)
-        ? config.qwenCodeConfigSource
-        : undefined;
-      const normalizedQwenCodePermissionMode = isQwenCodePermissionMode(config.qwenCodePermissionMode)
-        ? config.qwenCodePermissionMode
         : undefined;
       const normalizedDeepSeekTuiConfigSource = isExternalAgentConfigSource(config.deepseekTuiConfigSource)
         ? config.deepseekTuiConfigSource
@@ -4811,8 +4760,6 @@ if (!gotTheLock) {
         hermesConfigSource: normalizedHermesConfigSource,
         opencodeConfigSource: normalizedOpenCodeConfigSource,
         opencodePermissionMode: normalizedOpenCodePermissionMode,
-        qwenCodeConfigSource: normalizedQwenCodeConfigSource,
-        qwenCodePermissionMode: normalizedQwenCodePermissionMode,
         deepseekTuiConfigSource: normalizedDeepSeekTuiConfigSource,
         deepseekTuiPermissionMode: normalizedDeepSeekTuiPermissionMode,
         memoryEnabled: normalizedMemoryEnabled,
@@ -4845,12 +4792,6 @@ if (!gotTheLock) {
       if (normalizedOpenCodePermissionMode !== undefined) {
         nextConfigPreview.opencodePermissionMode = normalizedOpenCodePermissionMode;
       }
-      if (normalizedQwenCodeConfigSource !== undefined) {
-        nextConfigPreview.qwenCodeConfigSource = normalizedQwenCodeConfigSource;
-      }
-      if (normalizedQwenCodePermissionMode !== undefined) {
-        nextConfigPreview.qwenCodePermissionMode = normalizedQwenCodePermissionMode;
-      }
       if (normalizedDeepSeekTuiConfigSource !== undefined) {
         nextConfigPreview.deepseekTuiConfigSource = normalizedDeepSeekTuiConfigSource;
       }
@@ -4864,8 +4805,6 @@ if (!gotTheLock) {
           && (normalizedAgentEngine !== undefined || normalizedCodexConfigSource !== undefined))
         || (nextConfigPreview.agentEngine === CoworkAgentEngineValue.OpenCode
           && (normalizedAgentEngine !== undefined || normalizedOpenCodeConfigSource !== undefined))
-        || (nextConfigPreview.agentEngine === CoworkAgentEngineValue.QwenCode
-          && (normalizedAgentEngine !== undefined || normalizedQwenCodeConfigSource !== undefined))
         || (nextConfigPreview.agentEngine === CoworkAgentEngineValue.DeepSeekTui
           && (normalizedAgentEngine !== undefined || normalizedDeepSeekTuiConfigSource !== undefined));
       if (shouldApplyExternalAgentConfig) {
@@ -4875,9 +4814,7 @@ if (!gotTheLock) {
             ? nextConfigPreview.codexConfigSource
             : nextConfigPreview.agentEngine === CoworkAgentEngineValue.OpenCode
               ? nextConfigPreview.opencodeConfigSource
-              : nextConfigPreview.agentEngine === CoworkAgentEngineValue.QwenCode
-                ? nextConfigPreview.qwenCodeConfigSource
-                : nextConfigPreview.deepseekTuiConfigSource;
+              : nextConfigPreview.deepseekTuiConfigSource;
         applyExternalAgentConfigForEngine(nextConfigPreview.agentEngine, source);
       }
       getCoworkStore().setConfig(normalizedConfig);

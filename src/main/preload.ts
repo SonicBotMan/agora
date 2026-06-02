@@ -280,15 +280,13 @@ contextBridge.exposeInMainWorld('electron', {
     setConfig: (config: {
       workingDirectory?: string;
       executionMode?: 'auto' | 'local' | 'sandbox';
-      agentEngine?: 'openclaw' | 'hermes' | 'claude_code' | 'codex' | 'opencode' | 'grok_build' | 'qwen_code' | 'deepseek_tui';
+      agentEngine?: 'openclaw' | 'hermes' | 'claude_code' | 'codex' | 'opencode' | 'deepseek_tui';
       openclawConfigSource?: 'agora_model' | 'local_cli';
       claudeCodeConfigSource?: 'agora_model' | 'local_cli';
       codexConfigSource?: 'agora_model' | 'local_cli';
       hermesConfigSource?: 'agora_model' | 'local_cli';
       opencodeConfigSource?: 'agora_model' | 'local_cli';
       opencodePermissionMode?: 'auto' | 'conservative';
-      qwenCodeConfigSource?: 'agora_model' | 'local_cli';
-      qwenCodePermissionMode?: 'auto' | 'conservative';
       deepseekTuiConfigSource?: 'agora_model' | 'local_cli';
       deepseekTuiPermissionMode?: 'auto' | 'conservative';
       memoryEnabled?: boolean;
@@ -308,12 +306,12 @@ contextBridge.exposeInMainWorld('electron', {
       ipcRenderer.invoke(CoworkIpcChannel.RuntimeMetricsDetail, { callId }),
     ensureStudioAssets: () =>
       ipcRenderer.invoke(CoworkIpcChannel.StudioAssetsEnsure),
-    installAgentCli: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui') =>
+    installAgentCli: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui') =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentCliInstall, { appType }),
-    listAgentProviders: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui') =>
+    listAgentProviders: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui') =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentProvidersList, { appType }),
     saveAgentProvider: (input: {
-      appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui';
+      appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui';
       id?: string;
       name: string;
       apiKey?: string;
@@ -324,20 +322,18 @@ contextBridge.exposeInMainWorld('electron', {
       setCurrent?: boolean;
     }) =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentProvidersSave, input),
-    deleteAgentProvider: (input: { appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui'; id: string }) =>
+    deleteAgentProvider: (input: { appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui'; id: string }) =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentProvidersDelete, input),
-    setCurrentAgentProvider: (input: { appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui'; id: string }) =>
+    setCurrentAgentProvider: (input: { appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui'; id: string }) =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentProvidersSetCurrent, input),
-    importLiveAgentProvider: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui') =>
+    importLiveAgentProvider: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui') =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentProvidersImportLive, { appType }),
-    importLocalAgentConfigToModelSettings: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'grok' | 'qwen' | 'deepseek_tui') =>
+    importLocalAgentConfigToModelSettings: (appType: 'claude' | 'codex' | 'hermes' | 'openclaw' | 'opencode' | 'deepseek_tui') =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentConfigImportLocalToModelSettings, { appType }),
     syncOpenClawGlobalConfig: () =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentConfigSyncOpenClawGlobal),
     syncOpenCodeGlobalConfig: () =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentConfigSyncOpenCodeGlobal),
-    syncQwenCodeGlobalConfig: () =>
-      ipcRenderer.invoke(CoworkIpcChannel.AgentConfigSyncQwenCodeGlobal),
     syncDeepSeekTuiGlobalConfig: () =>
       ipcRenderer.invoke(CoworkIpcChannel.AgentConfigSyncDeepSeekTuiGlobal),
     onAgentCliInstallProgress: (callback: (progress: any) => void) => {

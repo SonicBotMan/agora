@@ -16,12 +16,6 @@ import {
 } from './deepSeekTuiConfig';
 import { type CliAppType } from './externalAgentEnvironment';
 import {
-  DEFAULT_GROK_BUILD_MODEL,
-  mergeGrokBuildDefaultModel,
-  parseGrokBuildConfigText,
-  summarizeGrokBuildConfig,
-} from './grokBuildConfig';
-import {
   DEFAULT_HERMES_MODEL,
   listHermesModelProviders,
   mergeHermesConfigForAgoraModel,
@@ -40,14 +34,7 @@ import {
   settingsConfigFromOpenCodeRecord,
   summarizeOpenCodeSettingsConfig,
 } from './openCodeConfig';
-import {
-  DEFAULT_QWEN_CODE_MODEL,
-  listQwenCodeModelProviders,
-  mergeQwenCodeConfigForAgoraModel,
-  parseQwenCodeSettings,
-  settingsConfigFromQwenCodeRecord,
-  summarizeQwenCodeSettingsConfig,
-} from './qwenCodeConfig';
+
 
 export type ExternalAgentProviderAppType = CliAppType;
 
@@ -117,8 +104,6 @@ const CODEX_APP_TYPE: ExternalAgentProviderAppType = 'codex';
 const HERMES_APP_TYPE: ExternalAgentProviderAppType = 'hermes';
 const OPENCLAW_APP_TYPE: ExternalAgentProviderAppType = 'openclaw';
 const OPENCODE_APP_TYPE: ExternalAgentProviderAppType = 'opencode';
-const GROK_APP_TYPE: ExternalAgentProviderAppType = 'grok';
-const QWEN_APP_TYPE: ExternalAgentProviderAppType = 'qwen';
 const DEEPSEEK_TUI_APP_TYPE: ExternalAgentProviderAppType = 'deepseek_tui';
 const INTERNAL_META_KEY = '__agoraProviderMeta';
 
@@ -127,8 +112,6 @@ const DEFAULT_CODEX_MODEL = 'gpt-5.4';
 const DEFAULT_HERMES_LOCAL_MODEL = DEFAULT_HERMES_MODEL;
 const DEFAULT_OPENCLAW_LOCAL_MODEL = 'openai-codex/gpt-5.5';
 const DEFAULT_OPENCODE_LOCAL_MODEL = DEFAULT_OPENCODE_MODEL;
-const DEFAULT_GROK_LOCAL_MODEL = DEFAULT_GROK_BUILD_MODEL;
-const DEFAULT_QWEN_CODE_LOCAL_MODEL = DEFAULT_QWEN_CODE_MODEL;
 const DEFAULT_DEEPSEEK_TUI_LOCAL_MODEL = DEFAULT_DEEPSEEK_TUI_MODEL;
 
 const homeDir = (): string => os.homedir();
@@ -199,12 +182,6 @@ const getOpenClawConfigPath = (): string => path.join(getOpenClawConfigDir(), 'o
 const getOpenCodeConfigDir = (): string => path.join(homeDir(), '.config', 'opencode');
 const getOpenCodeConfigPath = (): string => path.join(getOpenCodeConfigDir(), 'opencode.json');
 const getOpenCodeAuthPath = (): string => path.join(homeDir(), '.local', 'share', 'opencode', 'auth.json');
-const getGrokBuildConfigDir = (): string => path.join(homeDir(), '.grok');
-const getGrokBuildConfigPath = (): string => path.join(getGrokBuildConfigDir(), 'config.toml');
-const getGrokBuildAuthPath = (): string => path.join(getGrokBuildConfigDir(), 'auth.json');
-const getQwenCodeConfigDir = (): string => path.join(homeDir(), '.qwen');
-const getQwenCodeSettingsPath = (): string => path.join(getQwenCodeConfigDir(), 'settings.json');
-const getQwenCodeOauthPath = (): string => path.join(getQwenCodeConfigDir(), 'oauth_creds.json');
 const getDeepSeekTuiConfigDir = (): string => path.join(homeDir(), '.deepseek');
 const getDeepSeekTuiConfigPath = (): string => path.join(getDeepSeekTuiConfigDir(), 'config.toml');
 
@@ -221,12 +198,6 @@ const getLiveConfigPaths = (appType: ExternalAgentProviderAppType): ExternalAgen
       secondaryConfigPaths: [getOpenCodeAuthPath()],
     };
   }
-  if (appType === GROK_APP_TYPE) {
-    return {
-      primaryConfigPath: getGrokBuildConfigPath(),
-      secondaryConfigPaths: [getGrokBuildAuthPath()],
-    };
-  }
   if (appType === HERMES_APP_TYPE) {
     return {
       primaryConfigPath: getHermesConfigPath(),
@@ -237,12 +208,6 @@ const getLiveConfigPaths = (appType: ExternalAgentProviderAppType): ExternalAgen
     return {
       primaryConfigPath: getOpenClawConfigPath(),
       secondaryConfigPaths: [path.join(getOpenClawConfigDir(), 'identity', 'device-auth.json')],
-    };
-  }
-  if (appType === QWEN_APP_TYPE) {
-    return {
-      primaryConfigPath: getQwenCodeSettingsPath(),
-      secondaryConfigPaths: [getQwenCodeOauthPath()],
     };
   }
   if (appType === DEEPSEEK_TUI_APP_TYPE) {
@@ -379,19 +344,8 @@ const summarizeProvider = (
     return summarizeOpenClawSettingsConfig(settingsConfig);
   }
 
-  if (appType === QWEN_APP_TYPE) {
-    return summarizeQwenCodeSettingsConfig(settingsConfig);
-  }
-
   if (appType === DEEPSEEK_TUI_APP_TYPE) {
     return summarizeDeepSeekTuiSettingsConfig(settingsConfig);
-  }
-  if (appType === GROK_APP_TYPE) {
-    return {
-      apiKey: '',
-      baseUrl: '',
-      model: getString(settingsConfig.model) || DEFAULT_GROK_LOCAL_MODEL,
-    };
   }
 
   const auth = getNestedRecord(settingsConfig, 'auth');
@@ -461,20 +415,6 @@ const buildSettingsConfigFromInput = (input: ExternalAgentProviderInput): Record
     };
   }
 
-  if (input.appType === QWEN_APP_TYPE) {
-    const model = input.model?.trim() || DEFAULT_QWEN_CODE_LOCAL_MODEL;
-    return {
-      config: mergeQwenCodeConfigForAgoraModel({}, {
-        apiKey: input.apiKey?.trim() || '',
-        baseURL: input.baseUrl?.trim() || '',
-        model,
-        apiType: 'openai',
-      }, input.name),
-      model,
-      authType: 'openai',
-    };
-  }
-
   if (input.appType === DEEPSEEK_TUI_APP_TYPE) {
     const model = input.model?.trim() || DEFAULT_DEEPSEEK_TUI_LOCAL_MODEL;
     return {
@@ -486,11 +426,6 @@ const buildSettingsConfigFromInput = (input: ExternalAgentProviderInput): Record
         apiType: 'openai',
       }, input.name),
       model,
-    };
-  }
-  if (input.appType === GROK_APP_TYPE) {
-    return {
-      model: input.model?.trim() || DEFAULT_GROK_LOCAL_MODEL,
     };
   }
 
@@ -509,8 +444,6 @@ export const appTypeFromEngine = (engine: string): ExternalAgentProviderAppType 
   if (engine === 'codex') return CODEX_APP_TYPE;
   if (engine === 'hermes') return HERMES_APP_TYPE;
   if (engine === 'opencode') return OPENCODE_APP_TYPE;
-  if (engine === 'grok_build') return GROK_APP_TYPE;
-  if (engine === 'qwen_code') return QWEN_APP_TYPE;
   if (engine === 'deepseek_tui') return DEEPSEEK_TUI_APP_TYPE;
   return null;
 };
@@ -676,13 +609,9 @@ export class ExternalAgentProviderStore {
         ? 'Local OpenClaw'
       : appType === OPENCODE_APP_TYPE
         ? 'Local OpenCode'
-        : appType === GROK_APP_TYPE
-          ? 'Local Grok Build'
-        : appType === QWEN_APP_TYPE
-          ? 'Local Qwen Code'
-          : appType === DEEPSEEK_TUI_APP_TYPE
-            ? 'Local DeepSeek-TUI'
-            : 'Local Codex';
+        : appType === DEEPSEEK_TUI_APP_TYPE
+          ? 'Local DeepSeek-TUI'
+          : 'Local Codex';
     return this.saveProvider({
       appType,
       id: existing?.id ?? 'local-live',
@@ -698,8 +627,6 @@ export class ExternalAgentProviderStore {
       appType === HERMES_APP_TYPE
       || appType === OPENCLAW_APP_TYPE
       || appType === OPENCODE_APP_TYPE
-      || appType === GROK_APP_TYPE
-      || appType === QWEN_APP_TYPE
       || appType === DEEPSEEK_TUI_APP_TYPE
     ) {
       return 0;
@@ -775,8 +702,6 @@ export class ExternalAgentProviderStore {
       appType === HERMES_APP_TYPE
       || appType === OPENCLAW_APP_TYPE
       || appType === OPENCODE_APP_TYPE
-      || appType === GROK_APP_TYPE
-      || appType === QWEN_APP_TYPE
       || appType === DEEPSEEK_TUI_APP_TYPE
     ) return null;
     const settings = readCcSwitchSettings();
@@ -819,8 +744,6 @@ export class ExternalAgentProviderStore {
     if (
       appType === HERMES_APP_TYPE
       || appType === OPENCODE_APP_TYPE
-      || appType === GROK_APP_TYPE
-      || appType === QWEN_APP_TYPE
       || appType === DEEPSEEK_TUI_APP_TYPE
     ) return;
     const providerId = this.getCcSwitchProviderId(provider);
@@ -863,8 +786,6 @@ export class ExternalAgentProviderStore {
     if (
       appType === HERMES_APP_TYPE
       || appType === OPENCODE_APP_TYPE
-      || appType === GROK_APP_TYPE
-      || appType === QWEN_APP_TYPE
       || appType === DEEPSEEK_TUI_APP_TYPE
     ) return;
     const currentProviderId = this.getCcSwitchCurrentProviderId(appType);
@@ -913,16 +834,8 @@ export class ExternalAgentProviderStore {
       this.syncOpenClawLiveProviders();
       return;
     }
-    if (appType === QWEN_APP_TYPE) {
-      this.syncQwenCodeLiveProviders();
-      return;
-    }
     if (appType === DEEPSEEK_TUI_APP_TYPE) {
       this.syncDeepSeekTuiLiveProviders();
-      return;
-    }
-    if (appType === GROK_APP_TYPE) {
-      this.importLiveProviderIfEmpty(appType);
       return;
     }
     const hasCurrent = Boolean(this.getCurrentProviderId(appType));
@@ -1080,51 +993,6 @@ export class ExternalAgentProviderStore {
     }
   }
 
-  private syncQwenCodeLiveProviders(): void {
-    const config = readJsonObject(getQwenCodeSettingsPath());
-    if (!config) {
-      this.importLiveProviderIfEmpty(QWEN_APP_TYPE);
-      return;
-    }
-    const records = listQwenCodeModelProviders(parseQwenCodeSettings(config));
-    this.db
-      .prepare('DELETE FROM external_agent_providers WHERE app_type = ? AND category = ?')
-      .run(QWEN_APP_TYPE, 'local');
-    const now = Date.now();
-    for (const record of records) {
-      this.db
-        .prepare(
-          `
-          INSERT INTO external_agent_providers (
-            id, app_type, name, settings_config, category, is_current, created_at, updated_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id, app_type) DO UPDATE SET
-            name = excluded.name,
-            settings_config = excluded.settings_config,
-            category = excluded.category,
-            is_current = excluded.is_current,
-            updated_at = excluded.updated_at
-        `,
-        )
-        .run(
-          record.id,
-          QWEN_APP_TYPE,
-          record.name,
-          JSON.stringify(settingsConfigFromQwenCodeRecord(record)),
-          'local',
-          record.isCurrent ? 1 : 0,
-          now,
-          now,
-        );
-    }
-    if (!records.some((record) => record.isCurrent) && records[0]) {
-      this.db
-        .prepare('UPDATE external_agent_providers SET is_current = 1 WHERE app_type = ? AND id = ?')
-        .run(QWEN_APP_TYPE, records[0].id);
-    }
-  }
-
   private syncDeepSeekTuiLiveProviders(): void {
     const configPath = getDeepSeekTuiConfigPath();
     if (!fs.existsSync(configPath)) {
@@ -1206,15 +1074,6 @@ export class ExternalAgentProviderStore {
         model: typeof config.model === 'string' ? config.model : DEFAULT_OPENCODE_LOCAL_MODEL,
       };
     }
-    if (appType === GROK_APP_TYPE) {
-      if (!fs.existsSync(getGrokBuildConfigPath())) return null;
-      const configText = fs.readFileSync(getGrokBuildConfigPath(), 'utf8');
-      const summary = summarizeGrokBuildConfig(parseGrokBuildConfigText(configText));
-      return {
-        config: configText,
-        model: summary.model || DEFAULT_GROK_LOCAL_MODEL,
-      };
-    }
     if (appType === HERMES_APP_TYPE) {
       if (!fs.existsSync(getHermesConfigPath())) return null;
       const config = parseHermesConfigText(fs.readFileSync(getHermesConfigPath(), 'utf8'));
@@ -1234,18 +1093,6 @@ export class ExternalAgentProviderStore {
       return {
         config,
         model: resolveOpenClawCurrentModel(config),
-      };
-    }
-    if (appType === QWEN_APP_TYPE) {
-      const config = readJsonObject(getQwenCodeSettingsPath());
-      if (!config) return null;
-      const model = getNestedRecord(config, 'model');
-      const security = getNestedRecord(config, 'security');
-      const auth = getNestedRecord(security, 'auth');
-      return {
-        authType: getString(auth.selectedType) || 'openai',
-        config,
-        model: getString(model.name) || DEFAULT_QWEN_CODE_LOCAL_MODEL,
       };
     }
     if (appType === DEEPSEEK_TUI_APP_TYPE) {
@@ -1334,48 +1181,6 @@ export class ExternalAgentProviderStore {
         },
       };
       writeJsonFile(getOpenClawConfigPath(), nextConfig);
-      return;
-    }
-    if (provider.appType === GROK_APP_TYPE) {
-      const existingConfigText = fs.existsSync(getGrokBuildConfigPath())
-        ? fs.readFileSync(getGrokBuildConfigPath(), 'utf8')
-        : '';
-      const selectedModel = getString(settingsConfig.model)
-        || summarizeProvider(provider.appType, settingsConfig).model
-        || DEFAULT_GROK_LOCAL_MODEL;
-      atomicWrite(getGrokBuildConfigPath(), mergeGrokBuildDefaultModel(existingConfigText, selectedModel));
-      return;
-    }
-    if (provider.appType === QWEN_APP_TYPE) {
-      const existingConfig = readJsonObject(getQwenCodeSettingsPath()) ?? {};
-      const selectedModel = getString(settingsConfig.model)
-        || summarizeQwenCodeSettingsConfig(settingsConfig).model
-        || DEFAULT_QWEN_CODE_LOCAL_MODEL;
-      const authType = getString(settingsConfig.authType) || 'openai';
-      const storedConfig = parseQwenCodeSettings(settingsConfig.config);
-      const existingSecurity = getNestedRecord(existingConfig, 'security');
-      const storedSecurity = getNestedRecord(storedConfig, 'security');
-      const existingAuth = getNestedRecord(existingSecurity, 'auth');
-      const storedAuth = getNestedRecord(storedSecurity, 'auth');
-      const nextConfig = {
-        ...existingConfig,
-        ...(Object.keys(storedConfig).length > 0 ? storedConfig : {}),
-        security: {
-          ...existingSecurity,
-          ...storedSecurity,
-          auth: {
-            ...existingAuth,
-            ...storedAuth,
-            selectedType: authType,
-          },
-        },
-        model: {
-          ...getNestedRecord(existingConfig, 'model'),
-          ...getNestedRecord(storedConfig, 'model'),
-          name: selectedModel,
-        },
-      };
-      writeJsonFile(getQwenCodeSettingsPath(), nextConfig);
       return;
     }
     if (provider.appType === DEEPSEEK_TUI_APP_TYPE) {

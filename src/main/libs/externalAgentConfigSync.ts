@@ -22,11 +22,6 @@ import {
 } from './deepSeekTuiConfig';
 import { type CliAppType, getExternalAgentEnvironmentSnapshot } from './externalAgentEnvironment';
 import {
-  DEFAULT_GROK_BUILD_MODEL,
-  parseGrokBuildConfigText,
-  summarizeGrokBuildConfig,
-} from './grokBuildConfig';
-import {
   DEFAULT_HERMES_MODEL,
   parseHermesConfigText,
   parseHermesDotenvText,
@@ -37,11 +32,6 @@ import {
   mergeOpenCodeConfigForAgoraModel,
   summarizeOpenCodeSettingsConfig,
 } from './openCodeConfig';
-import {
-  DEFAULT_QWEN_CODE_MODEL,
-  mergeQwenCodeConfigForAgoraModel,
-  summarizeQwenCodeSettingsConfig,
-} from './qwenCodeConfig';
 
 type ModelProviderConfig = {
   enabled: boolean;
@@ -109,8 +99,6 @@ const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-5';
 const DEFAULT_CODEX_MODEL = 'gpt-5.4';
 const DEFAULT_HERMES_LOCAL_MODEL = DEFAULT_HERMES_MODEL;
 const DEFAULT_OPENCODE_LOCAL_MODEL = DEFAULT_OPENCODE_MODEL;
-const DEFAULT_GROK_LOCAL_MODEL = DEFAULT_GROK_BUILD_MODEL;
-const DEFAULT_QWEN_CODE_LOCAL_MODEL = DEFAULT_QWEN_CODE_MODEL;
 const DEFAULT_DEEPSEEK_TUI_LOCAL_MODEL = DEFAULT_DEEPSEEK_TUI_MODEL;
 const CC_SWITCH_CLAUDE_COMMON_CONFIG_KEY = 'common_config_claude';
 const CLAUDE_MODEL_ENV_KEYS = [
@@ -266,11 +254,7 @@ const getCliConfigPaths = (appType: CliAppType): { primaryConfigPath: string; se
         ? path.join(homeDir(), '.openclaw')
       : appType === 'opencode'
         ? path.join(homeDir(), '.config', 'opencode')
-        : appType === 'grok'
-          ? path.join(homeDir(), '.grok')
-        : appType === 'qwen'
-          ? path.join(homeDir(), '.qwen')
-          : path.join(homeDir(), '.deepseek');
+        : path.join(homeDir(), '.deepseek');
   return {
     primaryConfigPath: appType === 'claude'
       ? path.join(configDir, 'settings.json')
@@ -282,11 +266,7 @@ const getCliConfigPaths = (appType: CliAppType): { primaryConfigPath: string; se
           ? path.join(configDir, 'openclaw.json')
         : appType === 'opencode'
           ? path.join(configDir, 'opencode.json')
-          : appType === 'grok'
-            ? path.join(configDir, 'config.toml')
-          : appType === 'qwen'
-            ? path.join(configDir, 'settings.json')
-            : path.join(configDir, 'config.toml'),
+          : path.join(configDir, 'config.toml'),
     secondaryConfigPaths: appType === 'claude'
       ? [path.join(homeDir(), '.claude.json')]
       : appType === 'codex'
@@ -297,11 +277,7 @@ const getCliConfigPaths = (appType: CliAppType): { primaryConfigPath: string; se
           ? [path.join(configDir, '.env')]
         : appType === 'opencode'
           ? [path.join(homeDir(), '.local', 'share', 'opencode', 'auth.json')]
-          : appType === 'grok'
-            ? [path.join(configDir, 'auth.json')]
-          : appType === 'qwen'
-            ? [path.join(configDir, 'oauth_creds.json')]
-            : [path.join(configDir, 'sessions')],
+          : [path.join(configDir, 'sessions')],
   };
 };
 
@@ -687,17 +663,6 @@ export const syncOpenCodeGlobalConfigFromAgoraModel = (): void => {
   );
 };
 
-export const syncQwenCodeGlobalConfigFromAgoraModel = (): void => {
-  const resolved = resolveRawApiConfig();
-  const config = requireApiConfig(resolved);
-  const paths = getCliConfigPaths('qwen');
-  const existing = readJsonObject(paths.primaryConfigPath) ?? {};
-  writeJsonObject(
-    paths.primaryConfigPath,
-    mergeQwenCodeConfigForAgoraModel(existing, config, resolved.providerMetadata?.providerName),
-  );
-};
-
 export const syncDeepSeekTuiGlobalConfigFromAgoraModel = (): void => {
   const resolved = resolveRawApiConfig();
   const config = requireApiConfig(resolved);
@@ -731,12 +696,6 @@ export const applyExternalAgentConfigForEngine = (
   if (engine === CoworkAgentEngine.OpenCode) {
     return;
   }
-  if (engine === CoworkAgentEngine.GrokBuild) {
-    return;
-  }
-  if (engine === CoworkAgentEngine.QwenCode) {
-    return;
-  }
   if (engine === CoworkAgentEngine.DeepSeekTui) {
     return;
   }
@@ -754,24 +713,16 @@ const buildProviderConfig = (
         ? 'Hermes Agent 本机配置'
       : appType === 'opencode'
         ? 'OpenCode 本机配置'
-      : appType === 'grok'
-        ? 'Grok Build 本机配置'
-        : appType === 'qwen'
-          ? 'Qwen Code 本机配置'
-          : 'DeepSeek-TUI 本机配置';
+        : 'DeepSeek-TUI 本机配置';
   const modelId = input.model || (appType === 'claude'
     ? DEFAULT_CLAUDE_MODEL
     : appType === 'codex'
       ? DEFAULT_CODEX_MODEL
-      : appType === 'hermes'
-        ? DEFAULT_HERMES_LOCAL_MODEL
-      : appType === 'opencode'
-        ? DEFAULT_OPENCODE_LOCAL_MODEL
-        : appType === 'grok'
-          ? DEFAULT_GROK_LOCAL_MODEL
-        : appType === 'qwen'
-          ? DEFAULT_QWEN_CODE_LOCAL_MODEL
-          : DEFAULT_DEEPSEEK_TUI_LOCAL_MODEL);
+    : appType === 'hermes'
+      ? DEFAULT_HERMES_LOCAL_MODEL
+    : appType === 'opencode'
+      ? DEFAULT_OPENCODE_LOCAL_MODEL
+      : DEFAULT_DEEPSEEK_TUI_LOCAL_MODEL);
   return {
     enabled: true,
     apiKey: input.apiKey,
@@ -873,41 +824,6 @@ const readOpenCodeLocalConfig = (): { apiKey: string; baseUrl: string; model: st
   };
 };
 
-const readGrokBuildLocalConfig = (): { apiKey: string; baseUrl: string; model: string } => {
-  const paths = getCliConfigPaths('grok');
-  const configText = fs.existsSync(paths.primaryConfigPath)
-    ? fs.readFileSync(paths.primaryConfigPath, 'utf8')
-    : '';
-  const summary = summarizeGrokBuildConfig(parseGrokBuildConfigText(configText));
-  return {
-    apiKey: '',
-    baseUrl: '',
-    model: summary.model || DEFAULT_GROK_LOCAL_MODEL,
-  };
-};
-
-const readQwenCodeLocalConfig = (): { apiKey: string; baseUrl: string; model: string } => {
-  const paths = getCliConfigPaths('qwen');
-  const config = readJsonObject(paths.primaryConfigPath) ?? {};
-  const model = getNestedRecord(config, 'model');
-  const summary = summarizeQwenCodeSettingsConfig({
-    authType: getNestedRecord(getNestedRecord(config, 'security'), 'auth').selectedType,
-    config,
-    model: getString(model.name) || DEFAULT_QWEN_CODE_LOCAL_MODEL,
-  });
-  if (!summary.apiKey) {
-    throw new Error('本机 Qwen Code 配置缺少可导入的 API Key。可继续使用“本机 CLI 配置”模式。');
-  }
-  if (!summary.baseUrl) {
-    throw new Error('本机 Qwen Code 配置缺少可导入的 Base URL。');
-  }
-  return {
-    apiKey: summary.apiKey,
-    baseUrl: summary.baseUrl,
-    model: summary.model || DEFAULT_QWEN_CODE_LOCAL_MODEL,
-  };
-};
-
 const readDeepSeekTuiLocalConfig = (): { apiKey: string; baseUrl: string; model: string } => {
   const paths = getCliConfigPaths('deepseek_tui');
   const config = fs.existsSync(paths.primaryConfigPath)
@@ -970,11 +886,7 @@ export const importLocalAgentConfigToModelSettings = (
         ? readHermesLocalConfig()
       : appType === 'opencode'
         ? readOpenCodeLocalConfig()
-        : appType === 'grok'
-          ? readGrokBuildLocalConfig()
-        : appType === 'qwen'
-          ? readQwenCodeLocalConfig()
-          : readDeepSeekTuiLocalConfig();
+        : readDeepSeekTuiLocalConfig();
   const providerConfig = buildProviderConfig(appType, localConfig);
   const appConfig = store.get<AppConfigForModelImport>('app_config') ?? {};
   const providers = { ...(appConfig.providers ?? {}) };
