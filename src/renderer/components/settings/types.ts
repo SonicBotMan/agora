@@ -18,3 +18,12 @@ export type TabType =
   | 'scheduledTasks'
   | 'mcp'
   | 'about';
+
+/** Status of the AppImage / dmg / spark-zip update check. */
+export type UpdateCheckStatus = 'idle' | 'checking' | 'upToDate' | 'error';
+
+/** Enterprise policy: which features a managed install has disabled. */
+export interface EnterpriseConfig {
+  disableUpdate?: boolean;
+  [key: string]: unknown;
+}

@@ -22,7 +22,8 @@ import type { TabType } from '../types';
 // the relevant shapes here. If they later become shared types, replace
 // these with imports.
 export interface ProviderConnectionTestResult {
-  ok: boolean;
+  ok?: boolean;
+  success?: boolean;
   message: string;
   provider?: string;
   result?: { latencyMs?: number; modelId?: string };

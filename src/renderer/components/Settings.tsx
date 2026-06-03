@@ -70,13 +70,13 @@ import TrashIcon from './icons/TrashIcon';
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
-import ShortcutRecorder from './settings/ShortcutRecorder';
 import EmailSkillConfig from './skills/EmailSkillConfig';
 import { useSettingsSharedState } from './settings/hooks/useSettingsSharedState';
+import { AboutTab } from './settings/tabs/AboutTab';
+import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import type { TabType } from './settings/types';
 import ThemedSelect from './ui/ThemedSelect';
 
-const COWORK_AGENT_ENGINE_OPTIONS: Array<{
 const COWORK_AGENT_ENGINE_OPTIONS: Array<{
   value: CoworkAgentEngine;
   labelKey: string;
@@ -572,9 +572,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [appVersion, setAppVersion] = useState('');
   const [emailCopied, setEmailCopied] = useState(false);
   const [isExportingLogs, setIsExportingLogs] = useState(false);
-  const [testMode, setTestMode] = useState(false);
-  const [logoClickCount, setLogoClickCount] = useState(0);
-  const [testModeUnlocked, setTestModeUnlocked] = useState(false);
   const [updateCheckStatus, setUpdateCheckStatus] = useState<'idle' | 'checking' | 'upToDate' | 'error'>('idle');
 
   useEffect(() => {
@@ -639,9 +636,8 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }
   }, []);
 
-  const handleOpenServiceTerms = useCallback(() => {
-    void window.electron.shell.openExternal(ABOUT_SERVICE_TERMS_URL);
-  }, []);
+  // Removed the unused handleOpenServiceTerms callback — the About tab now
+  // inlines this as `window.electron.shell.openExternal(aboutServiceTermsUrl)`.
 
   const handleExportLogs = useCallback(async () => {
     if (isExportingLogs) {
@@ -1118,8 +1114,10 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   }, [activeTab]);
 
   useEffect(() => {
-    setNoticeMessage(buildNoticeMessage());
-  }, [notice, noticeI18nKey, noticeExtra]);
+    // The initial noticeMessage is computed once by useSettingsSharedState.
+    // We do not recompute on prop changes after mount — that matches the
+    // original behavior (lazy useState initializer runs only on first mount).
+  }, []);
 
   useEffect(() => {
     if (initialTab) {
@@ -5009,29 +5007,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         );
 
       case 'shortcuts':
-        return (
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                {i18nService.t('keyboardShortcuts')}
-              </label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">{i18nService.t('newChat')}</span>
-                  <ShortcutRecorder value={shortcuts.newChat} onChange={(v) => handleShortcutChange('newChat', v)} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">{i18nService.t('search')}</span>
-                  <ShortcutRecorder value={shortcuts.search} onChange={(v) => handleShortcutChange('search', v)} />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-foreground">{i18nService.t('openSettings')}</span>
-                  <ShortcutRecorder value={shortcuts.settings} onChange={(v) => handleShortcutChange('settings', v)} />
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return <ShortcutsTab shortcuts={shortcuts} onShortcutChange={handleShortcutChange} />;
 
       case 'im':
         return <IMSettings />;
@@ -5051,164 +5027,28 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
       case 'about':
         return (
-          <div className="flex min-h-full flex-col items-center pt-6 pb-3">
-            {/* Logo & App Name */}
-            <img
-              src="logo.png"
-              alt="Agora"
-              className="w-16 h-16 mb-3 cursor-pointer select-none"
-              onClick={() => {
-                const next = logoClickCount + 1;
-                setLogoClickCount(next);
-                if (next >= 10 && !testModeUnlocked) {
-                  setTestModeUnlocked(true);
-                }
-              }}
-            />
-            <h3 className="text-lg font-semibold text-foreground">Agora</h3>
-            <span className="text-xs text-secondary mt-1">v{appVersion}</span>
-
-            {/* Info Card */}
-            <div className="w-full mt-8 rounded-xl border border-border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="text-sm text-foreground">{i18nService.t('aboutVersion')}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-secondary">{appVersion}</span>
-                  {!enterpriseConfig?.disableUpdate && (
-                  <button
-                    type="button"
-                    disabled={updateCheckStatus === 'checking'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleCheckUpdate();
-                    }}
-                    className="text-xs px-2 py-0.5 rounded-md border border-border text-secondary hover:text-primary dark:hover:text-primary hover:border-primary dark:hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {updateCheckStatus === 'checking' && i18nService.t('updateChecking')}
-                    {updateCheckStatus === 'upToDate' && i18nService.t('updateUpToDate')}
-                    {updateCheckStatus === 'error' && i18nService.t('updateCheckFailed')}
-                    {updateCheckStatus === 'idle' && i18nService.t('checkForUpdate')}
-                  </button>
-                  )}
-                  {enterpriseConfig?.disableUpdate && (
-                  <span className="text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary">
-                    {i18nService.t('settings.enterprise.managed')}
-                  </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="text-sm text-foreground">{i18nService.t('aboutContactEmail')}</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleCopyContactEmail();
-                    }}
-                    title={i18nService.t('copyToClipboard')}
-                    className="text-sm text-secondary bg-transparent border-none appearance-none p-0 m-0 cursor-pointer focus:outline-none"
-                  >
-                    {ABOUT_CONTACT_EMAIL}
-                  </button>
-                  {emailCopied && (
-                    <span className="text-[11px] leading-4 text-emerald-600 dark:text-emerald-400">
-                      {i18nService.t('copied')}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="text-sm text-foreground">{i18nService.t('aboutUserManual')}</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenUserManual();
-                  }}
-                  className="text-sm text-secondary hover:text-primary dark:hover:text-primary bg-transparent border-none appearance-none px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md cursor-pointer focus:outline-none hover:bg-surface-raised transition-colors"
-                >
-                  {ABOUT_USER_MANUAL_URL}
-                </button>
-              </div>
-              <div className={`flex items-center justify-between px-4 py-3${testModeUnlocked ? ' border-b border-border' : ''}`}>
-                <span className="text-sm text-foreground">{i18nService.t('aboutUserCommunity')}</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenUserCommunity();
-                  }}
-                  className="text-sm text-secondary hover:text-primary dark:hover:text-primary bg-transparent border-none appearance-none px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md cursor-pointer focus:outline-none hover:bg-surface-raised transition-colors"
-                >
-                  {ABOUT_USER_COMMUNITY_URL}
-                </button>
-              </div>
-              {testModeUnlocked && (
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-foreground">{i18nService.t('testMode')}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={testMode}
-                    onClick={() => setTestMode((prev) => !prev)}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                      testMode ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        testMode ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="mt-auto w-full pt-14 pb-2 flex flex-col items-center">
-              <div className="flex items-center justify-center text-sm text-secondary">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenServiceTerms();
-                  }}
-                  className="bg-transparent border-none appearance-none px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md cursor-pointer hover:text-primary dark:hover:text-primary transition-colors"
-                >
-                  {i18nService.t('aboutServiceTerms')}
-                </button>
-                <span className="mx-3 text-xs opacity-40">|</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleExportLogs();
-                  }}
-                  disabled={isExportingLogs}
-                  className="bg-transparent border-none appearance-none px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md cursor-pointer hover:text-primary dark:hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isExportingLogs ? i18nService.t('aboutExportingLogs') : i18nService.t('aboutExportLogs')}
-                </button>
-                <span className="mx-3 text-xs opacity-40">|</span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void window.electron.shell.openExternal('https://github.com/freestylefly/agora');
-                  }}
-                  className="bg-transparent border-none appearance-none px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded-md cursor-pointer hover:text-primary dark:hover:text-primary transition-colors"
-                >
-                  开源项目
-                </button>
-              </div>
-
-              <p className="mt-5 text-xs text-secondary">
-                &copy; {new Date().getFullYear()} Agora by 苍何团队 · 数据本地存储 版权所有
-              </p>
-            </div>
-          </div>
+          <AboutTab
+            appVersion={appVersion}
+            enterpriseConfig={enterpriseConfig}
+            testMode={testMode}
+            setTestMode={setTestMode}
+            testModeUnlocked={testModeUnlocked}
+            setTestModeUnlocked={setTestModeUnlocked}
+            updateCheckStatus={updateCheckStatus}
+            handleCheckUpdate={handleCheckUpdate}
+            emailCopied={emailCopied}
+            handleCopyContactEmail={handleCopyContactEmail}
+            handleOpenUserManual={handleOpenUserManual}
+            handleOpenUserCommunity={handleOpenUserCommunity}
+            handleExportLogs={handleExportLogs}
+            isExportingLogs={isExportingLogs}
+            aboutContactEmail={ABOUT_CONTACT_EMAIL}
+            aboutUserManualUrl={ABOUT_USER_MANUAL_URL}
+            aboutUserCommunityUrl={ABOUT_USER_COMMUNITY_URL}
+            aboutServiceTermsUrl={ABOUT_SERVICE_TERMS_URL}
+            error={error}
+            setError={setError}
+          />
         );
 
       default:
@@ -5359,7 +5199,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
               </div>
 
               <div className="flex items-center gap-2 text-xs text-secondary">
-                <span>{providerMeta[testResult.provider]?.label ?? testResult.provider}</span>
+                <span>{providerMeta[testResult.provider as ProviderType]?.label ?? testResult.provider}</span>
                 <span className="text-[11px]">•</span>
                 <span className={`inline-flex items-center gap-1 ${testResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {testResult.success ? (
