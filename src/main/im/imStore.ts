@@ -17,7 +17,7 @@ import {
   isFeishuManagementMode,
   isFeishuRuntimeOwnership,
 } from '../../shared/im/constants';
-import { PlatformRegistry } from '../../shared/platform';
+import { PlatformOrRemoved, PlatformRegistry } from '../../shared/platform';
 import {
   DEFAULT_DINGTALK_MULTI_INSTANCE_CONFIG,
   DEFAULT_DINGTALK_OPENCLAW_CONFIG,
@@ -653,6 +653,7 @@ export class IMStore {
       feishu: feishuMulti,
       telegram: resolveEnabled(telegram, DEFAULT_TELEGRAM_OPENCLAW_CONFIG),
       discord: resolveEnabled(discord, DEFAULT_DISCORD_OPENCLAW_CONFIG),
+      nim: { enabled: false, appKey: '', appSecret: '', account: '', token: '' },
       'netease-bee': resolveEnabled(neteaseBeeChan, DEFAULT_NETEASE_BEE_CONFIG),
       qq: qqMulti,
       wecom: resolveEnabled(wecom, DEFAULT_WECOM_CONFIG),
@@ -1213,14 +1214,14 @@ export class IMStore {
   /**
    * Get persisted notification target for a platform
    */
-  getNotificationTarget(platform: Platform): any | null {
+  getNotificationTarget(platform: PlatformOrRemoved): any | null {
     return this.getConfigValue<any>(`notification_target:${platform}`) ?? null;
   }
 
   /**
    * Persist notification target for a platform
    */
-  setNotificationTarget(platform: Platform, target: any): void {
+  setNotificationTarget(platform: PlatformOrRemoved, target: any): void {
     this.setConfigValue(`notification_target:${platform}`, target);
   }
 
@@ -1240,7 +1241,7 @@ export class IMStore {
   }
 
   setConversationReplyRoute(
-    platform: Platform,
+    platform: PlatformOrRemoved,
     conversationId: string,
     route: StoredConversationReplyRoute,
   ): void {

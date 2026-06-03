@@ -3,9 +3,36 @@
  * Extracted from main.ts - pure functions with no state dependencies.
  */
 
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
+
+import type { CoworkFileActivity } from '../../shared/cowork/fileActivity';
+import { isCoworkAgentEngine, isRuntimeCallStatus, isRuntimeCallSource } from '../../shared/cowork/constants';
+import type { RuntimeMetricsFilters } from '../../shared/cowork/runtimeMetrics';
+
+/**
+ * Screenshot / image capture rectangle, in CSS pixels.
+ * Defined here (not in a shared module) to avoid a circular import;
+ * ipcUtils only needs the shape for normalizing user-provided rects.
+ */
+export interface CaptureRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const INVALID_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001F]/g;
 const IPC_MAX_ITEMS = 500;
 const IPC_MAX_STRING = 20000;
+// IPC payload sanitization limits — keep these in sync with the renderer-side
+// IpcStringLimits constant. Strings longer than IPC_STRING_MAX_CHARS are
+// truncated with a marker; deeply-nested payloads are flattened to a summary.
+const IPC_STRING_MAX_CHARS = 120_000;
+const IPC_UPDATE_CONTENT_MAX_CHARS = 120_000;
+const IPC_MAX_DEPTH = 5;
+const IPC_MAX_KEYS = 80;
 
 
 const sanitizeExportFileName = (value: string): string => {
@@ -79,11 +106,9 @@ const ensurePngFileName = (value: string): string => {
   return value.toLowerCase().endsWith('.png') ? value : `${value}.png`;
 };
 
-
 const ensureZipFileName = (value: string): string => {
   return value.toLowerCase().endsWith('.zip') ? value : `${value}.zip`;
 };
-
 
 const padTwoDigits = (value: number): string => value.toString().padStart(2, '0');
 
@@ -94,20 +119,10 @@ const buildLogExportFileName = (): string => {
   return `agora-logs-${datePart}-${timePart}.zip`;
 };
 
-
-const buildLogExportFileName = (): string => {
-  const now = new Date();
-  const datePart = `${now.getFullYear()}${padTwoDigits(now.getMonth() + 1)}${padTwoDigits(now.getDate())}`;
-  const timePart = `${padTwoDigits(now.getHours())}${padTwoDigits(now.getMinutes())}${padTwoDigits(now.getSeconds())}`;
-  return `agora-logs-${datePart}-${timePart}.zip`;
-};
-
-
 const truncateIpcString = (value: string, maxChars: number): string => {
   if (value.length <= maxChars) return value;
   return `${value.slice(0, maxChars)}\n...[truncated in main IPC forwarding]`;
 };
-
 
 const sanitizeIpcPayload = (value: unknown, depth = 0, seen?: WeakSet<object>): unknown => {
   const localSeen = seen ?? new WeakSet<object>();

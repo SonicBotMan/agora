@@ -13,7 +13,7 @@ import {
   ExternalAgentConfigSource,
   isClaudeCodePermissionMode,
   OpenCodePermissionMode,
-|} from '../../../shared/cowork/constants';
+} from '../../../shared/cowork/constants';
 import type { CoworkSessionRuntimeSnapshot } from '../../../shared/cowork/runtimeSnapshot';
 import type {
   CoworkMessage,

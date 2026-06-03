@@ -11,7 +11,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, IpcMainInvokeEvent, nat
 import fs from 'fs';
 import path from 'path';
 
-import { CoworkAgentEngine as CoworkAgentEngineValue, CoworkIpcChannel, CoworkSessionKind, ExternalAgentConfigSource, isClaudeCodePermissionMode, isCoworkAgentEngine, isDeepSeekTuiPermissionMode, isExternalAgentConfigSource, isOpenCodePermissionMode, RuntimeCallSource } from '../../shared/cowork/constants';
+import { CoworkAgentEngine as CoworkAgentEngineValue, CoworkIpcChannel, CoworkSessionKind, ExternalAgentConfigSource, isClaudeCodePermissionMode, isCoworkAgentEngine, isDeepSeekTuiPermissionMode, isExternalAgentConfigSource, isOpenCodePermissionMode, RuntimeCallSource, RuntimeCallStatus } from '../../shared/cowork/constants';
 import type { RuntimeMetricsFilters } from '../../shared/cowork/runtimeMetrics';
 import type { CoworkSessionRuntimeSnapshot } from '../../shared/cowork/runtimeSnapshot';
 import type { CoworkAgentEngine } from '../libs/agentEngine';
@@ -59,8 +59,16 @@ const normalizeRuntimeMetricsFilters = (input: unknown): RuntimeMetricsFilters =
   if (!input || typeof input !== 'object') return filters;
   const record = input as Record<string, unknown>;
   if (typeof record.providerKey === 'string' && record.providerKey.trim()) filters.providerKey = record.providerKey.trim();
-  if (typeof record.status === 'string') filters.status = record.status;
-  if (typeof record.source === 'string') filters.source = record.source;
+  if (typeof record.status === 'string') {
+    if ((Object.values(RuntimeCallStatus) as string[]).includes(record.status)) {
+      filters.status = record.status as RuntimeCallStatus;
+    }
+  }
+  if (typeof record.source === 'string') {
+    if (Object.values(RuntimeCallSource).includes(record.source as RuntimeCallSource)) {
+      filters.source = record.source as RuntimeCallSource;
+    }
+  }
   if (typeof record.sessionId === 'string' && record.sessionId.trim()) filters.sessionId = record.sessionId.trim();
   const limit = Number(record.limit);
   const offset = Number(record.offset);

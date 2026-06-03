@@ -25,6 +25,9 @@ import { registerSkillHandlers, type SkillDeps } from './skillHandlers';
 import { registerSessionHandlers, type SessionDeps } from './sessionHandlers';
 import { registerImHandlers, type ImDeps } from './imHandlers';
 import { registerEngineHandlers, type EngineDeps } from './engineHandlers';
+import { registerAgentsHandlers, type AgentsDeps } from './agentsHandlers';
+import { registerMcpHandlers, type McpDeps } from './mcpHandlers';
+import { registerApiHandlers, type ApiDeps } from './apiHandlers';
 
 /**
  * Aggregated dependencies for all handler groups.
@@ -68,6 +71,15 @@ export interface AllHandlerDeps {
 
   // Engines
   engines: EngineDeps;
+
+  // Agents
+  agents: AgentsDeps;
+
+  // MCP
+  mcp: McpDeps;
+
+  // API / Copilot / github-copilot
+  api: ApiDeps;
 }
 
 /**
@@ -93,6 +105,9 @@ export function registerAllHandlers(deps: AllHandlerDeps): void {
   registerSessionHandlers(deps.sessions);
   registerImHandlers(deps.im);
   registerEngineHandlers(deps.engines);
+  registerAgentsHandlers(deps.agents);
+  registerMcpHandlers(deps.mcp);
+  registerApiHandlers(deps.api);
 }
 
 /**
@@ -112,4 +127,7 @@ export type {
   SessionDeps,
   ImDeps,
   EngineDeps,
+  AgentsDeps,
+  McpDeps,
+  ApiDeps,
 };

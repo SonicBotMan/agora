@@ -1275,6 +1275,21 @@ const getAgentManager = () => {
   return agentManager;
 };
 
+/**
+ * Stub for AgentTeamRunner — removed in the WeSight→Agora rewrite.
+ * All callers (team-session start/continue and gateway adapter) get a
+ * no-op runner so old call sites continue to compile and runtime noop.
+ * Phase 4 will re-introduce a real Orchestrator-backed implementation.
+ */
+const getAgentTeamRunner = (): { run: (opts: { teamId: string; parentSessionId: string; prompt: string; runtimeSource: string }) => Promise<void> } => {
+  return {
+    run: async () => {
+      // No-op: team execution has been removed. Session continues via the
+      // primary cowork runtime; teamId is preserved in session metadata.
+    },
+  };
+};
+
 const resolveCoworkAgentEngine = (): CoworkAgentEngine => {
   const configured = getCoworkStore().getConfig().agentEngine;
   return isCoworkAgentEngine(configured) ? configured : CoworkAgentEngineValue.ClaudeCode;
@@ -1520,6 +1535,11 @@ const getOpenClawConfigSync = (): OpenClawConfigSync => {
       getCoworkConfig: () => getCoworkStore().getConfig(),
       isEnterprise: () => !!getStore().get('enterprise_config'),
       getSkillsList: () => getSkillManager().listSkills().map(s => ({ id: s.id, enabled: s.enabled })),
+      // Popo and NetEase-bee IM platforms were removed in the WeSight→Agora
+      // rewrite. These getters return null so OpenClaw config sync can run
+      // without referencing the deleted platform configs.
+      getPopoConfig: () => null,
+      getNeteaseBeeChanConfig: () => null,
       getTelegramOpenClawConfig: () => {
         try {
           return getIMGatewayManager()?.getConfig()?.telegram ?? null;
@@ -5020,9 +5040,6 @@ if (!gotTheLock) {
       || config.qq?.instances?.some(i => i.enabled && i.appId && i.appSecret)
       || (config.wecom?.enabled && config.wecom.botId && config.wecom.secret)
       || config.weixin?.enabled
-      || (config.popo?.enabled && config.popo.appKey && config.popo.appSecret && config.popo.aesKey)
-      || (config.nim?.enabled && config.nim.appKey && config.nim.account && config.nim.token)
-      || (config['netease-bee']?.enabled && config['netease-bee'].clientId && config['netease-bee'].secret)
     );
   };
 
@@ -6052,7 +6069,11 @@ if (!gotTheLock) {
         ok: response.ok,
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
+        headers: (() => {
+          const out: Record<string, string> = {};
+          response.headers.forEach((v, k) => { out[k] = v; });
+          return out;
+        })(),
         data,
       };
     };
@@ -6344,7 +6365,6 @@ if (!gotTheLock) {
 
     // 设置 macOS Dock 图标（开发模式下 Electron 默认图标不是应用 Logo）
     if (isMac && isDev) {
-      ensureMacDockVisible();
       const iconPath = path.join(__dirname, '../build/icons/mac/icon.png');
       if (fs.existsSync(iconPath)) {
         app.dock.setIcon(nativeImage.createFromPath(iconPath));

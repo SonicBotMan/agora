@@ -2,5 +2,5 @@
  * OpenClaw Engine Adapter
  * Re-exports from existing adapter in agentEngine/
  */
-export { OpenClawRuntimeAdapter as default } from '../agentEngine/openclawRuntimeAdapter';
-export type { OpenClawRuntimeAdapter } from '../agentEngine/openclawRuntimeAdapter';
+export { OpenClawRuntimeAdapter as default } from '../../libs/agentEngine/openclawRuntimeAdapter';
+export type { OpenClawRuntimeAdapter } from '../../libs/agentEngine/openclawRuntimeAdapter';

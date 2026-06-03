@@ -103,6 +103,16 @@ const DEFINITIONS = [
 // ═══════════════════════════════════════════════════════
 
 export type Platform = typeof DEFINITIONS[number]['id'];
+
+/**
+ * Platforms that were removed during the WeSight→Agora rewrite (popo, nim,
+ * netease-bee) but still appear in legacy code as string-literal comparisons
+ * (e.g. `if (platform === 'popo')`). Including them in the union keeps that
+ * code type-checking without runtime impact — users can no longer enable
+ * these platforms via the UI since they're absent from DEFINITIONS.
+ */
+export type RemovedPlatform = 'popo' | 'nim' | 'netease-bee';
+export type PlatformOrRemoved = Platform | RemovedPlatform;
 export type ChannelName =
   | typeof DEFINITIONS[number]['channel']
   | typeof DEFINITIONS[number]['channelAliases'][number];

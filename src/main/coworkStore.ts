@@ -28,7 +28,7 @@ import {
   isOpenCodePermissionMode,
   OpenCodePermissionMode,
   type OpenCodePermissionMode as OpenCodePermissionModeType,
-|} from '../shared/cowork/constants';
+} from '../shared/cowork/constants';
 import type { CoworkSessionRuntimeSnapshot } from '../shared/cowork/runtimeSnapshot';
 import {
   type CoworkMemoryGuardLevel,

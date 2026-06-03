@@ -13,8 +13,8 @@ import {
   type FeishuRuntimeOwnershipType,
   type FeishuSecretStatusType,
 } from '../../shared/im/constants';
-import type { Platform } from '../../shared/platform';
-export type { Platform } from '../../shared/platform';
+import type { Platform, PlatformOrRemoved } from '../../shared/platform';
+export type { Platform, PlatformOrRemoved } from '../../shared/platform';
 
 export interface DingTalkOpenClawConfig {
   enabled: boolean;
@@ -248,6 +248,27 @@ export interface DiscordGatewayStatus {
   lastOutboundAt: number | null;
 }
 
+// ==================== NIM (NetEase IM) Types ====================
+// Kept as stub for legacy code that still references nim platform string.
+// Cannot be enabled from the UI but the type shape preserves the prior
+// migration work without forcing callers to remove every reference.
+
+export interface NimConfig {
+  enabled: boolean;
+  appKey: string;
+  appSecret: string;
+  account: string;
+  token: string;
+}
+
+export interface NimGatewayStatus {
+  connected: boolean;
+  startedAt: number | null;
+  lastError: string | null;
+  lastInboundAt: number | null;
+  lastOutboundAt: number | null;
+}
+
 // ==================== NeteaseBee (小蜜蜂) Types ====================
 
 export interface NeteaseBeeChanConfig {
@@ -398,6 +419,7 @@ export interface IMGatewayConfig {
   telegram: TelegramOpenClawConfig;
   qq: QQMultiInstanceConfig;
   discord: DiscordOpenClawConfig;
+  nim: NimConfig;
   'netease-bee': NeteaseBeeChanConfig;
   wecom: WecomOpenClawConfig;
   popo: PopoOpenClawConfig;
@@ -420,6 +442,7 @@ export interface IMGatewayStatus {
   qq: QQMultiInstanceStatus;
   telegram: TelegramGatewayStatus;
   discord: DiscordGatewayStatus;
+  nim: NimGatewayStatus;
   'netease-bee': NeteaseBeeChanGatewayStatus;
   wecom: WecomGatewayStatus;
   popo: PopoGatewayStatus;
@@ -530,7 +553,7 @@ export interface IMConnectivityCheck {
 }
 
 export interface IMConnectivityTestResult {
-  platform: Platform;
+  platform: PlatformOrRemoved;
   testedAt: number;
   verdict: IMConnectivityVerdict;
   checks: IMConnectivityCheck[];
@@ -697,6 +720,7 @@ export const DEFAULT_IM_CONFIG: IMGatewayConfig = {
   telegram: DEFAULT_TELEGRAM_OPENCLAW_CONFIG,
   qq: DEFAULT_QQ_MULTI_INSTANCE_CONFIG,
   discord: DEFAULT_DISCORD_OPENCLAW_CONFIG,
+  nim: { enabled: false, appKey: '', appSecret: '', account: '', token: '' },
   'netease-bee': DEFAULT_NETEASE_BEE_CONFIG,
   wecom: DEFAULT_WECOM_CONFIG,
   popo: DEFAULT_POPO_CONFIG,
@@ -803,6 +827,13 @@ export const DEFAULT_IM_STATUS: IMGatewayStatus = {
   },
   qq: { instances: [] },
   discord: DEFAULT_DISCORD_STATUS,
+  nim: {
+    connected: false,
+    startedAt: null,
+    lastError: null,
+    lastInboundAt: null,
+    lastOutboundAt: null,
+  },
   'netease-bee': DEFAULT_NETEASE_BEE_STATUS,
   wecom: DEFAULT_WECOM_STATUS,
   popo: DEFAULT_POPO_STATUS,
