@@ -79,6 +79,7 @@ import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
+import { ModelEditorModal } from './settings/modals/ModelEditorModal';
 import { TestResultModal } from './settings/modals/TestResultModal';
 import type { TabType } from './settings/types';
 
@@ -4649,160 +4650,23 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
 
         {(isAddingModel || isEditingModel) && (
-          <div
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
-            onClick={handleCancelModelEdit}
-          >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label={isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={handleModelDialogKeyDown}
-                className="w-full max-w-md rounded-2xl bg-background border-border border shadow-modal p-4"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-semibold text-foreground">
-                    {isEditingModel ? i18nService.t('editModel') : i18nService.t('addNewModel')}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleCancelModelEdit}
-                    className="p-1 text-secondary hover:text-foreground rounded-md hover:bg-surface-raised"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </div>
+          <ModelEditorModal
+            isEditing={isEditingModel}
+            newModelId={newModelId}
+            setNewModelId={setNewModelId}
+            newModelName={newModelName}
+            setNewModelName={setNewModelName}
+            newModelSupportsImage={newModelSupportsImage}
+            setNewModelSupportsImage={setNewModelSupportsImage}
+            modelFormError={modelFormError}
+            setModelFormError={setModelFormError}
+            isOllama={activeProvider === 'ollama'}
+            onCancel={handleCancelModelEdit}
+            onSave={handleSaveNewModel}
+            onKeyDown={handleModelDialogKeyDown}
+          />
+        )}
 
-                {modelFormError && (
-                  <p className="mb-3 text-xs text-red-600 dark:text-red-400">
-                    {modelFormError}
-                  </p>
-                )}
-
-                <div className="space-y-3">
-                  {activeProvider === 'ollama' ? (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium text-secondary mb-1">
-                          {i18nService.t('ollamaModelName')}
-                        </label>
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newModelId}
-                          onChange={(e) => {
-                            setNewModelId(e.target.value);
-                            if (!newModelName || newModelName === newModelId) {
-                              setNewModelName(e.target.value);
-                            }
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-xs"
-                          placeholder={i18nService.t('ollamaModelNamePlaceholder')}
-                        />
-                        <p className="mt-1 text-[11px] text-muted">
-                          {i18nService.t('ollamaModelNameHint')}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-secondary mb-1">
-                          {i18nService.t('ollamaDisplayName')}
-                        </label>
-                        <input
-                          type="text"
-                          value={newModelName === newModelId ? '' : newModelName}
-                          onChange={(e) => {
-                            setNewModelName(e.target.value || newModelId);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-xs"
-                          placeholder={i18nService.t('ollamaDisplayNamePlaceholder')}
-                        />
-                        <p className="mt-1 text-[11px] text-muted">
-                          {i18nService.t('ollamaDisplayNameHint')}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium text-secondary mb-1">
-                          {i18nService.t('modelName')}
-                        </label>
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newModelName}
-                          onChange={(e) => {
-                            setNewModelName(e.target.value);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-xs"
-                          placeholder="GPT-4"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-secondary mb-1">
-                          {i18nService.t('modelId')}
-                        </label>
-                        <input
-                          type="text"
-                          value={newModelId}
-                          onChange={(e) => {
-                            setNewModelId(e.target.value);
-                            if (modelFormError) {
-                              setModelFormError(null);
-                            }
-                          }}
-                          className="block w-full rounded-xl bg-surface-inset border-border border focus:border-primary focus:ring-1 focus:ring-primary/30 text-foreground px-3 py-2 text-xs"
-                          placeholder="gpt-4"
-                        />
-                      </div>
-                    </>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <input
-                      id={`${activeProvider}-supportsImage`}
-                      type="checkbox"
-                      checked={newModelSupportsImage}
-                      onChange={(e) => setNewModelSupportsImage(e.target.checked)}
-                      className="h-3.5 w-3.5 text-primary focus:ring-primary bg-surface border-border rounded"
-                    />
-                    <label
-                      htmlFor={`${activeProvider}-supportsImage`}
-                      className="text-xs text-secondary"
-                    >
-                      {i18nService.t('supportsImageInput')}
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={handleCancelModelEdit}
-                    className="px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised rounded-xl border border-border"
-                  >
-                    {i18nService.t('cancel')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveNewModel}
-                    className="px-3 py-1.5 text-xs text-white bg-primary hover:bg-primary-hover rounded-xl active:scale-[0.98]"
-                  >
-                    {i18nService.t('save')}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Memory Modal */}
           {showMemoryModal && (
