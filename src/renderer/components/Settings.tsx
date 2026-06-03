@@ -1,5 +1,5 @@
 import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
-import { ArrowTopRightOnSquareIcon,ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, SignalIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, SignalIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import {
   ClaudeCodePermissionMode as ClaudeCodePermissionModeValue,
   CoworkAgentEngine as CoworkAgentEngineValue,
@@ -76,6 +76,7 @@ import { AboutTab } from './settings/tabs/AboutTab';
 import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
 import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
+import { ProviderConfigHeader } from './settings/tabs/ProviderConfigHeader';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
@@ -3640,36 +3641,14 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
             {/* Provider Settings - Right Side */}
             <div className="w-3/5 pl-4 pr-2 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
-              <div className="flex items-center justify-between pb-2 border-b border-border">
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-base font-medium text-foreground">
-                    {isCustomProvider(activeProvider)
-                      ? ((providers[activeProvider] as ProviderConfig)?.displayName || getCustomProviderDefaultName(activeProvider))
-                      : (providerMeta[activeProvider]?.label ?? getProviderDisplayName(activeProvider))
-                    } {i18nService.t('providerSettings')}
-                  </h3>
-                  {providerLinks[activeProvider]?.website && (
-                    <button
-                      type="button"
-                      onClick={() => void window.electron.shell.openExternal(providerLinks[activeProvider]!.website)}
-                      className="p-0.5 rounded text-secondary hover:text-primary transition-colors"
-                      title={i18nService.t('visitOfficialSite')}
-                      aria-label={i18nService.t('visitOfficialSite')}
-                    >
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <div
-                  className={`px-2 py-0.5 rounded-lg text-xs font-medium ${
-                    providers[activeProvider].enabled
-                      ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                      : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {providers[activeProvider].enabled ? i18nService.t('providerStatusOn') : i18nService.t('providerStatusOff')}
-                </div>
-              </div>
+              <ProviderConfigHeader
+                providerName={isCustomProvider(activeProvider)
+                  ? ((providers[activeProvider] as ProviderConfig)?.displayName || getCustomProviderDefaultName(activeProvider))
+                  : (providerMeta[activeProvider]?.label ?? getProviderDisplayName(activeProvider))}
+                websiteUrl={providerLinks[activeProvider]?.website}
+                enabled={providers[activeProvider].enabled}
+              />
+
 
               {/* MiniMax OAuth auth section */}
               {activeProvider === 'minimax' && (
