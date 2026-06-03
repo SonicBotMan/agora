@@ -72,10 +72,11 @@ import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
 import ShortcutRecorder from './settings/ShortcutRecorder';
 import EmailSkillConfig from './skills/EmailSkillConfig';
+import { useSettingsSharedState } from './settings/hooks/useSettingsSharedState';
+import type { TabType } from './settings/types';
 import ThemedSelect from './ui/ThemedSelect';
 
-type TabType = 'general'| 'coworkAgentEngine' | 'model' | 'coworkMemory' | 'coworkAgent' | 'agents' | 'shortcuts' | 'im' | 'email' | 'scheduledTasks' | 'mcp' | 'about';
-
+const COWORK_AGENT_ENGINE_OPTIONS: Array<{
 const COWORK_AGENT_ENGINE_OPTIONS: Array<{
   value: CoworkAgentEngine;
   labelKey: string;
@@ -491,37 +492,35 @@ const joinWorkspacePath = (dir: string | undefined, filename: string): string =>
 
 const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, noticeI18nKey, noticeExtra, onUpdateFound, enterpriseConfig }) => {
   const dispatch = useDispatch();
-  // 状态
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab ?? 'general');
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
-  const [themeId, setThemeId] = useState<string>(themeService.getThemeId());
-  const [language, setLanguage] = useState<LanguageType>('zh');
-  const [autoLaunch, setAutoLaunchState] = useState(false);
-  const [useSystemProxy, setUseSystemProxy] = useState(false);
-  const [isUpdatingAutoLaunch, setIsUpdatingAutoLaunch] = useState(false);
-  const [preventSleep, setPreventSleepState] = useState(false);
-  const [isUpdatingPreventSleep, setIsUpdatingPreventSleep] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const buildNoticeMessage = (): string | null => {
-    if (noticeI18nKey) {
-      const base = i18nService.t(noticeI18nKey);
-      return noticeExtra ? `${base} (${noticeExtra})` : base;
-    }
-    return notice ?? null;
-  };
-
-  const [noticeMessage, setNoticeMessage] = useState<string | null>(() => buildNoticeMessage());
-  const [testResult, setTestResult] = useState<ProviderConnectionTestResult | null>(null);
-  const [isTestResultModalOpen, setIsTestResultModalOpen] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [pendingDeleteProvider, setPendingDeleteProvider] = useState<ProviderType | null>(null);
-  const [isImportingProviders, setIsImportingProviders] = useState(false);
-  const [isExportingProviders, setIsExportingProviders] = useState(false);
-  const initialThemeRef = useRef<'light' | 'dark' | 'system'>(themeService.getTheme());
-  const initialThemeIdRef = useRef<string>(themeService.getThemeId());
-  const initialLanguageRef = useRef<LanguageType>(i18nService.getLanguage());
-  const didSaveRef = useRef(false);
+  // Shared state (theme, language, active tab, save state, provider-test state,
+  // test-mode easter egg, and the initial-* refs). Tab-specific state lives
+  // inline further below.
+  const {
+    activeTab, setActiveTab,
+    theme, setTheme,
+    themeId, setThemeId,
+    language, setLanguage,
+    autoLaunch, setAutoLaunchState,
+    useSystemProxy, setUseSystemProxy,
+    isUpdatingAutoLaunch, setIsUpdatingAutoLaunch,
+    preventSleep, setPreventSleepState,
+    isUpdatingPreventSleep, setIsUpdatingPreventSleep,
+    isSaving, setIsSaving,
+    error, setError,
+    noticeMessage, setNoticeMessage,
+    testResult, setTestResult,
+    isTestResultModalOpen, setIsTestResultModalOpen,
+    isTesting, setIsTesting,
+    pendingDeleteProvider, setPendingDeleteProvider,
+    isImportingProviders, setIsImportingProviders,
+    isExportingProviders, setIsExportingProviders,
+    testMode, setTestMode,
+    testModeUnlocked, setTestModeUnlocked,
+    initialThemeRef,
+    initialThemeIdRef,
+    initialLanguageRef,
+    didSaveRef,
+  } = useSettingsSharedState({ initialTab, notice, noticeI18nKey, noticeExtra });
 
   // Add state for active provider
   const [activeProvider, setActiveProvider] = useState<ProviderType>(getDefaultActiveProvider());
