@@ -76,6 +76,7 @@ import { AboutTab } from './settings/tabs/AboutTab';
 import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
 import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
+import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import type { TabType } from './settings/types';
 
@@ -3614,130 +3615,25 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
       case 'model':
         return (
           <div className="flex h-full">
-            {/* Provider List - Left Side */}
-            <div className="w-2/5 border-r border-border pr-3 space-y-1.5 overflow-y-auto">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-sm font-medium text-foreground">
-                  {i18nService.t('modelProviders')}
-                </h3>
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={handleImportProvidersClick}
-                    disabled={isImportingProviders || isExportingProviders}
-                    className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border border-border text-foreground hover:bg-surface-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                  >
-                    {i18nService.t('import')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExportProviders}
-                    disabled={isImportingProviders || isExportingProviders}
-                    className="inline-flex items-center px-2 py-1 text-[11px] font-medium rounded-lg border border-border text-foreground hover:bg-surface-raised disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                  >
-                    {i18nService.t('export')}
-                  </button>
-                </div>
-              </div>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept="application/json"
-                className="hidden"
-                onChange={handleImportProviders}
-              />
-              {Object.entries(visibleProviders).map(([provider, config]) => {
-                const providerKey = provider as ProviderType;
-                const isCustom = isCustomProvider(provider);
-                const providerInfo = providerMeta[providerKey];
-                const missingApiKey = providerRequiresApiKey(providerKey) && !config.apiKey.trim();
-                const canToggleProvider = config.enabled || !missingApiKey;
-                const displayLabel = isCustom
-                  ? ((config as ProviderConfig).displayName || getCustomProviderDefaultName(provider))
-                  : (providerInfo?.label ?? getProviderDisplayName(provider));
-                return (
-                  <div
-                    key={provider}
-                    onClick={() => handleProviderChange(providerKey)}
-                    className={`group flex items-center p-2 rounded-xl cursor-pointer transition-colors ${
-                      activeProvider === provider
-                        ? 'bg-primary-muted border border-primary shadow-subtle'
-                        : 'bg-surface hover:bg-surface-raised border border-transparent'
-                    }`}
-                  >
-                    <div className="flex flex-1 items-center min-w-0">
-                      <div className="mr-2 flex h-7 w-7 items-center justify-center shrink-0">
-                        <span className="text-foreground">
-                          {isCustom ? <CustomProviderIcon /> : providerInfo?.icon}
-                        </span>
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className={`text-sm font-medium truncate ${
-                          activeProvider === provider
-                            ? 'text-primary'
-                            : 'text-foreground'
-                        }`}>
-                          {displayLabel}
-                        </span>
-                        {isCustom && (
-                          <span className="text-[9px] leading-tight mt-0.5 text-primary">
-                            {i18nService.t('customBadge')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center ml-2 gap-1">
-                      {isCustom && (
-                        <button
-                          type="button"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-claude-secondaryText hover:text-red-500 dark:text-claude-darkSecondaryText dark:hover:text-red-400 p-0.5"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCustomProvider(providerKey);
-                          }}
-                          title={i18nService.t('deleteCustomProvider')}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                          </svg>
-                        </button>
-                      )}
-                      <div
-                        title={!canToggleProvider ? i18nService.t('configureApiKey') : undefined}
-                        className={`w-7 h-4 rounded-full flex items-center transition-colors ${
-                          config.enabled ? 'bg-primary' : 'bg-gray-400 dark:bg-gray-600'
-                        } ${
-                          canToggleProvider ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!canToggleProvider) {
-                            return;
-                          }
-                          toggleProviderEnabled(providerKey);
-                        }}
-                      >
-                        <div
-                          className={`w-3 h-3 rounded-full bg-white shadow-md transform transition-transform ${
-                            config.enabled ? 'translate-x-3.5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {/* Add Custom Provider Button */}
-              {CUSTOM_PROVIDER_KEYS.some(k => !providers[k]) && (
-              <button
-                type="button"
-                onClick={handleAddCustomProvider}
-                className="w-full flex items-center justify-center p-2 rounded-xl border border-dashed border-claude-border dark:border-claude-darkBorder text-claude-secondaryText dark:text-claude-darkSecondaryText hover:border-claude-accent hover:text-claude-accent transition-colors text-sm"
-              >
-                {i18nService.t('addCustomProvider')}
-              </button>
-              )}
-            </div>
+            <ProviderListSidebar
+              visibleProviders={visibleProviders as any}
+              providers={providers as any}
+              providerMeta={providerMeta as any}
+              customProviderKeys={CUSTOM_PROVIDER_KEYS}
+              activeProvider={activeProvider as any}
+              importInputRef={importInputRef}
+              isImportingProviders={isImportingProviders}
+              isExportingProviders={isExportingProviders}
+              handleProviderChange={handleProviderChange as any}
+              handleAddCustomProvider={handleAddCustomProvider as any}
+              handleDeleteCustomProvider={handleDeleteCustomProvider as any}
+              toggleProviderEnabled={toggleProviderEnabled as any}
+              handleImportProvidersClick={handleImportProvidersClick as any}
+              handleImportProviders={handleImportProviders as any}
+              handleExportProviders={handleExportProviders as any}
+              providerRequiresApiKey={providerRequiresApiKey as any}
+            />
+
 
             {/* Provider Settings - Right Side */}
             <div className="w-3/5 pl-4 pr-2 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
