@@ -1,5 +1,5 @@
 import { EyeIcon, EyeSlashIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
-import { ArrowTopRightOnSquareIcon,ChatBubbleLeftIcon, CheckCircleIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, SignalIcon, UserCircleIcon, UserGroupIcon, XCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon,ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, SignalIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import {
   ClaudeCodePermissionMode as ClaudeCodePermissionModeValue,
   CoworkAgentEngine as CoworkAgentEngineValue,
@@ -78,6 +78,7 @@ import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
+import { TestResultModal } from './settings/modals/TestResultModal';
 import type { TabType } from './settings/types';
 
 const COWORK_AGENT_ENGINE_OPTIONS: Array<{
@@ -4630,58 +4631,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         </div>
 
         {isTestResultModalOpen && testResult && (
-          <div
-            className="absolute inset-0 z-30 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
-            onClick={() => setIsTestResultModalOpen(false)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={i18nService.t('connectionTestResult')}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-background border-border border shadow-modal p-4"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-foreground">
-                  {i18nService.t('connectionTestResult')}
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setIsTestResultModalOpen(false)}
-                  className="p-1 text-secondary hover:text-foreground rounded-md hover:bg-surface-raised"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-secondary">
-                <span>{providerMeta[testResult.provider as ProviderType]?.label ?? testResult.provider}</span>
-                <span className="text-[11px]">•</span>
-                <span className={`inline-flex items-center gap-1 ${testResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {testResult.success ? (
-                    <CheckCircleIcon className="h-4 w-4" />
-                  ) : (
-                    <XCircleIcon className="h-4 w-4" />
-                  )}
-                  {testResult.success ? i18nService.t('connectionSuccess') : i18nService.t('connectionFailed')}
-                </span>
-              </div>
-
-              <p className="mt-3 text-xs leading-5 text-foreground whitespace-pre-wrap break-words max-h-56 overflow-y-auto">
-                {testResult.message}
-              </p>
-
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setIsTestResultModalOpen(false)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-xl border border-border text-foreground hover:bg-surface-raised transition-colors active:scale-[0.98]"
-                >
-                  {i18nService.t('close')}
-                </button>
-              </div>
-            </div>
-          </div>
+          <TestResultModal
+            providerLabel={providerMeta[testResult.provider as ProviderType]?.label ?? testResult.provider}
+            success={!!testResult.success}
+            message={testResult.message}
+            onClose={() => setIsTestResultModalOpen(false)}
+          />
         )}
 
         {pendingDeleteProvider && (
