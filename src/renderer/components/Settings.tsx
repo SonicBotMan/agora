@@ -73,6 +73,8 @@ import { ScheduledTasksView } from './scheduledTasks';
 import EmailSkillConfig from './skills/EmailSkillConfig';
 import { useSettingsSharedState } from './settings/hooks/useSettingsSharedState';
 import { AboutTab } from './settings/tabs/AboutTab';
+import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
+import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
 import type { TabType } from './settings/types';
 import ThemedSelect from './ui/ThemedSelect';
@@ -476,16 +478,6 @@ const getDefaultActiveProvider = (): ProviderType => {
   const firstEnabledProvider = providerKeys.find(providerKey => providers[providerKey]?.enabled);
   const defaultModelProvider = defaultConfig.model.defaultModelProvider as ProviderType | undefined;
   return firstEnabledProvider ?? (defaultModelProvider && providers[defaultModelProvider] ? defaultModelProvider : providerKeys[0]);
-};
-
-/** Join workspace directory with a filename using platform-aware separator. */
-const joinWorkspacePath = (dir: string | undefined, filename: string): string => {
-  const base = dir?.trim() || '~/.openclaw/workspace';
-  const sep = window.electron.platform === 'win32' ? '\\' : '/';
-  // Normalize: if base already ends with a separator, don't double it
-  return base.endsWith(sep) || base.endsWith('/') || base.endsWith('\\')
-    ? `${base}${filename}`
-    : `${base}${sep}${filename}`;
 };
 
 // System shortcuts that should not be captured (clipboard, undo, select-all, quit, etc.)
@@ -3919,100 +3911,17 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
       case 'coworkMemory':
         return (
-          <div className="space-y-6">
-            {/* Section 1: Long-term Memory (MEMORY.md) */}
-            <div className="space-y-3 rounded-xl border px-4 py-4 border-border">
-              <div className="text-sm font-medium text-foreground">
-                {i18nService.t('coworkMemoryTitle')}
-              </div>
-              {/* Memory toggle hidden – always enabled by default */}
-              <div className="mt-2 text-xs text-secondary">
-                <span className="font-medium">{i18nService.t('coworkMemoryFilePath')}:</span>{' '}
-                <span className="break-all font-mono opacity-80">
-                  {joinWorkspacePath(coworkConfig.workingDirectory, 'MEMORY.md')}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-4 rounded-xl border px-4 py-4 border-border">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium text-foreground">
-                    {i18nService.t('coworkMemoryCrudTitle')}
-                  </div>
-                  <div className="text-xs text-secondary">
-                    {i18nService.t('coworkMemoryManageHint')}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleOpenCoworkMemoryModal}
-                  className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm transition-colors active:scale-[0.98]"
-                >
-                  <PlusCircleIcon className="h-4 w-4 mr-1.5" />
-                  {i18nService.t('coworkMemoryCrudCreate')}
-                </button>
-              </div>
-
-              {coworkMemoryStats && (
-                <div className="text-xs text-secondary">
-                  {`${i18nService.t('coworkMemoryTotalLabel')}: ${coworkMemoryStats.total}`}
-                </div>
-              )}
-
-              <input
-                type="text"
-                value={coworkMemoryQuery}
-                onChange={(event) => setCoworkMemoryQuery(event.target.value)}
-                placeholder={i18nService.t('coworkMemorySearchPlaceholder')}
-                className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface"
-              />
-
-              <div className="rounded-lg border border-border">
-                {coworkMemoryListLoading ? (
-                  <div className="px-3 py-3 text-xs text-secondary">
-                    {i18nService.t('loading')}
-                  </div>
-                ) : coworkMemoryEntries.length === 0 ? (
-                  <div className="px-3 py-3 text-xs text-secondary">
-                    {i18nService.t('coworkMemoryEmpty')}
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {coworkMemoryEntries.map((entry) => (
-                      <div key={entry.id} className="px-3 py-3 text-xs hover:bg-surface-raised transition-colors">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-foreground break-words">
-                              {entry.text}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleEditCoworkMemoryEntry(entry)}
-                              className="rounded border px-2 py-1 border-border text-foreground hover:bg-surface-raised transition-colors"
-                            >
-                              {i18nService.t('edit')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { void handleDeleteCoworkMemoryEntry(entry); }}
-                              className="rounded border px-2 py-1 text-red-500 border-border hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-60 transition-colors"
-                              disabled={coworkMemoryListLoading}
-                            >
-                              {i18nService.t('delete')}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
+          <CoworkMemoryTab
+            coworkConfig={coworkConfig}
+            coworkMemoryStats={coworkMemoryStats}
+            coworkMemoryQuery={coworkMemoryQuery}
+            setCoworkMemoryQuery={setCoworkMemoryQuery}
+            coworkMemoryEntries={coworkMemoryEntries}
+            coworkMemoryListLoading={coworkMemoryListLoading}
+            handleOpenCoworkMemoryModal={handleOpenCoworkMemoryModal}
+            handleEditCoworkMemoryEntry={handleEditCoworkMemoryEntry}
+            handleDeleteCoworkMemoryEntry={handleDeleteCoworkMemoryEntry}
+          />
         );
 
       case 'model':
@@ -4959,51 +4868,15 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
       case 'coworkAgent':
         return (
-          <div className="space-y-6">
-            {/* Agent Settings (IDENTITY.md + SOUL.md) */}
-            <div className="space-y-4 rounded-xl border px-4 py-4 border-border">
-              <div className="text-sm font-medium text-foreground">
-                {i18nService.t('coworkBootstrapAgentSectionTitle')}
-              </div>
-              {[
-                { filename: 'IDENTITY.md', titleKey: 'coworkBootstrapIdentityTitle', hintKey: 'coworkBootstrapIdentityHint', value: bootstrapIdentity, setter: setBootstrapIdentity },
-                { filename: 'SOUL.md', titleKey: 'coworkBootstrapSoulTitle', hintKey: 'coworkBootstrapSoulHint', value: bootstrapSoul, setter: setBootstrapSoul },
-              ].map(({ filename, titleKey, hintKey, value, setter }) => (
-                <div key={filename} className="space-y-2">
-                  <div className="text-xs font-medium text-secondary">
-                    {i18nService.t(titleKey)}
-                    <span className="ml-1.5 font-normal opacity-60">
-                      （{i18nService.t('coworkBootstrapStoragePath')}：<span className="font-mono">{joinWorkspacePath(coworkConfig.workingDirectory, filename)}</span>）
-                    </span>
-                  </div>
-                  <textarea
-                    value={value}
-                    onChange={(e) => setter(e.target.value)}
-                    rows={3}
-                    className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface text-foreground resize-y"
-                    placeholder={i18nService.t(hintKey)}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* User Profile (USER.md) */}
-            <div className="space-y-3 rounded-xl border px-4 py-4 border-border">
-              <div className="text-sm font-medium text-foreground">
-                {i18nService.t('coworkBootstrapUserTitle')}
-                <span className="ml-1.5 text-xs font-normal opacity-60 text-secondary">
-                  （{i18nService.t('coworkBootstrapStoragePath')}：<span className="font-mono">{joinWorkspacePath(coworkConfig.workingDirectory, 'USER.md')}</span>）
-                </span>
-              </div>
-              <textarea
-                value={bootstrapUser}
-                onChange={(e) => setBootstrapUser(e.target.value)}
-                rows={3}
-                className="w-full rounded-lg border px-3 py-2 text-sm border-border bg-surface text-foreground resize-y"
-                placeholder={i18nService.t('coworkBootstrapUserHint')}
-              />
-            </div>
-          </div>
+          <CoworkAgentTab
+            coworkConfig={coworkConfig}
+            bootstrapIdentity={bootstrapIdentity}
+            setBootstrapIdentity={setBootstrapIdentity}
+            bootstrapSoul={bootstrapSoul}
+            setBootstrapSoul={setBootstrapSoul}
+            bootstrapUser={bootstrapUser}
+            setBootstrapUser={setBootstrapUser}
+          />
         );
 
       case 'shortcuts':
