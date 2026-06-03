@@ -70,6 +70,7 @@ import TrashIcon from './icons/TrashIcon';
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
+import ShortcutRecorder from './settings/ShortcutRecorder';
 import EmailSkillConfig from './skills/EmailSkillConfig';
 import ThemedSelect from './ui/ThemedSelect';
 
@@ -487,79 +488,6 @@ const joinWorkspacePath = (dir: string | undefined, filename: string): string =>
 };
 
 // System shortcuts that should not be captured (clipboard, undo, select-all, quit, etc.)
-const isSystemShortcut = (e: KeyboardEvent): boolean => {
-  const key = e.key.toLowerCase();
-  if (e.metaKey && ['c', 'v', 'x', 'z', 'y', 'a', 'q', 'w'].includes(key)) return true;
-  if (e.metaKey && e.shiftKey && key === 'z') return true;
-  if (e.ctrlKey && ['c', 'v', 'x', 'z', 'y', 'a', 'w'].includes(key)) return true;
-  return false;
-};
-
-const formatShortcutFromEvent = (e: React.KeyboardEvent): string | null => {
-  // Skip standalone modifier keys
-  if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return null;
-  // Require at least one non-Shift modifier
-  if (!e.metaKey && !e.ctrlKey && !e.altKey) return null;
-  if (isSystemShortcut(e.nativeEvent)) return null;
-
-  const parts: string[] = [];
-  if (e.metaKey) parts.push('Cmd');
-  if (e.ctrlKey) parts.push('Ctrl');
-  if (e.altKey) parts.push('Alt');
-  if (e.shiftKey) parts.push('Shift');
-
-  const keyMap: Record<string, string> = {
-    ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
-    ' ': 'Space', Escape: 'Esc', Enter: 'Enter', Backspace: 'Backspace',
-    Delete: 'Delete', Tab: 'Tab',
-  };
-  const key = keyMap[e.key] ?? (e.key.length === 1 ? e.key.toUpperCase() : e.key);
-  parts.push(key);
-  return parts.join('+');
-};
-
-const ShortcutRecorder: React.FC<{ value: string; onChange: (v: string) => void }> = ({ value, onChange }) => {
-  const [recording, setRecording] = useState(false);
-  const divRef = useRef<HTMLDivElement>(null);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!recording) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.key === 'Escape') { setRecording(false); return; }
-    if (e.key === 'Delete' || e.key === 'Backspace') { onChange(''); setRecording(false); return; }
-    const shortcut = formatShortcutFromEvent(e);
-    if (shortcut) { onChange(shortcut); setRecording(false); }
-  };
-
-  useEffect(() => {
-    if (!recording) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (divRef.current && !divRef.current.contains(e.target as Node)) setRecording(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [recording]);
-
-  return (
-    <div
-      ref={divRef}
-      tabIndex={0}
-      data-shortcut-input="true"
-      onKeyDown={handleKeyDown}
-      onClick={() => setRecording(true)}
-      onBlur={() => setRecording(false)}
-      className={`w-36 rounded-xl border px-3 py-1.5 text-sm cursor-pointer select-none text-center outline-none transition-colors
-        dark:bg-claude-darkSurfaceInset bg-claude-surfaceInset dark:text-claude-darkText text-claude-text
-        ${recording
-          ? 'border-claude-accent ring-1 ring-claude-accent/30 dark:text-claude-darkTextSecondary text-claude-textSecondary'
-          : 'dark:border-claude-darkBorder border-claude-border hover:border-claude-accent/50'
-        }`}
-    >
-      {value || i18nService.t('shortcutNotSet')}
-    </div>
-  );
-};
 
 const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, noticeI18nKey, noticeExtra, onUpdateFound, enterpriseConfig }) => {
   const dispatch = useDispatch();
