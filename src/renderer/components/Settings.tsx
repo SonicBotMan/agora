@@ -78,6 +78,7 @@ import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
+import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
 import { TestResultModal } from './settings/modals/TestResultModal';
 import type { TabType } from './settings/types';
 
@@ -4640,38 +4641,12 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
         )}
 
         {pendingDeleteProvider && (
-          <div
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 px-4 rounded-2xl"
-            onClick={() => setPendingDeleteProvider(null)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm rounded-2xl dark:bg-claude-darkSurface bg-claude-bg dark:border-claude-darkBorder border-claude-border border shadow-modal p-4"
-            >
-              <p className="text-sm dark:text-claude-darkText text-claude-text">
-                {i18nService.t('confirmDeleteCustomProvider')}
-              </p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPendingDeleteProvider(null)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-xl border dark:border-claude-darkBorder border-claude-border dark:text-claude-darkText text-claude-text dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover transition-colors active:scale-[0.98]"
-                >
-                  {i18nService.t('cancel')}
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDeleteCustomProvider}
-                  className="px-3 py-1.5 text-xs font-medium rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors active:scale-[0.98]"
-                >
-                  {i18nService.t('deleteCustomProvider')}
-                </button>
-              </div>
-            </div>
-          </div>
+          <DeleteProviderModal
+            onConfirm={confirmDeleteCustomProvider}
+            onCancel={() => setPendingDeleteProvider(null)}
+          />
         )}
+
 
         {(isAddingModel || isEditingModel) && (
           <div
