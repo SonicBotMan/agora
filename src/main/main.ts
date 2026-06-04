@@ -1,5 +1,6 @@
 import { registerAppHandlers } from './ipc/appHandlers';
 import { registerDialogHandlers } from './ipc/dialogHandlers';
+import { registerEngineHandlers } from './ipc/engineHandlers';
 import { registerLogHandlers } from './ipc/logHandlers';
 import { registerPermissionHandlers } from './ipc/permissionHandlers';
 import { registerShellHandlers } from './ipc/shellHandlers';
@@ -3053,206 +3054,15 @@ if (!gotTheLock) {
     return getSkillManager().installMarketplaceSkill(skill);
   });
 
-  ipcMain.handle('openclaw:engine:getStatus', async () => {
-    try {
-      const manager = getOpenClawEngineManager();
-      return {
-        success: true,
-        status: manager.getStatus(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get OpenClaw engine status',
-      };
-    }
-  });
-
-  ipcMain.handle('openclaw:engine:install', async () => {
-    try {
-      bindExternalAgentCliInstallerForwarder();
-      const installResult = await getExternalAgentCliInstaller().install('openclaw');
-      if (!installResult.success) {
-        return {
-          success: false,
-          status: getOpenClawEngineManager().getStatus(),
-          error: installResult.error || 'Failed to install OpenClaw CLI',
-        };
-      }
-      const status = await getOpenClawEngineManager().ensureReady();
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getOpenClawEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to install OpenClaw engine',
-      };
-    }
-  });
-
-  ipcMain.handle('openclaw:engine:retryInstall', async () => {
-    try {
-      bindExternalAgentCliInstallerForwarder();
-      const installResult = await getExternalAgentCliInstaller().install('openclaw');
-      if (!installResult.success) {
-        return {
-          success: false,
-          status: getOpenClawEngineManager().getStatus(),
-          error: installResult.error || 'Failed to install OpenClaw CLI',
-        };
-      }
-      const status = await getOpenClawEngineManager().ensureReady();
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getOpenClawEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to retry OpenClaw engine install',
-      };
-    }
-  });
-
-  let restartGatewayPromise: Promise<OpenClawEngineStatus> | null = null;
-  ipcMain.handle('openclaw:engine:restartGateway', async () => {
-    if (restartGatewayPromise) {
-      const status = await restartGatewayPromise;
-      return { success: status.phase === 'running' || status.phase === 'ready', status };
-    }
-    try {
-      const manager = getOpenClawEngineManager();
-      restartGatewayPromise = manager.restartGateway();
-      const status = await restartGatewayPromise;
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getOpenClawEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to restart OpenClaw gateway',
-      };
-    } finally {
-      restartGatewayPromise = null;
-    }
-  });
-
-  ipcMain.handle('hermes:engine:getStatus', async () => {
-    try {
-      const manager = getHermesEngineManager();
-      return {
-        success: true,
-        status: manager.getStatus(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to get Hermes Agent engine status',
-      };
-    }
-  });
-
-  ipcMain.handle('hermes:engine:install', async () => {
-    try {
-      bindExternalAgentCliInstallerForwarder();
-      const installResult = await getExternalAgentCliInstaller().install('hermes');
-      if (!installResult.success) {
-        return {
-          success: false,
-          status: getHermesEngineManager().getStatus(),
-          error: installResult.error || 'Failed to install Hermes Agent CLI',
-        };
-      }
-      getCoworkStore().setConfig({ hermesConfigSource: ExternalAgentConfigSource.AgoraModel });
-      const status = await bootstrapHermesEngine({
-        forceReinstall: false,
-        reason: 'manual-install',
-      });
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getHermesEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to install Hermes Agent engine',
-      };
-    }
-  });
-
-  ipcMain.handle('hermes:engine:retryInstall', async () => {
-    try {
-      bindExternalAgentCliInstallerForwarder();
-      const installResult = await getExternalAgentCliInstaller().install('hermes');
-      if (!installResult.success) {
-        return {
-          success: false,
-          status: getHermesEngineManager().getStatus(),
-          error: installResult.error || 'Failed to install Hermes Agent CLI',
-        };
-      }
-      getCoworkStore().setConfig({ hermesConfigSource: ExternalAgentConfigSource.AgoraModel });
-      const status = await bootstrapHermesEngine({
-        forceReinstall: true,
-        reason: 'manual-retry',
-      });
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getHermesEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to retry Hermes Agent engine install',
-      };
-    }
-  });
-
-  let restartHermesGatewayPromise: Promise<HermesEngineStatus> | null = null;
-  ipcMain.handle('hermes:engine:restartGateway', async () => {
-    if (restartHermesGatewayPromise) {
-      const status = await restartHermesGatewayPromise;
-      return { success: status.phase === 'running' || status.phase === 'ready', status };
-    }
-    try {
-      const syncResult = getHermesConfigSync().sync('manual-restart');
-      if (!syncResult.success) {
-        return {
-          success: false,
-          status: syncResult.status || getHermesEngineManager().getStatus(),
-          error: syncResult.error || 'Hermes Agent config sync failed',
-        };
-      }
-      const manager = getHermesEngineManager();
-      restartHermesGatewayPromise = manager.restartGateway();
-      const status = await restartHermesGatewayPromise;
-      return {
-        success: status.phase === 'running' || status.phase === 'ready',
-        status,
-      };
-    } catch (error) {
-      const manager = getHermesEngineManager();
-      return {
-        success: false,
-        status: manager.getStatus(),
-        error: error instanceof Error ? error.message : 'Failed to restart Hermes Agent gateway',
-      };
-    } finally {
-      restartHermesGatewayPromise = null;
-    }
+  // OpenClaw + Hermes Agent engine handlers (registered via ./ipc/engineHandlers)
+  registerEngineHandlers({
+    getOpenClawEngineManager: () => getOpenClawEngineManager(),
+    getHermesEngineManager: () => getHermesEngineManager(),
+    getCoworkStore: () => getCoworkStore(),
+    getExternalAgentCliInstaller: () => getExternalAgentCliInstaller(),
+    bindExternalAgentCliInstallerForwarder: () => bindExternalAgentCliInstallerForwarder(),
+    getHermesConfigSync: () => getHermesConfigSync(),
+    bootstrapHermesEngine: (options) => bootstrapHermesEngine(options),
   });
 
   // MCP Server IPC handlers
