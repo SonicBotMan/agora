@@ -46,7 +46,6 @@ import AgentEnvironmentSetup from './cowork/AgentEnvironmentSetup';
 import ErrorMessage from './ErrorMessage';
 import BrainIcon from './icons/BrainIcon';
 import ConnectorIcon from './icons/ConnectorIcon';
-import PencilIcon from './icons/PencilIcon';
 import PlusCircleIcon from './icons/PlusCircleIcon';
 import {
   AnthropicIcon,
@@ -66,7 +65,6 @@ import {
   YouDaoZhiYunIcon,
   ZhipuIcon,
 } from './icons/providers';
-import TrashIcon from './icons/TrashIcon';
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
@@ -79,6 +77,7 @@ import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ApiKeySection } from './settings/tabs/ApiKeySection';
 import { GitHubCopilotAuthSection } from './settings/tabs/GitHubCopilotAuthSection';
 import { MiniMaxOAuthSection } from './settings/tabs/MiniMaxOAuthSection';
+import { ModelsListSection } from './settings/tabs/ModelsListSection';
 import { ProviderConfigHeader } from './settings/tabs/ProviderConfigHeader';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
@@ -4010,60 +4009,13 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
                   </button>
                 </div>
 
-                {/* Models List */}
-                <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                  {(providers[activeProvider].models ?? []).map(model => (
-                    <div
-                      key={model.id}
-                      className="bg-surface p-2 rounded-xl border-border border transition-colors hover:border-primary group"
-                    >
-                      <div className="flex items-center justify-between gap-2 min-w-0">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                          <div className="w-1.5 h-1.5 shrink-0 rounded-full bg-green-400"></div>
-                          <div className="min-w-0">
-                            <div className="text-foreground font-medium text-[11px] truncate">{model.name}</div>
-                            <div className="text-[10px] text-secondary truncate">{model.id}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center shrink-0 space-x-1">
-                          {model.supportsImage && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary-muted text-primary">
-                              {i18nService.t('imageInput')}
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => handleEditModel(model.id, model.name, model.supportsImage)}
-                            className="p-0.5 text-secondary hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <PencilIcon className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteModel(model.id)}
-                            className="p-0.5 text-secondary hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <ModelsListSection
+                  models={providers[activeProvider].models}
+                  onAddModel={handleAddModel}
+                  onEditModel={(m) => handleEditModel(m.id, m.name, m.supportsImage)}
+                  onDeleteModel={handleDeleteModel}
+                />
 
-                  {(!providers[activeProvider].models || providers[activeProvider].models.length === 0) && (
-                    <div className="bg-surface p-2.5 rounded-xl border border-border-subtle text-center">
-                      <p className="text-[11px] text-secondary">{i18nService.t('noModelsAvailable')}</p>
-                      <button
-                        type="button"
-                        onClick={handleAddModel}
-                        className="mt-1.5 inline-flex items-center text-[11px] font-medium text-primary hover:text-primary-hover"
-                      >
-                        <PlusCircleIcon className="h-3 w-3 mr-1" />
-                        {i18nService.t('addFirstModel')}
-                      </button>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
           </div>
