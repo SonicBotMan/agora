@@ -77,6 +77,7 @@ import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
 import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
 import { ApiKeySection } from './settings/tabs/ApiKeySection';
+import { GitHubCopilotAuthSection } from './settings/tabs/GitHubCopilotAuthSection';
 import { ProviderConfigHeader } from './settings/tabs/ProviderConfigHeader';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
@@ -3902,104 +3903,17 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
               )}
 
               {activeProvider === 'github-copilot' && (
-                <div>
-                  <label className="block text-xs font-medium dark:text-claude-darkText text-claude-text mb-2">
-                    {i18nService.t('githubCopilotAuth')}
-                  </label>
-
-                  {(copilotAuthStatus === 'idle' || copilotAuthStatus === 'error') && !providers['github-copilot'].apiKey && (
-                    <div className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={handleCopilotSignIn}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-claude-accent text-white text-xs font-medium hover:bg-claude-accent/90 transition-colors"
-                      >
-                        <GitHubCopilotIcon className="w-4 h-4" />
-                        {i18nService.t('githubCopilotSignIn')}
-                      </button>
-                      {copilotError && (
-                        <p className="text-xs text-red-500 dark:text-red-400">{copilotError}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {copilotAuthStatus === 'requesting' && (
-                    <div className="flex items-center gap-2 text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      {i18nService.t('githubCopilotRequesting')}
-                    </div>
-                  )}
-
-                  {(copilotAuthStatus === 'awaiting_user' || copilotAuthStatus === 'polling') && (
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset border border-claude-border dark:border-claude-darkBorder">
-                        <p className="text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary mb-2">
-                          {i18nService.t('githubCopilotEnterCode')}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <code className="text-lg font-mono font-bold tracking-widest dark:text-claude-darkText text-claude-text">
-                            {copilotUserCode}
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(copilotUserCode);
-                            }}
-                            className="px-2 py-0.5 rounded text-[10px] text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent border border-claude-border dark:border-claude-darkBorder transition-colors"
-                          >
-                            {i18nService.t('copy') || 'Copy'}
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => window.electron.shell.openExternal(copilotVerificationUri)}
-                          className="mt-2 text-xs text-claude-accent hover:underline"
-                        >
-                          {copilotVerificationUri}
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary">
-                          <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                          </svg>
-                          {i18nService.t('githubCopilotWaiting')}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleCopilotCancelAuth}
-                          className="text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-red-500 transition-colors"
-                        >
-                          {i18nService.t('cancel')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {(copilotAuthStatus === 'authenticated' || providers['github-copilot'].apiKey) && copilotAuthStatus !== 'requesting' && copilotAuthStatus !== 'awaiting_user' && copilotAuthStatus !== 'polling' && (
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset border border-claude-border dark:border-claude-darkBorder">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                        <span className="text-xs dark:text-claude-darkText text-claude-text">
-                          {copilotGithubUser
-                            ? `${i18nService.t('githubCopilotConnected')} @${copilotGithubUser}`
-                            : i18nService.t('githubCopilotConnected')}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleCopilotSignOut}
-                        className="text-xs text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-red-500 transition-colors"
-                      >
-                        {i18nService.t('githubCopilotSignOut')}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <GitHubCopilotAuthSection
+                  status={copilotAuthStatus}
+                  userCode={copilotUserCode}
+                  verificationUri={copilotVerificationUri}
+                  githubUser={copilotGithubUser}
+                  hasApiKey={!!providers['github-copilot'].apiKey}
+                  errorMessage={copilotError}
+                  onSignIn={handleCopilotSignIn}
+                  onCancel={handleCopilotCancelAuth}
+                  onSignOut={handleCopilotSignOut}
+                />
               )}
 
               {isCustomProvider(activeProvider) && (
