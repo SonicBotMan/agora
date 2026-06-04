@@ -76,6 +76,7 @@ import { AboutTab } from './settings/tabs/AboutTab';
 import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
 import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
+import { ApiKeySection } from './settings/tabs/ApiKeySection';
 import { ProviderConfigHeader } from './settings/tabs/ProviderConfigHeader';
 import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
@@ -3878,104 +3879,24 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
               {/* Standard API key section for non-MiniMax providers */}
               {providerRequiresApiKey(activeProvider) && activeProvider !== 'minimax' && (
                 <div>
-                  {/* Standard API Key input for non-Qwen providers */}
-                  {activeProvider !== 'qwen' && (
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label htmlFor={`${activeProvider}-apiKey`} className="block text-xs font-medium dark:text-claude-darkText text-claude-text">
-                          {i18nService.t('apiKey')}
-                        </label>
-                        {providerLinks[activeProvider]?.apiKey && (
-                          <button
-                            type="button"
-                            onClick={() => void window.electron.shell.openExternal(providerLinks[activeProvider]!.apiKey!)}
-                            className="text-[11px] text-claude-accent hover:underline transition-colors"
-                          >
-                            {i18nService.t('getApiKey')} →
-                          </button>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          id={`${activeProvider}-apiKey`}
-                          value={providers[activeProvider].apiKey}
-                          onChange={(e) => handleProviderConfigChange(activeProvider, 'apiKey', e.target.value)}
-                          className="block w-full rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset dark:border-claude-darkBorder border-claude-border border focus:border-claude-accent focus:ring-1 focus:ring-claude-accent/30 dark:text-claude-darkText text-claude-text px-3 py-2 pr-16 text-xs"
-                          placeholder={i18nService.t('apiKeyPlaceholder')}
-                        />
-                        <div className="absolute right-2 inset-y-0 flex items-center gap-1">
-                          {providers[activeProvider].apiKey && (
-                            <button
-                              type="button"
-                              onClick={() => handleProviderConfigChange(activeProvider, 'apiKey', '')}
-                              className="p-0.5 rounded text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent transition-colors"
-                              title={i18nService.t('clear') || 'Clear'}
-                            >
-                              <XCircleIconSolid className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setShowApiKey(!showApiKey)}
-                            className="p-0.5 rounded text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent transition-colors"
-                            title={showApiKey ? (i18nService.t('hide') || 'Hide') : (i18nService.t('show') || 'Show')}
-                          >
-                            {showApiKey ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Qwen API Key section */}
-                  {activeProvider === 'qwen' && (
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label htmlFor="qwen-apiKey" className="block text-xs font-medium dark:text-claude-darkText text-claude-text">
-                          API Key
-                        </label>
-                        {providerLinks.qwen?.apiKey && (
-                          <button
-                            type="button"
-                            onClick={() => void window.electron.shell.openExternal(providerLinks.qwen!.apiKey!)}
-                            className="text-[11px] text-claude-accent hover:underline transition-colors"
-                          >
-                            {i18nService.t('getApiKey')} →
-                          </button>
-                        )}
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          id="qwen-apiKey"
-                          value={providers.qwen.apiKey}
-                          onChange={(e) => handleProviderConfigChange('qwen', 'apiKey', e.target.value)}
-                          className="block w-full rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset dark:border-claude-darkBorder border-claude-border border focus:border-claude-accent focus:ring-1 focus:ring-claude-accent/30 dark:text-claude-darkText text-claude-text px-3 py-2 pr-16 text-xs"
-                          placeholder={i18nService.t('apiKeyPlaceholder')}
-                        />
-                        <div className="absolute right-2 inset-y-0 flex items-center gap-1">
-                          {providers.qwen.apiKey && (
-                            <button
-                              type="button"
-                              onClick={() => handleProviderConfigChange('qwen', 'apiKey', '')}
-                              className="p-0.5 rounded text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent transition-colors"
-                              title={i18nService.t('clear') || 'Clear'}
-                            >
-                              <XCircleIconSolid className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setShowApiKey(!showApiKey)}
-                            className="p-0.5 rounded text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent transition-colors"
-                            title={showApiKey ? (i18nService.t('hide') || 'Hide') : (i18nService.t('show') || 'Show')}
-                          >
-                            {showApiKey ? <EyeIcon className="h-4 w-4" /> : <EyeSlashIcon className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                  {activeProvider !== 'qwen' ? (
+                    <ApiKeySection
+                      activeProvider={activeProvider}
+                      apiKey={providers[activeProvider].apiKey}
+                      showApiKey={showApiKey}
+                      setShowApiKey={setShowApiKey}
+                      onChange={(v) => handleProviderConfigChange(activeProvider, 'apiKey', v)}
+                      apiKeyLink={providerLinks[activeProvider]?.apiKey}
+                    />
+                  ) : (
+                    <ApiKeySection
+                      activeProvider="qwen"
+                      apiKey={providers.qwen.apiKey}
+                      showApiKey={showApiKey}
+                      setShowApiKey={setShowApiKey}
+                      onChange={(v) => handleProviderConfigChange('qwen', 'apiKey', v)}
+                      apiKeyLink={providerLinks.qwen?.apiKey}
+                    />
                   )}
                 </div>
               )}
