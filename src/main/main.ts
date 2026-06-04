@@ -1,4 +1,9 @@
+import { registerAppHandlers } from './ipc/appHandlers';
 import { registerDialogHandlers } from './ipc/dialogHandlers';
+import { registerLogHandlers } from './ipc/logHandlers';
+import { registerPermissionHandlers } from './ipc/permissionHandlers';
+import { registerShellHandlers } from './ipc/shellHandlers';
+import { registerUpdateHandlers } from './ipc/updateHandlers';
 import { registerWindowHandlers } from './ipc/windowHandlers';
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { randomBytes } from 'crypto';
@@ -2641,123 +2646,14 @@ if (!gotTheLock) {
     }
   });
 
-  // Log IPC handlers
-  ipcMain.handle('log:getPath', () => {
-    return getLogFilePath();
-  });
+  // Log handlers (registered via ./ipc/logHandlers)
+  registerLogHandlers({});
 
-  ipcMain.handle('log:openFolder', () => {
-    const logPath = getLogFilePath();
-    if (logPath) {
-      shell.showItemInFolder(logPath);
-    }
-  });
-
-  ipcMain.handle('log:exportZip', async (event) => {
-    try {
-      const ownerWindow = BrowserWindow.fromWebContents(event.sender);
-      if (!ownerWindow || ownerWindow.isDestroyed()) {
-        return { success: false, error: 'Window is not available' };
-      }
-
-      const saveOptions = {
-        title: 'Export Logs',
-        defaultPath: path.join(app.getPath('downloads'), buildLogExportFileName()),
-        filters: [{ name: 'Zip Archive', extensions: ['zip'] }],
-      };
-
-      const saveResult = await dialog.showSaveDialog(ownerWindow, saveOptions);
-
-      if (saveResult.canceled || !saveResult.filePath) {
-        return { success: true, canceled: true };
-      }
-
-      const outputPath = ensureZipFileName(saveResult.filePath);
-      const archiveResult = await exportLogsZip({
-        outputPath,
-        entries: [
-          ...getRecentMainLogEntries(),
-          { archiveName: 'cowork.log', filePath: getCoworkLogPath() },
-        ],
-      });
-
-      return {
-        success: true,
-        canceled: false,
-        path: outputPath,
-        missingEntries: archiveResult.missingEntries,
-      };
-    } catch (error) {
-      console.error('[LogExport] export failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to export logs',
-      };
-    }
-  });
-
-  // Auto-launch IPC handlers
-  // Use SQLite store as the source of truth for UI state, because
-  // app.getLoginItemSettings() returns unreliable values on macOS and
-  // requires matching args on Windows.
-  ipcMain.handle('app:getAutoLaunch', () => {
-    const stored = getStore().get<boolean>('auto_launch_enabled');
-    // Fall back to OS API if SQLite has no record yet (e.g. upgraded from older version)
-    const enabled = stored ?? getAutoLaunchEnabled();
-    return { enabled };
-  });
-
-  ipcMain.handle('app:setAutoLaunch', (_event, enabled: unknown) => {
-    if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'Invalid parameter: enabled must be boolean' };
-    }
-    try {
-      setAutoLaunchEnabled(enabled);
-      getStore().set('auto_launch_enabled', enabled);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to set auto-launch',
-      };
-    }
-  });
-
-  ipcMain.handle('app:getPreventSleep', () => {
-    const enabled = getStore().get<boolean>('prevent_sleep_enabled') ?? false;
-    return { enabled };
-  });
-
-  ipcMain.handle('app:setPreventSleep', (_event, enabled: unknown) => {
-    if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'Invalid parameter: enabled must be boolean' };
-    }
-    try {
-      if (enabled) {
-        if (preventSleepBlockerId === null || !powerSaveBlocker.isStarted(preventSleepBlockerId)) {
-          preventSleepBlockerId = powerSaveBlocker.start('prevent-display-sleep');
-        }
-      } else {
-        if (preventSleepBlockerId !== null && powerSaveBlocker.isStarted(preventSleepBlockerId)) {
-          powerSaveBlocker.stop(preventSleepBlockerId);
-          preventSleepBlockerId = null;
-        }
-      }
-      getStore().set('prevent_sleep_enabled', enabled);
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to set prevent-sleep',
-      };
-    }
-  });
+  // App handlers (registered via ./ipc/appHandlers)
+  registerAppHandlers({ getStore: () => getStore() });
 
   // Window control IPC handlers (registered via ./ipc/windowHandlers)
   registerWindowHandlers(() => mainWindow);
-
-  ipcMain.handle('app:getVersion', () => app.getVersion());
-  ipcMain.handle('app:getSystemLocale', () => app.getLocale());
 
   // ── Auth IPC handlers ──
 
@@ -4858,43 +4754,7 @@ if (!gotTheLock) {
   });
 
   // ==================== Permissions IPC Handlers ====================
-
-  ipcMain.handle('permissions:checkCalendar', async () => {
-    try {
-      const status = await checkCalendarPermission();
-
-      // Development mode: Auto-request permission if not determined
-      // This provides a better dev experience without affecting production
-      if (isDev && status === 'not-determined' && process.platform === 'darwin') {
-        console.log('[Permissions] Development mode: Auto-requesting calendar permission...');
-        try {
-          await requestCalendarPermission();
-          const newStatus = await checkCalendarPermission();
-          console.log('[Permissions] Development mode: Permission status after request:', newStatus);
-          return { success: true, status: newStatus, autoRequested: true };
-        } catch (requestError) {
-          console.warn('[Permissions] Development mode: Auto-request failed:', requestError);
-        }
-      }
-
-      return { success: true, status };
-    } catch (error) {
-      console.error('[Main] Error checking calendar permission:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to check permission' };
-    }
-  });
-
-  ipcMain.handle('permissions:requestCalendar', async () => {
-    try {
-      // Request permission and check status
-      const granted = await requestCalendarPermission();
-      const status = await checkCalendarPermission();
-      return { success: true, granted, status };
-    } catch (error) {
-      console.error('[Main] Error requesting calendar permission:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to request permission' };
-    }
-  });
+// (registered via ./ipc/permissionHandlers)
 
   // ==================== IM Gateway IPC Handlers ====================
 
@@ -5665,72 +5525,14 @@ if (!gotTheLock) {
   // Dialog handlers (registered via ./ipc/dialogHandlers)
   registerDialogHandlers({ getMainWindow: () => mainWindow });
 
-  // Shell handlers - 打开文件/文件夹
-  ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
-    try {
-      const normalizedPath = normalizeWindowsShellPath(filePath);
-      const result = await shell.openPath(normalizedPath);
-      if (result) {
-        // 如果返回非空字符串，表示打开失败
-        return { success: false, error: result };
-      }
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
+  // Shell handlers (registered via ./ipc/shellHandlers)
+  registerShellHandlers({ normalizeShellPath: normalizeWindowsShellPath });
 
-  ipcMain.handle('shell:showItemInFolder', async (_event, filePath: string) => {
-    try {
-      const normalizedPath = normalizeWindowsShellPath(filePath);
-      shell.showItemInFolder(normalizedPath);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
+  // App update handlers (registered via ./ipc/updateHandlers)
+  registerUpdateHandlers({ getStore: () => getStore() });
 
-  ipcMain.handle('shell:openExternal', async (_event, url: string) => {
-    try {
-      await shell.openExternal(url);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  });
-
-  // App update download & install
-  ipcMain.handle('appUpdate:download', async (event, url: string) => {
-    // Block downloads in enterprise mode
-    const enterprise = getStore().get<{ disableUpdate?: boolean }>('enterprise_config');
-    if (enterprise?.disableUpdate) {
-      return { success: false, error: 'Updates are managed by enterprise' };
-    }
-    try {
-      const filePath = await downloadUpdate(url, (progress) => {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send('appUpdate:downloadProgress', progress);
-        }
-      });
-      return { success: true, filePath };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Download failed' };
-    }
-  });
-
-  ipcMain.handle('appUpdate:cancelDownload', async () => {
-    const cancelled = cancelActiveDownload();
-    return { success: cancelled };
-  });
-
-  ipcMain.handle('appUpdate:install', async (_event, filePath: string) => {
-    try {
-      await installUpdate(filePath);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Installation failed' };
-    }
-  });
+  // Permission handlers (registered via ./ipc/permissionHandlers)
+  registerPermissionHandlers({});
 
   // Helper: detect if a URL belongs to GitHub Copilot and apply token refresh on 401.
   const isCopilotUrl = (url: string) =>

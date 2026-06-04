@@ -8,15 +8,24 @@
 
 import { ipcMain, shell } from 'electron';
 
+/** Platform-aware shell path normalizer. On Windows it strips the
+ *  leading slash from `/C:/...` paths and decodes `file://` URIs so
+ *  `shell.openPath` doesn't get confused. On macOS/Linux it's a no-op. */
+export type NormalizeShellPath = (inputPath: string) => string;
+
 export interface ShellDeps {
-  // No deps needed — shell module is imported directly from Electron.
+  /** Platform-aware path normalizer (Windows quirks). */
+  normalizeShellPath: NormalizeShellPath;
 }
 
-export function registerShellHandlers(_deps: ShellDeps): void {
+export function registerShellHandlers(deps: ShellDeps): void {
+  const { normalizeShellPath } = deps;
+
   // shell:openPath
   ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
     try {
-      const error = await shell.openPath(filePath);
+      const normalizedPath = normalizeShellPath(filePath);
+      const error = await shell.openPath(normalizedPath);
       if (error) {
         return { success: false, error };
       }
@@ -32,7 +41,8 @@ export function registerShellHandlers(_deps: ShellDeps): void {
   // shell:showItemInFolder
   ipcMain.handle('shell:showItemInFolder', async (_event, filePath: string) => {
     try {
-      shell.showItemInFolder(filePath);
+      const normalizedPath = normalizeShellPath(filePath);
+      shell.showItemInFolder(normalizedPath);
       return { success: true };
     } catch (error) {
       return {
