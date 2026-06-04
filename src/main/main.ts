@@ -3,6 +3,7 @@ import { registerDialogHandlers } from './ipc/dialogHandlers';
 import { registerLogHandlers } from './ipc/logHandlers';
 import { registerPermissionHandlers } from './ipc/permissionHandlers';
 import { registerShellHandlers } from './ipc/shellHandlers';
+import { registerStoreHandlers } from './ipc/storeHandlers';
 import { registerUpdateHandlers } from './ipc/updateHandlers';
 import { registerWindowHandlers } from './ipc/windowHandlers';
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
@@ -2604,35 +2605,38 @@ if (!gotTheLock) {
   });
 
   // IPC 处理程序
-  ipcMain.handle('store:get', (_event, key) => {
-    return getStore().get(key);
-  });
-
-  ipcMain.handle('store:set', async (_event, key, value) => {
-    getStore().set(key, value);
-    if (key === 'app_config') {
+  // Store handlers (registered via ./ipc/storeHandlers).
+  // The `onAppConfigChanged` callback mirrors the side effects the inline
+  // store:set handler used to run: refresh endpoint test mode flags and
+  // sync the OpenClaw gateway config (without restarting it).
+  registerStoreHandlers({
+    getStore: <T = unknown>(key: string, defaultValue?: T): T => {
+      const value = getStore().get<T>(key);
+      return (value === undefined ? (defaultValue as T) : value) as T;
+    },
+    setStore: (key: string, value: unknown) => {
+      getStore().set(key, value as never);
+    },
+    deleteStoreKey: (key: string) => {
+      getStore().delete(key);
+    },
+    onAppConfigChanged: async () => {
       refreshEndpointsTestMode(getStore());
       const syncResult = await syncOpenClawConfig({
         reason: 'app-config-change',
         restartGatewayIfRunning: false,
       });
       if (!syncResult.success) {
-        console.error('[OpenClaw] Failed to sync config after app_config update:', syncResult.error);
+        console.error(
+          '[OpenClaw] Failed to sync config after app_config update:',
+          syncResult.error,
+        );
       }
-    }
+    },
   });
 
-  ipcMain.handle('store:remove', (_event, key) => {
-    getStore().delete(key);
-  });
-
-  ipcMain.handle('enterprise:getConfig', async () => {
-    try {
-      return getStore().get('enterprise_config') ?? null;
-    } catch {
-      return null;
-    }
-  });
+  // Note: enterprise:getConfig is registered by registerAppHandlers below.
+  // (Previously duplicated inline here; that shadowed the appHandlers copy.)
 
   // Network status change handler
   // Remove any existing listener first to avoid duplicate registrations
