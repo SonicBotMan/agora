@@ -1,10 +1,13 @@
+import { registerAgentsHandlers } from './ipc/agentsHandlers';
 import { registerApiHandlers } from './ipc/apiHandlers';
 import { registerAppHandlers } from './ipc/appHandlers';
 import { registerDialogHandlers } from './ipc/dialogHandlers';
 import { registerEngineHandlers } from './ipc/engineHandlers';
 import { registerLogHandlers } from './ipc/logHandlers';
+import { registerMcpHandlers } from './ipc/mcpHandlers';
 import { registerPermissionHandlers } from './ipc/permissionHandlers';
 import { registerShellHandlers } from './ipc/shellHandlers';
+import { registerSkillHandlers } from './ipc/skillHandlers';
 import { registerStoreHandlers } from './ipc/storeHandlers';
 import { registerUpdateHandlers } from './ipc/updateHandlers';
 import { registerWindowHandlers } from './ipc/windowHandlers';
@@ -2963,99 +2966,9 @@ if (!gotTheLock) {
   });
 
   // Skills IPC handlers
-  ipcMain.handle(SkillsIpcChannel.List, () => {
-    try {
-      const skills = getSkillManager().listSkills();
-      return { success: true, skills };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to load skills' };
-    }
-  });
+  // Skill handlers (registered via ./ipc/skillHandlers)
+  registerSkillHandlers({ getSkillManager: () => getSkillManager() });
 
-  ipcMain.handle(SkillsIpcChannel.SetEnabled, (_event, options: { id: string; enabled: boolean }) => {
-    try {
-      const skills = getSkillManager().setSkillEnabled(options.id, options.enabled);
-      return { success: true, skills };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update skill' };
-    }
-  });
-
-  ipcMain.handle(SkillsIpcChannel.Delete, (_event, id: string) => {
-    try {
-      const skills = getSkillManager().deleteSkill(id);
-      return { success: true, skills };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete skill' };
-    }
-  });
-
-  ipcMain.handle(SkillsIpcChannel.Download, async (_event, source: string) => {
-    return getSkillManager().downloadSkill(source);
-  });
-
-  ipcMain.handle(SkillsIpcChannel.Upgrade, async (_event, skillId: string, downloadUrl: string) => {
-    return getSkillManager().upgradeSkill(skillId, downloadUrl);
-  });
-
-  ipcMain.handle(SkillsIpcChannel.ConfirmInstall, async (_event, pendingId: string, action: string) => {
-    const validActions = ['install', 'installDisabled', 'cancel'];
-    if (!validActions.includes(action)) {
-      return { success: false, error: 'Invalid action' };
-    }
-    return getSkillManager().confirmPendingInstall(
-      pendingId,
-      action as 'install' | 'installDisabled' | 'cancel'
-    );
-  });
-
-  ipcMain.handle(SkillsIpcChannel.GetRoot, () => {
-    try {
-      const root = getSkillManager().getSkillsRoot();
-      return { success: true, path: root };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to resolve skills root' };
-    }
-  });
-
-  ipcMain.handle(SkillsIpcChannel.AutoRoutingPrompt, () => {
-    try {
-      const prompt = getSkillManager().buildAutoRoutingPrompt();
-      return { success: true, prompt };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to build auto-routing prompt' };
-    }
-  });
-
-  ipcMain.handle(SkillsIpcChannel.GetConfig, (_event, skillId: string) => {
-    return getSkillManager().getSkillConfig(skillId);
-  });
-
-  ipcMain.handle(SkillsIpcChannel.SetConfig, (_event, skillId: string, config: Record<string, string>) => {
-    return getSkillManager().setSkillConfig(skillId, config);
-  });
-
-  ipcMain.handle(SkillsIpcChannel.TestEmailConnectivity, async (
-    _event,
-    skillId: string,
-    config: Record<string, string>
-  ) => {
-    return getSkillManager().testEmailConnectivity(skillId, config);
-  });
-
-  ipcMain.handle(SkillsIpcChannel.FetchMarketplace, async (_event, options) => {
-    return getSkillManager().fetchMarketplaceSkills(options ?? {});
-  });
-
-  ipcMain.handle(SkillsIpcChannel.SearchMarketplace, async (_event, options) => {
-    return getSkillManager().searchMarketplaceSkills(options ?? {});
-  });
-
-  ipcMain.handle(SkillsIpcChannel.InstallMarketplaceSkill, async (_event, skill) => {
-    return getSkillManager().installMarketplaceSkill(skill);
-  });
-
-  // OpenClaw + Hermes Agent engine handlers (registered via ./ipc/engineHandlers)
   registerEngineHandlers({
     getOpenClawEngineManager: () => getOpenClawEngineManager(),
     getHermesEngineManager: () => getHermesEngineManager(),
@@ -3067,118 +2980,11 @@ if (!gotTheLock) {
   });
 
   // MCP Server IPC handlers
-  ipcMain.handle('mcp:list', () => {
-    try {
-      const servers = getMcpStore().listServers();
-      return { success: true, servers };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list MCP servers' };
-    }
-  });
-
-  ipcMain.handle('mcp:create', async (_event, data: {
-    name: string;
-    description: string;
-    transportType: string;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-    url?: string;
-    headers?: Record<string, string>;
-  }) => {
-    try {
-      getMcpStore().createServer(data as any);
-      const servers = getMcpStore().listServers();
-      // Trigger async MCP bridge refresh (don't await — let UI show DB result immediately)
-      refreshMcpBridge().catch(err => console.error('[McpBridge] background refresh error:', err));
-      return { success: true, servers };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to create MCP server' };
-    }
-  });
-
-  ipcMain.handle('mcp:update', async (_event, id: string, data: {
-    name?: string;
-    description?: string;
-    transportType?: string;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-    url?: string;
-    headers?: Record<string, string>;
-  }) => {
-    try {
-      getMcpStore().updateServer(id, data as any);
-      const servers = getMcpStore().listServers();
-      refreshMcpBridge().catch(err => console.error('[McpBridge] background refresh error:', err));
-      return { success: true, servers };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update MCP server' };
-    }
-  });
-
-  ipcMain.handle('mcp:delete', async (_event, id: string) => {
-    try {
-      getMcpStore().deleteServer(id);
-      const servers = getMcpStore().listServers();
-      refreshMcpBridge().catch(err => console.error('[McpBridge] background refresh error:', err));
-      return { success: true, servers };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete MCP server' };
-    }
-  });
-
-  ipcMain.handle('mcp:setEnabled', async (_event, options: { id: string; enabled: boolean }) => {
-    try {
-      getMcpStore().setEnabled(options.id, options.enabled);
-      const servers = getMcpStore().listServers();
-      refreshMcpBridge().catch(err => console.error('[McpBridge] background refresh error:', err));
-      return { success: true, servers };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update MCP server' };
-    }
-  });
-
-  ipcMain.handle('mcp:fetchMarketplace', async () => {
-    const url = `${getServerApiBaseUrl()}/api/mcp/marketplace`;
-    try {
-      const https = await import('https');
-      const data = await new Promise<string>((resolve, reject) => {
-        const req = https.get(url, { timeout: 10000 }, (res) => {
-          if (res.statusCode !== 200) {
-            reject(new Error(`HTTP ${res.statusCode}`));
-            res.resume();
-            return;
-          }
-          let body = '';
-          res.setEncoding('utf8');
-          res.on('data', (chunk: string) => { body += chunk; });
-          res.on('end', () => resolve(body));
-          res.on('error', reject);
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
-      });
-      const json = JSON.parse(data);
-      const value = json?.data?.value;
-      if (!value) {
-        return { success: false, error: 'Invalid response: missing data.value' };
-      }
-      const marketplace = typeof value === 'string' ? JSON.parse(value) : value;
-      return { success: true, data: marketplace };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch marketplace' };
-    }
-  });
-
-  // Explicit bridge refresh — renderer can await this for loading state
-  ipcMain.handle('mcp:refreshBridge', async () => {
-    try {
-      const result = await refreshMcpBridge();
-      return { success: true, tools: result.tools, error: result.error };
-    } catch (error) {
-      return { success: false, tools: 0, error: error instanceof Error ? error.message : 'Failed to refresh MCP bridge' };
-    }
+  // MCP server handlers (registered via ./ipc/mcpHandlers)
+  registerMcpHandlers({
+    getMcpStore: () => getMcpStore(),
+    refreshMcpBridge: () => refreshMcpBridge(),
+    getServerApiBaseUrl: () => getServerApiBaseUrl(),
   });
 
   // Cowork IPC handlers
@@ -3562,156 +3368,13 @@ if (!gotTheLock) {
 
   // ========== Agent IPC Handlers ==========
 
-  ipcMain.handle('agents:list', async () => {
-    try {
-      const agents = getAgentManager().listAgents();
-      return { success: true, agents };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list agents' };
-    }
+  // Custom Agents + Agent Teams handlers (registered via ./ipc/agentsHandlers)
+  registerAgentsHandlers({
+    getAgentManager: () => getAgentManager(),
+    syncOpenClawConfig: (opts) => syncOpenClawConfig(opts),
+    getIMGatewayManager: () => getIMGatewayManager(),
   });
 
-  ipcMain.handle('agents:get', async (_event, id: string) => {
-    try {
-      const agent = getAgentManager().getAgent(id);
-      return { success: true, agent };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get agent' };
-    }
-  });
-
-  ipcMain.handle('agents:create', async (_event, request: import('./coworkStore').CreateAgentRequest) => {
-    try {
-      const agent = getAgentManager().createAgent(request);
-      // Sync config so workspace files (SOUL.md, IDENTITY.md) are written
-      // before OpenClaw scaffolds default templates for the new agent.
-      syncOpenClawConfig({ reason: 'agent-created' }).catch(() => {});
-      return { success: true, agent };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to create agent' };
-    }
-  });
-
-  ipcMain.handle('agents:update', async (_event, id: string, updates: import('./coworkStore').UpdateAgentRequest) => {
-    try {
-      const agent = getAgentManager().updateAgent(id, updates);
-      syncOpenClawConfig({ reason: 'agent-updated' }).catch(() => {});
-      return { success: true, agent };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update agent' };
-    }
-  });
-
-  ipcMain.handle('agents:delete', async (_event, id: string) => {
-    try {
-      const result = getAgentManager().deleteAgent(id);
-
-      // Clean up IM platform bindings that reference the deleted agent
-      // so that channels fall back to the default 'main' agent.
-      try {
-        const imStore = getIMGatewayManager()?.getIMStore();
-        if (imStore) {
-          const imSettings = imStore.getIMSettings();
-          const bindings = imSettings.platformAgentBindings;
-          if (bindings) {
-            let changed = false;
-            for (const [platform, agentId] of Object.entries(bindings)) {
-              if (agentId === id || agentId === `agent:${id}`) {
-                delete bindings[platform];
-                changed = true;
-              }
-            }
-            if (changed) {
-              imStore.setIMSettings({ platformAgentBindings: bindings });
-            }
-          }
-        }
-      } catch {
-        // IM store may not be initialised yet; safe to ignore.
-      }
-
-      syncOpenClawConfig({ reason: 'agent-deleted' }).catch(() => {});
-      return { success: true, deleted: result };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete agent' };
-    }
-  });
-
-  ipcMain.handle('agents:presets', async () => {
-    try {
-      const presets = getAgentManager().getPresetAgents();
-      return { success: true, presets };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get presets' };
-    }
-  });
-
-  ipcMain.handle('agents:addPreset', async (_event, presetId: string) => {
-    try {
-      const agent = getAgentManager().addPresetAgent(presetId);
-      syncOpenClawConfig({ reason: 'agent-preset-added' }).catch(() => {});
-      return { success: true, agent };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to add preset agent' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:list', async () => {
-    try {
-      const teams = getAgentManager().listAgentTeams();
-      return { success: true, teams };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to list agent teams' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:get', async (_event, id: string) => {
-    try {
-      const team = getAgentManager().getAgentTeam(id);
-      return { success: true, team };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to get agent team' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:create', async (_event, request: import('./coworkStore').CreateAgentTeamRequest) => {
-    try {
-      const team = getAgentManager().createAgentTeam(request);
-      syncOpenClawConfig({ reason: 'agent-team-created' }).catch(() => {});
-      return { success: true, team };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to create agent team' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:update', async (_event, id: string, updates: import('./coworkStore').UpdateAgentTeamRequest) => {
-    try {
-      const team = getAgentManager().updateAgentTeam(id, updates);
-      syncOpenClawConfig({ reason: 'agent-team-updated' }).catch(() => {});
-      return { success: true, team };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to update agent team' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:delete', async (_event, id: string) => {
-    try {
-      const deleted = getAgentManager().deleteAgentTeam(id);
-      return { success: true, deleted };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to delete agent team' };
-    }
-  });
-
-  ipcMain.handle('agents:teams:installDevelopmentTemplate', async () => {
-    try {
-      const team = getAgentManager().installDevelopmentTeamTemplate();
-      syncOpenClawConfig({ reason: 'agent-team-template-installed' }).catch(() => {});
-      return { success: true, team };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to install development team' };
-    }
-  });
 
   ipcMain.handle('cowork:session:exportResultImage', async (
     event,
