@@ -67,7 +67,7 @@
     "format:check": "prettier --check .",
     "prepare": "husky",
     "test": "vitest run",
-    "pretest": "npm rebuild better-sqlite3",
+    "pretest": "npm rebuild electron better-sqlite3",
     "preview": "vite preview",
     "compile:electron": "tsc --project electron-tsconfig.json",
     "precompile:electron": "electron-builder install-app-deps",
@@ -205,5 +205,14 @@
     "vite-plugin-electron-renderer": "^0.14.5",
     "vitest": "^4.1.0",
     "wait-on": "^7.2.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.10.0": true,
+    "bufferutil@4.1.0": true,
+    "electron@40.10.2": true,
+    "esbuild@0.21.5": true,
+    "protobufjs@7.6.2": true,
+    "utf-8-validate@6.0.6": true,
+    "fsevents@2.3.3": true
   }
 }

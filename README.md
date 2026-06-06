@@ -20,7 +20,7 @@
   <strong>English</strong> | <a href="README_zh.md">简体中文</a>
 </p>
 
-Agora is an open-source desktop workspace for AI coding agents. Built with Electron, React, and TypeScript, it provides a unified visual interface for installing, configuring, and running multiple local agent engines — including OpenCode (default), OpenClaw, Claude Code, Hermes, DeepSeek-TUI, and Codex. Agora connects these engines to chat, tools, files, IM platforms, model providers, and runtime analytics in a single desktop application.
+Agora is an open-source desktop workspace for AI coding agents. Built with Electron, React, and TypeScript, it provides a unified visual interface for installing, configuring, and running multiple local agent engines — including Claude Code (default), OpenCode, OpenClaw, Hermes, DeepSeek-TUI, and Codex. Agora connects these engines to chat, tools, files, IM platforms, model providers, and runtime analytics in a single desktop application.
 
 > If Agora improves your agent workflow, give it a star — it helps more developers discover the project.
 
@@ -42,7 +42,7 @@ Terminal-native coding agents are powerful, but their setup, model routing, perm
 
 | # | Feature | Description |
 |---|---------|-------------|
-| 1 | **Agent Engine Hub** | Run OpenCode (default), OpenClaw, Claude Code, Hermes, DeepSeek-TUI, or Codex — one-click install or reuse existing local CLI configs. |
+| 1 | **Agent Engine Hub** | Run Claude Code (default), OpenCode, OpenClaw, Hermes, DeepSeek-TUI, or Codex — one-click install or reuse existing local CLI configs. |
 | 2 | **Unified Model Providers** | Configure OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Moonshot, Ollama, OpenRouter, GitHub Copilot, and custom OpenAI-compatible endpoints. |
 | 3 | **IM Agent Hub** | Route messages from Feishu, DingTalk, Telegram, Discord, WeChat, WeCom, and QQ into any engine with per-platform bot profiles. |
 | 4 | **AI Runtime Dashboard** | Measure calls by engine, model, source, status, tokens, completion time, TTFT, output-phase TPS, estimated model TPS, tool latency, and agent steps. |

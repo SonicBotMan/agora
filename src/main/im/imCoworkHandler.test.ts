@@ -66,6 +66,13 @@ class FakeCoworkStore {
     return this.sessions.get(id) ?? null;
   }
 
+  getAgent() {
+    return {
+      id: 'main',
+      agentEngine: 'codex',
+    };
+  }
+
   updateSession(id: string, updates: Partial<FakeSession>): void {
     const session = this.sessions.get(id);
     if (session) {

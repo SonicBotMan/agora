@@ -20,7 +20,7 @@
   <a href="README.md">English</a> | <strong>简体中文</strong>
 </p>
 
-Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 TypeScript 构建。它提供了统一的图形界面，用于安装、配置和运行多种本地 Agent 引擎——包括 OpenCode（默认引擎）、OpenClaw、Claude Code、Hermes、DeepSeek-TUI 和 Codex。Agora 将这些引擎与聊天、工具、文件、IM 平台、模型供应商和运行监控整合到一款桌面应用中。
+Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 TypeScript 构建。它提供了统一的图形界面，用于安装、配置和运行多种本地 Agent 引擎——包括 Claude Code（默认引擎）、OpenCode、OpenClaw、Hermes、DeepSeek-TUI 和 Codex。Agora 将这些引擎与聊天、工具、文件、IM 平台、模型供应商和运行监控整合到一款桌面应用中。
 
 > 如果 Agora 对你的 Agent 工作流有帮助，欢迎点亮 Star，让更多开发者发现这个项目。
 
@@ -42,7 +42,7 @@ Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 
 
 | # | 功能 | 描述 |
 |---|------|------|
-| 1 | **Agent 引擎中心** | 统一运行 OpenCode（默认）、OpenClaw、Claude Code、Hermes、DeepSeek-TUI 和 Codex，支持一键安装或复用本机 CLI 配置。 |
+| 1 | **Agent 引擎中心** | 统一运行 Claude Code（默认）、OpenCode、OpenClaw、Hermes、DeepSeek-TUI 和 Codex，支持一键安装或复用本机 CLI 配置。 |
 | 2 | **统一模型供应商** | 配置 OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Qwen、Moonshot、Ollama、OpenRouter、GitHub Copilot 和自定义 OpenAI-compatible 接口。 |
 | 3 | **IM Agent Hub** | 将飞书、钉钉、Telegram、Discord、微信、企业微信和 QQ 的消息接入任意引擎，支持按平台配置机器人。 |
 | 4 | **AI Runtime Dashboard** | 按引擎、模型、来源、状态、Token、总耗时、TTFT、输出阶段 TPS、估算 Model TPS、工具耗时和 Agent 步数统计调用。 |
