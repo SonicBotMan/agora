@@ -1,11 +1,4 @@
 import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import {
-  ClaudeCodePermissionMode as ClaudeCodePermissionModeValue,
-  CoworkAgentEngine as CoworkAgentEngineValue,
-  DeepSeekTuiPermissionMode as DeepSeekTuiPermissionModeValue,
-  ExternalAgentConfigSource as ExternalAgentConfigSourceValue,
-  OpenCodePermissionMode as OpenCodePermissionModeValue,
-} from '@shared/cowork/constants';
 import React, { useCallback,useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -24,20 +17,8 @@ import { themeService } from '../services/theme';
 import { RootState } from '../store';
 import { setAvailableModels } from '../store/slices/modelSlice';
 import type {
-  ClaudeCodePermissionMode,
-  CoworkAgentEngine,
   CoworkMemoryStats,
   CoworkUserMemoryEntry,
-  DeepSeekTuiPermissionMode,
-  ExternalAgentCliInstallProgress,
-  ExternalAgentConfigSource,
-  ExternalAgentEnvironmentSnapshot,
-  ExternalAgentProvider,
-  ExternalAgentProviderAppType,
-  ExternalAgentProviderListResult,
-  HermesEngineStatus,
-  OpenClawEngineStatus,
-  OpenCodePermissionMode,
 } from '../types/cowork';
 import AgentsView from './agent/AgentsView';
 import Modal from './common/Modal';
@@ -65,6 +46,7 @@ import {
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
+import { useCoworkAgentEngine } from './settings/hooks/useCoworkAgentEngine';
 import { useModelEditor } from './settings/hooks/useModelEditor';
 import { useSettingsSharedState } from './settings/hooks/useSettingsSharedState';
 import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
@@ -409,21 +391,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
   const coworkConfig = useSelector((state: RootState) => state.cowork.config);
 
-  const [coworkAgentEngine, setCoworkAgentEngine] = useState<CoworkAgentEngine>(coworkConfig.agentEngine || CoworkAgentEngineValue.OpenCode);
-  const [expandedCoworkAgentEngine, setExpandedCoworkAgentEngine] = useState<CoworkAgentEngine | null>(null);
-
-  const handleSelectCoworkAgentEngine = (engine: CoworkAgentEngine) => {
-    if (isSaving) return;
-    setCoworkAgentEngine(engine);
-    setExpandedCoworkAgentEngine(engine);
-  };
-
-  const handleToggleCoworkAgentEngineDetails = (engine: CoworkAgentEngine) => {
-    if (isSaving) return;
-    setExpandedCoworkAgentEngine((current) => (
-      current === engine ? null : engine
-    ));
-  };
   const [coworkMemoryEnabled, setCoworkMemoryEnabled] = useState<boolean>(coworkConfig.memoryEnabled ?? true);
   const [coworkMemoryLlmJudgeEnabled, setCoworkMemoryLlmJudgeEnabled] = useState<boolean>(coworkConfig.memoryLlmJudgeEnabled ?? false);
   const [coworkMemoryEntries, setCoworkMemoryEntries] = useState<CoworkUserMemoryEntry[]>([]);
@@ -437,186 +404,71 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [bootstrapUser, setBootstrapUser] = useState<string>('');
   const [bootstrapSoul, setBootstrapSoul] = useState<string>('');
   const [bootstrapLoaded, setBootstrapLoaded] = useState<boolean>(false);
-  const [openClawEngineStatus, setOpenClawEngineStatus] = useState<OpenClawEngineStatus | null>(null);
-  const [hermesEngineStatus, setHermesEngineStatus] = useState<HermesEngineStatus | null>(null);
-  const [agentEnvironmentSnapshot, setAgentEnvironmentSnapshot] = useState<ExternalAgentEnvironmentSnapshot | null>(null);
-  const [openclawConfigSource, setOpenClawConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.openclawConfigSource ?? ExternalAgentConfigSourceValue.LocalCli,
-  );
-  const [claudeCodeConfigSource, setClaudeCodeConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.claudeCodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [claudeCodePermissionMode, setClaudeCodePermissionMode] = useState<ClaudeCodePermissionMode>(
-    coworkConfig.claudeCodePermissionMode ?? ClaudeCodePermissionModeValue.BypassPermissions,
-  );
-  const [codexConfigSource, setCodexConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.codexConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [hermesConfigSource, setHermesConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.hermesConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [opencodeConfigSource, setOpenCodeConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.opencodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [opencodePermissionMode, setOpenCodePermissionMode] = useState<OpenCodePermissionMode>(
-    coworkConfig.opencodePermissionMode ?? OpenCodePermissionModeValue.Auto,
-  );
-  const [deepseekTuiConfigSource, setDeepSeekTuiConfigSource] = useState<ExternalAgentConfigSource>(
-    coworkConfig.deepseekTuiConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel,
-  );
-  const [deepseekTuiPermissionMode, setDeepSeekTuiPermissionMode] = useState<DeepSeekTuiPermissionMode>(
-    coworkConfig.deepseekTuiPermissionMode ?? DeepSeekTuiPermissionModeValue.Auto,
-  );
-  const [agentConfigImportingAppType, setAgentConfigImportingAppType] = useState<ExternalAgentProviderAppType | null>(null);
-  const [openclawGlobalSyncing, setOpenClawGlobalSyncing] = useState(false);
-  const [opencodeGlobalSyncing, setOpenCodeGlobalSyncing] = useState(false);
-  const [deepseekTuiGlobalSyncing, setDeepSeekTuiGlobalSyncing] = useState(false);
-  const [agentCliInstallingAppType, setAgentCliInstallingAppType] = useState<ExternalAgentProviderAppType | null>(null);
-  const [agentCliInstallProgress, setAgentCliInstallProgress] = useState<Record<ExternalAgentProviderAppType, string>>({
-    claude: '',
-    codex: '',
-    hermes: '',
-    openclaw: '',
-    opencode: '',
-    deepseek_tui: '',
-  });
-  const [agentProviderLists, setAgentProviderLists] = useState<Partial<Record<ExternalAgentProviderAppType, ExternalAgentProviderListResult>>>({});
-  const [agentProviderLoadingAppType, setAgentProviderLoadingAppType] = useState<ExternalAgentProviderAppType | null>(null);
-  const [agentProviderSwitchingId, setAgentProviderSwitchingId] = useState<string | null>(null);
-
-  const selectedExternalAgentAppType = useMemo<ExternalAgentProviderAppType | null>(() => {
-    if (coworkAgentEngine === CoworkAgentEngineValue.ClaudeCode) return 'claude';
-    if (coworkAgentEngine === CoworkAgentEngineValue.Codex) return 'codex';
-    if (coworkAgentEngine === CoworkAgentEngineValue.Hermes) return 'hermes';
-    if (coworkAgentEngine === CoworkAgentEngineValue.OpenCode) return 'opencode';
-    if (coworkAgentEngine === CoworkAgentEngineValue.DeepSeekTui) return 'deepseek_tui';
-    return null;
-  }, [coworkAgentEngine]);
 
   useEffect(() => {
-    setCoworkAgentEngine(coworkConfig.agentEngine || CoworkAgentEngineValue.OpenCode);
-    setOpenClawConfigSource(coworkConfig.openclawConfigSource ?? ExternalAgentConfigSourceValue.LocalCli);
-    setClaudeCodeConfigSource(coworkConfig.claudeCodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setClaudeCodePermissionMode(coworkConfig.claudeCodePermissionMode ?? ClaudeCodePermissionModeValue.BypassPermissions);
-    setCodexConfigSource(coworkConfig.codexConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setHermesConfigSource(coworkConfig.hermesConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setOpenCodeConfigSource(coworkConfig.opencodeConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setOpenCodePermissionMode(coworkConfig.opencodePermissionMode ?? OpenCodePermissionModeValue.Auto);
-    setDeepSeekTuiConfigSource(coworkConfig.deepseekTuiConfigSource ?? ExternalAgentConfigSourceValue.AgoraModel);
-    setDeepSeekTuiPermissionMode(coworkConfig.deepseekTuiPermissionMode ?? DeepSeekTuiPermissionModeValue.Auto);
     setCoworkMemoryEnabled(coworkConfig.memoryEnabled ?? true);
     setCoworkMemoryLlmJudgeEnabled(coworkConfig.memoryLlmJudgeEnabled ?? false);
-  }, [
-    coworkConfig.agentEngine,
-    coworkConfig.openclawConfigSource,
-    coworkConfig.claudeCodeConfigSource,
-    coworkConfig.claudeCodePermissionMode,
-    coworkConfig.codexConfigSource,
-    coworkConfig.hermesConfigSource,
-    coworkConfig.opencodeConfigSource,
-    coworkConfig.opencodePermissionMode,
-    coworkConfig.deepseekTuiConfigSource,
-    coworkConfig.deepseekTuiPermissionMode,
-    coworkConfig.memoryEnabled,
-    coworkConfig.memoryLlmJudgeEnabled,
-  ]);
+  }, [coworkConfig.memoryEnabled, coworkConfig.memoryLlmJudgeEnabled]);
 
-  useEffect(() => () => {
-    if (emailCopiedTimerRef.current != null) {
-      window.clearTimeout(emailCopiedTimerRef.current);
-    }
-    if (updateCheckTimerRef.current != null) {
-      window.clearTimeout(updateCheckTimerRef.current);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void coworkService.getAgentEngineSnapshot().then((snapshot) => {
-      if (!active) return;
-      setAgentEnvironmentSnapshot(snapshot);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = coworkService.onAgentCliInstallProgress((progress: ExternalAgentCliInstallProgress) => {
-      const message = progress.detail
-        ? `${progress.message} ${progress.detail}`
-        : progress.message;
-      setAgentCliInstallProgress((prev) => ({
-        ...prev,
-        [progress.appType]: message,
-      }));
-      if (progress.phase === 'starting' || progress.phase === 'installing' || progress.phase === 'verifying') {
-        setAgentCliInstallingAppType(progress.appType);
-      }
-      if (progress.phase === 'success' || progress.phase === 'error' || progress.phase === 'unsupported') {
-        setAgentCliInstallingAppType((current) => (
-          current === progress.appType ? null : current
-        ));
-        if (progress.phase === 'success') {
-          void refreshAgentEnvironmentSnapshot();
-        }
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  const loadAgentProviders = useCallback(async (appType: ExternalAgentProviderAppType) => {
-    setAgentProviderLoadingAppType(appType);
-    try {
-      const result = await coworkService.listAgentProviders(appType);
-      if (result.success) {
-        setAgentProviderLists((prev) => ({
-          ...prev,
-          [appType]: result,
-        }));
-      }
-      return result;
-    } finally {
-      setAgentProviderLoadingAppType((current) => (current === appType ? null : current));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!selectedExternalAgentAppType) return;
-    void loadAgentProviders(selectedExternalAgentAppType);
-  }, [loadAgentProviders, selectedExternalAgentAppType]);
-
-  useEffect(() => {
-    let active = true;
-    void coworkService.getOpenClawEngineStatus().then((status) => {
-      if (!active || !status) return;
-      setOpenClawEngineStatus(status);
-    });
-    const unsubscribe = coworkService.onOpenClawEngineStatus((status) => {
-      if (!active) return;
-      setOpenClawEngineStatus(status);
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void coworkService.getHermesEngineStatus().then((status) => {
-      if (!active || !status) return;
-      setHermesEngineStatus(status);
-    });
-    const unsubscribe = coworkService.onHermesEngineStatus((status) => {
-      if (!active) return;
-      setHermesEngineStatus(status);
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
+  const {
+    coworkAgentEngine,
+    expandedCoworkAgentEngine,
+    openClawEngineStatus,
+    hermesEngineStatus,
+    agentEnvironmentSnapshot,
+    openclawConfigSource,
+    claudeCodeConfigSource,
+    claudeCodePermissionMode,
+    codexConfigSource,
+    hermesConfigSource,
+    opencodeConfigSource,
+    opencodePermissionMode,
+    deepseekTuiConfigSource,
+    deepseekTuiPermissionMode,
+    agentConfigImportingAppType,
+    openclawGlobalSyncing,
+    opencodeGlobalSyncing,
+    deepseekTuiGlobalSyncing,
+    agentCliInstallingAppType,
+    agentCliInstallProgress,
+    agentProviderLists,
+    agentProviderLoadingAppType,
+    agentProviderSwitchingId,
+    selectedExternalAgentAppType,
+    selectedAgentConfigSource,
+    setOpenClawConfigSource,
+    setClaudeCodePermissionMode,
+    setOpenCodePermissionMode,
+    setDeepSeekTuiPermissionMode,
+    setAgentEnvironmentSnapshot,
+    setSelectedAgentConfigSource,
+    effectiveAgentModelSummary,
+    selectedEngineConfigPaths,
+    hasCoworkConfigChanges,
+    isCoworkAgentConfigApplying,
+    handleSelectCoworkAgentEngine,
+    handleToggleCoworkAgentEngineDetails,
+    loadAgentProviders,
+    handleSelectAgentProvider,
+    handleInstallAgentCli,
+    handleInstallHermesEngine,
+    handleInstallOpenClawEngine,
+    handleRestartOpenClawGateway,
+    handleRestartHermesGateway,
+    handleImportLocalAgentConfigToModelSettings,
+    handleSyncOpenClawGlobalConfig,
+    handleSyncOpenCodeGlobalConfig,
+    handleSyncDeepSeekTuiGlobalConfig,
+  } = useCoworkAgentEngine({
+    isSaving,
+    activeTab,
+    setError,
+    setNoticeMessage,
+    setActiveProvider,
+    setProviders,
+    activeProvider,
+    providers,
+  });
 
   useEffect(() => {
     try {
@@ -1191,37 +1043,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     setMinimaxOAuthPhase({ kind: 'idle' });
   };
 
-  const hasCoworkConfigChanges = coworkAgentEngine !== coworkConfig.agentEngine
-    || openclawConfigSource !== coworkConfig.openclawConfigSource
-    || claudeCodeConfigSource !== coworkConfig.claudeCodeConfigSource
-    || claudeCodePermissionMode !== coworkConfig.claudeCodePermissionMode
-    || codexConfigSource !== coworkConfig.codexConfigSource
-    || hermesConfigSource !== coworkConfig.hermesConfigSource
-    || opencodeConfigSource !== coworkConfig.opencodeConfigSource
-    || opencodePermissionMode !== coworkConfig.opencodePermissionMode
-    || deepseekTuiConfigSource !== coworkConfig.deepseekTuiConfigSource
-    || deepseekTuiPermissionMode !== coworkConfig.deepseekTuiPermissionMode
-    || coworkMemoryEnabled !== coworkConfig.memoryEnabled
-    || coworkMemoryLlmJudgeEnabled !== coworkConfig.memoryLlmJudgeEnabled;
-  const hasCoworkAgentEngineApplyChanges = coworkAgentEngine !== coworkConfig.agentEngine
-    || (coworkAgentEngine === CoworkAgentEngineValue.OpenClaw
-      && openclawConfigSource !== coworkConfig.openclawConfigSource)
-    || (coworkAgentEngine === CoworkAgentEngineValue.ClaudeCode
-      && (claudeCodeConfigSource !== coworkConfig.claudeCodeConfigSource
-        || claudeCodePermissionMode !== coworkConfig.claudeCodePermissionMode))
-    || (coworkAgentEngine === CoworkAgentEngineValue.Codex
-      && codexConfigSource !== coworkConfig.codexConfigSource)
-    || (coworkAgentEngine === CoworkAgentEngineValue.Hermes
-      && hermesConfigSource !== coworkConfig.hermesConfigSource)
-    || (coworkAgentEngine === CoworkAgentEngineValue.OpenCode
-      && (opencodeConfigSource !== coworkConfig.opencodeConfigSource
-        || opencodePermissionMode !== coworkConfig.opencodePermissionMode))
-    || (coworkAgentEngine === CoworkAgentEngineValue.DeepSeekTui
-      && (deepseekTuiConfigSource !== coworkConfig.deepseekTuiConfigSource
-        || deepseekTuiPermissionMode !== coworkConfig.deepseekTuiPermissionMode));
-  const isCoworkAgentConfigApplying = isSaving
-    && activeTab === 'coworkAgentEngine'
-    && hasCoworkAgentEngineApplyChanges;
 
   const loadCoworkMemoryData = useCallback(async () => {
     setCoworkMemoryListLoading(true);
@@ -1654,308 +1475,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     return sidebarTabs.find(t => t.key === activeTab)?.label ?? '';
   }, [activeTab, sidebarTabs]);
 
-  const selectedAgentConfigSource = useMemo<ExternalAgentConfigSource | null>(() => {
-    if (selectedExternalAgentAppType === 'claude') return claudeCodeConfigSource;
-    if (selectedExternalAgentAppType === 'codex') return codexConfigSource;
-    if (selectedExternalAgentAppType === 'hermes') return hermesConfigSource;
-    if (selectedExternalAgentAppType === 'opencode') return opencodeConfigSource;
-    if (selectedExternalAgentAppType === 'deepseek_tui') return deepseekTuiConfigSource;
-    return null;
-  }, [
-    claudeCodeConfigSource,
-    codexConfigSource,
-    deepseekTuiConfigSource,
-    hermesConfigSource,
-    deepseekTuiConfigSource,
-    selectedExternalAgentAppType,
-  ]);
 
-  const setSelectedAgentConfigSource = (source: ExternalAgentConfigSource) => {
-    if (isSaving) return;
-    if (selectedExternalAgentAppType === 'claude') {
-      setClaudeCodeConfigSource(source);
-      return;
-    }
-    if (selectedExternalAgentAppType === 'codex') {
-      setCodexConfigSource(source);
-      return;
-    }
-    if (selectedExternalAgentAppType === 'hermes') {
-      setHermesConfigSource(source);
-      return;
-    }
-    if (selectedExternalAgentAppType === 'opencode') {
-      setOpenCodeConfigSource(source);
-      return;
-    }
-    if (selectedExternalAgentAppType === 'deepseek_tui') {
-      setDeepSeekTuiConfigSource(source);
-    }
-  };
-
-  const selectedAgentProviderList = selectedExternalAgentAppType
-    ? agentProviderLists[selectedExternalAgentAppType] ?? null
-    : null;
-  const selectedAgentProvider = useMemo<ExternalAgentProvider | null>(() => {
-    const providers = selectedAgentProviderList?.providers ?? [];
-    return providers.find((provider) => provider.id === selectedAgentProviderList?.currentProviderId)
-      ?? providers.find((provider) => provider.isCurrent)
-      ?? providers[0]
-      ?? null;
-  }, [selectedAgentProviderList]);
-
-  const currentModelSummary = useMemo(() => {
-    const config = configService.getConfig();
-    const providerKey = config.model?.defaultModelProvider || activeProvider;
-    const providerConfig = providers[providerKey as ProviderType];
-    const modelId = config.model?.defaultModel || providerConfig?.models?.[0]?.id || '';
-    const providerName = providerConfig
-      ? getProviderDisplayName(providerKey, providerConfig)
-      : providerKey;
-    const apiFormat = providerConfig
-      ? getEffectiveApiFormat(providerKey, providerConfig.apiFormat)
-      : undefined;
-    return {
-      providerKey,
-      providerName,
-      modelId,
-      apiFormat,
-      baseUrl: providerConfig?.baseUrl ?? '',
-    };
-  }, [activeProvider, providers]);
-
-  const effectiveAgentModelSummary = useMemo(() => {
-    if (selectedAgentConfigSource === ExternalAgentConfigSourceValue.LocalCli && selectedAgentProvider) {
-      return {
-        providerKey: selectedAgentProvider.id,
-        providerName: selectedAgentProvider.name,
-        modelId: selectedAgentProvider.summary.model || i18nService.t('coworkAgentLocalModelUnknown'),
-        apiFormat: selectedExternalAgentAppType === 'claude' ? 'anthropic' : 'openai',
-        baseUrl: selectedAgentProvider.summary.baseUrl,
-      };
-    }
-    return currentModelSummary;
-  }, [currentModelSummary, selectedAgentConfigSource, selectedAgentProvider, selectedExternalAgentAppType]);
-
-  const handleSelectAgentProvider = async (providerId: string) => {
-    if (!selectedExternalAgentAppType || !providerId || agentProviderSwitchingId) return;
-    setAgentProviderSwitchingId(providerId);
-    setError(null);
-    try {
-      const result = await coworkService.setCurrentAgentProvider(selectedExternalAgentAppType, providerId);
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentLocalModelSwitchFailed'));
-        return;
-      }
-      setAgentProviderLists((prev) => ({
-        ...prev,
-        [selectedExternalAgentAppType]: result,
-      }));
-      window.dispatchEvent(new CustomEvent('agora-agent-provider-changed', {
-        detail: { appType: selectedExternalAgentAppType },
-      }));
-    } finally {
-      setAgentProviderSwitchingId(null);
-    }
-  };
-
-  const refreshAgentEnvironmentSnapshot = async () => {
-    const snapshot = await coworkService.getAgentEngineSnapshot();
-    setAgentEnvironmentSnapshot(snapshot);
-  };
-
-  const handleInstallAgentCli = async (appType: ExternalAgentProviderAppType) => {
-    if (window.electron?.platform !== 'darwin') {
-      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
-      return;
-    }
-    setError(null);
-    setAgentCliInstallingAppType(appType);
-    setAgentCliInstallProgress((prev) => ({
-      ...prev,
-      [appType]: i18nService.t('coworkAgentEngineInstallCliStarting'),
-    }));
-    try {
-      const result = await coworkService.installAgentCli(appType);
-      if (result.snapshot) {
-        setAgentEnvironmentSnapshot(result.snapshot);
-      } else {
-        await refreshAgentEnvironmentSnapshot();
-      }
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentEngineInstallCliFailed'));
-        return;
-      }
-      if (appType === 'hermes') {
-        setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
-      }
-      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
-      setAgentCliInstallProgress((prev) => ({
-        ...prev,
-        [appType]: result.version || result.binaryPath || i18nService.t('coworkAgentEngineInstallCliSuccess'),
-      }));
-    } finally {
-      setAgentCliInstallingAppType((current) => (
-        current === appType ? null : current
-      ));
-    }
-  };
-
-  const handleInstallHermesEngine = async () => {
-    if (window.electron?.platform !== 'darwin') {
-      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
-      return;
-    }
-    setError(null);
-    setAgentCliInstallingAppType('hermes');
-    setAgentCliInstallProgress((prev) => ({
-      ...prev,
-      hermes: i18nService.t('coworkAgentEngineInstallCliStarting'),
-    }));
-    setHermesEngineStatus((current) => ({
-      phase: 'installing',
-      version: current?.version ?? null,
-      progressPercent: 8,
-      message: i18nService.t('coworkHermesInstalling'),
-      canRetry: false,
-    }));
-    try {
-      const status = await coworkService.installHermesEngine();
-      if (status) {
-        setHermesEngineStatus(status);
-      }
-      await refreshAgentEnvironmentSnapshot();
-      if (!status || status.phase === 'error' || status.phase === 'not_installed') {
-        setError(status?.message || i18nService.t('coworkAgentEngineInstallCliFailed'));
-        return;
-      }
-      setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
-      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
-    } finally {
-      setAgentCliInstallingAppType((current) => (
-        current === 'hermes' ? null : current
-      ));
-    }
-  };
-
-  const handleInstallOpenClawEngine = () => coworkService.installOpenClawEngine();
-  const handleRestartOpenClawGateway = () => coworkService.restartOpenClawGateway();
-  const handleRestartHermesGateway = () => coworkService.restartHermesGateway();
-
-  const selectedEngineConfigPaths = useMemo<string[]>(() => {
-    if (!selectedExternalAgentAppType) return [];
-    const engine = agentEnvironmentSnapshot?.engines.find(
-      (item) => item.appType === selectedExternalAgentAppType,
-    );
-    if (!engine) return [];
-    return [
-      engine.config.primaryConfigPath,
-      ...(engine.config.secondaryConfigPaths ?? []),
-    ].filter(Boolean) as string[];
-  }, [agentEnvironmentSnapshot, selectedExternalAgentAppType]);
-
-  const applyImportedModelProviderToState = (
-    providerKey: string | undefined,
-    providerConfig: {
-      enabled: boolean;
-      apiKey: string;
-      baseUrl: string;
-      apiFormat?: 'anthropic' | 'openai' | 'gemini';
-      displayName?: string;
-      models?: Array<{ id: string; name: string; supportsImage?: boolean }>;
-    } | undefined,
-  ) => {
-    if (!providerKey || !providerConfig) return;
-    setProviders(prev => ({
-      ...prev,
-      [providerKey]: providerConfig as ProviderConfig,
-    }));
-    if ((providerKeys as readonly string[]).includes(providerKey)) {
-      setActiveProvider(providerKey as ProviderType);
-    }
-  };
-
-  const handleImportLocalAgentConfigToModelSettings = async () => {
-    if (!selectedExternalAgentAppType) return;
-    setError(null);
-    setAgentConfigImportingAppType(selectedExternalAgentAppType);
-    try {
-      const result = await coworkService.importLocalAgentConfigToModelSettings(selectedExternalAgentAppType);
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentConfigImportModelFailed'));
-        return;
-      }
-      applyImportedModelProviderToState(result.providerKey, result.providerConfig);
-      setNoticeMessage(result.duplicate
-        ? i18nService.t('coworkAgentConfigImportModelDuplicate')
-        : i18nService.t('coworkAgentConfigImportModelSuccess'));
-    } finally {
-      setAgentConfigImportingAppType(null);
-    }
-  };
-
-  const handleSyncOpenClawGlobalConfig = async () => {
-    setError(null);
-    setOpenClawGlobalSyncing(true);
-    try {
-      const result = await coworkService.syncOpenClawGlobalConfig();
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentOpenClawSyncGlobalFailed'));
-        return;
-      }
-      if (result.status) {
-        setOpenClawEngineStatus(result.status);
-      }
-      setOpenClawConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
-      setNoticeMessage(i18nService.t('coworkAgentOpenClawSyncGlobalSuccess'));
-    } finally {
-      setOpenClawGlobalSyncing(false);
-    }
-  };
-
-  const handleSyncOpenCodeGlobalConfig = async () => {
-    setError(null);
-    setOpenCodeGlobalSyncing(true);
-    try {
-      const result = await coworkService.syncOpenCodeGlobalConfig();
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentOpenCodeSyncGlobalFailed'));
-        return;
-      }
-      setAgentProviderLists((prev) => ({
-        ...prev,
-        opencode: result,
-      }));
-      setNoticeMessage(i18nService.t('coworkAgentOpenCodeSyncGlobalSuccess'));
-      window.dispatchEvent(new CustomEvent('agora-agent-provider-changed', {
-        detail: { appType: 'opencode' },
-      }));
-    } finally {
-      setOpenCodeGlobalSyncing(false);
-    }
-  };
-
-  const handleSyncDeepSeekTuiGlobalConfig = async () => {
-    setError(null);
-    setDeepSeekTuiGlobalSyncing(true);
-    try {
-      const result = await coworkService.syncDeepSeekTuiGlobalConfig();
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentDeepSeekTuiSyncGlobalFailed'));
-        return;
-      }
-      setAgentProviderLists((prev) => ({
-        ...prev,
-        deepseek_tui: result,
-      }));
-      setNoticeMessage(i18nService.t('coworkAgentDeepSeekTuiSyncGlobalSuccess'));
-      window.dispatchEvent(new CustomEvent('agora-agent-provider-changed', {
-        detail: { appType: 'deepseek_tui' },
-      }));
-    } finally {
-      setDeepSeekTuiGlobalSyncing(false);
-    }
-  };
 
   const renderTabContent = () => {
     switch(activeTab) {
