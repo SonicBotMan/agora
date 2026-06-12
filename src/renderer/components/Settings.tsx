@@ -1,5 +1,4 @@
-import { XCircleIcon as XCircleIconSolid } from '@heroicons/react/20/solid';
-import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, SignalIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftIcon, ClockIcon, Cog6ToothIcon, CpuChipIcon, CubeIcon, EnvelopeIcon, InformationCircleIcon, UserCircleIcon, UserGroupIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import {
   ClaudeCodePermissionMode as ClaudeCodePermissionModeValue,
   CoworkAgentEngine as CoworkAgentEngineValue,
@@ -10,15 +9,15 @@ import {
 import React, { useCallback,useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { ProviderRegistry, resolveCodingPlanBaseUrl } from '../../shared/providers';
-import { type AppConfig, defaultConfig, getCustomProviderDefaultName,getProviderDisplayName,getVisibleProviders, isCustomProvider } from '../config';
-import { APP_ID, EXPORT_FORMAT_TYPE, EXPORT_PASSWORD } from '../constants/app';
+import { ProviderRegistry } from '../../shared/providers';
+import { type AppConfig, defaultConfig, getCustomProviderDefaultName,getProviderDisplayName,getVisibleProviders } from '../config';
+ // (export-format helpers removed with the provider import/export block)
 import { apiService } from '../services/api';
 import type { AppUpdateInfo } from '../services/appUpdate';
 import { checkForAppUpdate } from '../services/appUpdate';
 import { configService } from '../services/config';
 import { coworkService } from '../services/cowork';
-import { decryptSecret, decryptWithPassword, EncryptedPayload, encryptWithPassword, PasswordEncryptedPayload } from '../services/encryption';
+ // (encryption helpers removed with the provider import/export block)
 import { i18nService } from '../services/i18n';
 import { imService } from '../services/im';
 import { themeService } from '../services/theme';
@@ -42,11 +41,9 @@ import type {
 } from '../types/cowork';
 import AgentsView from './agent/AgentsView';
 import Modal from './common/Modal';
-import AgentEnvironmentSetup from './cowork/AgentEnvironmentSetup';
 import ErrorMessage from './ErrorMessage';
 import BrainIcon from './icons/BrainIcon';
 import ConnectorIcon from './icons/ConnectorIcon';
-import PlusCircleIcon from './icons/PlusCircleIcon';
 import {
   AnthropicIcon,
   CustomProviderIcon,
@@ -68,60 +65,33 @@ import {
 import IMSettings from './im/IMSettings';
 import McpManager from './mcp/McpManager';
 import { ScheduledTasksView } from './scheduledTasks';
-import EmailSkillConfig from './skills/EmailSkillConfig';
+import { useModelEditor } from './settings/hooks/useModelEditor';
 import { useSettingsSharedState } from './settings/hooks/useSettingsSharedState';
+import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
+import { ModelEditorModal } from './settings/modals/ModelEditorModal';
+import {
+  CUSTOM_PROVIDER_KEYS,
+  getDefaultActiveProvider,
+  getDefaultProviders,
+  getEffectiveApiFormat,
+  getProviderDefaultBaseUrl,
+  ProviderConfig,
+  providerKeys,
+  providerRequiresApiKey,
+  type ProvidersConfig,
+  type ProviderType,
+  resolveBaseUrl,
+  shouldAutoSwitchProviderBaseUrl,
+} from './settings/providerConfigUtils';
 import { AboutTab } from './settings/tabs/AboutTab';
+import { CoworkAgentEngineTab } from './settings/tabs/CoworkAgentEngineTab';
 import { CoworkAgentTab } from './settings/tabs/CoworkAgentTab';
 import { CoworkMemoryTab } from './settings/tabs/CoworkMemoryTab';
 import { GeneralTab } from './settings/tabs/GeneralTab';
-import { ApiKeySection } from './settings/tabs/ApiKeySection';
-import { GitHubCopilotAuthSection } from './settings/tabs/GitHubCopilotAuthSection';
-import { MiniMaxOAuthSection } from './settings/tabs/MiniMaxOAuthSection';
-import { ModelsListSection } from './settings/tabs/ModelsListSection';
-import { ProviderConfigHeader } from './settings/tabs/ProviderConfigHeader';
-import { ProviderListSidebar } from './settings/tabs/ProviderListSidebar';
+import { ModelTab } from './settings/tabs/ModelTab';
 import { ShortcutsTab } from './settings/tabs/ShortcutsTab';
-import { DeleteProviderModal } from './settings/modals/DeleteProviderModal';
-import { ModelEditorModal } from './settings/modals/ModelEditorModal';
-import { TestResultModal } from './settings/modals/TestResultModal';
 import type { TabType } from './settings/types';
-
-const COWORK_AGENT_ENGINE_OPTIONS: Array<{
-  value: CoworkAgentEngine;
-  labelKey: string;
-  hintKey: string;
-}> = [
-  {
-    value: CoworkAgentEngineValue.OpenClaw,
-    labelKey: 'coworkAgentEngineOpenClaw',
-    hintKey: 'coworkAgentEngineOpenClawHint',
-  },
-  {
-    value: CoworkAgentEngineValue.Hermes,
-    labelKey: 'coworkAgentEngineHermes',
-    hintKey: 'coworkAgentEngineHermesHint',
-  },
-  {
-    value: CoworkAgentEngineValue.ClaudeCode,
-    labelKey: 'coworkAgentEngineClaudeCode',
-    hintKey: 'coworkAgentEngineClaudeCodeHint',
-  },
-  {
-    value: CoworkAgentEngineValue.Codex,
-    labelKey: 'coworkAgentEngineCodex',
-    hintKey: 'coworkAgentEngineCodexHint',
-  },
-  {
-    value: CoworkAgentEngineValue.OpenCode,
-    labelKey: 'coworkAgentEngineOpenCode',
-    hintKey: 'coworkAgentEngineOpenCodeHint',
-  },
-  {
-    value: CoworkAgentEngineValue.DeepSeekTui,
-    labelKey: 'coworkAgentEngineDeepSeekTui',
-    hintKey: 'coworkAgentEngineDeepSeekTuiHint',
-  },
-];
+import EmailSkillConfig from './skills/EmailSkillConfig';
 
 export type SettingsOpenOptions = {
   initialTab?: TabType;
@@ -140,82 +110,6 @@ interface SettingsProps extends SettingsOpenOptions {
 }
 
 
-const CUSTOM_PROVIDER_KEYS = [
-  'custom_0', 'custom_1', 'custom_2', 'custom_3', 'custom_4',
-  'custom_5', 'custom_6', 'custom_7', 'custom_8', 'custom_9',
-] as const;
-
-const providerKeys = [
-  'openai',
-  'gemini',
-  'anthropic',
-  'deepseek',
-  'moonshot',
-  'zhipu',
-  'minimax',
-  'volcengine',
-  'qwen',
-  'youdaozhiyun',
-  'stepfun',
-  'xiaomi',
-  'openrouter',
-  'github-copilot',
-  'ollama',
-  ...CUSTOM_PROVIDER_KEYS,
-] as const;
-
-type ProviderType = (typeof providerKeys)[number];
-type ProvidersConfig = NonNullable<AppConfig['providers']>;
-type ProviderConfig = ProvidersConfig[string];
-type Model = NonNullable<ProviderConfig['models']>[number];
-type ProviderConnectionTestResult = {
-  success: boolean;
-  message: string;
-  provider: ProviderType;
-};
-
-interface ProviderExportEntry {
-  enabled: boolean;
-  apiKey: PasswordEncryptedPayload;
-  baseUrl: string;
-  apiFormat?: 'anthropic' | 'openai' | 'gemini';
-  codingPlanEnabled?: boolean;
-  models?: Model[];
-}
-
-interface ProvidersExportPayload {
-  type: typeof EXPORT_FORMAT_TYPE;
-  version: 2;
-  exportedAt: string;
-  encryption: {
-    algorithm: 'AES-GCM';
-    keySource: 'password';
-    keyDerivation: 'PBKDF2';
-  };
-  providers: Record<string, ProviderExportEntry>;
-}
-
-interface ProvidersImportEntry {
-  enabled?: boolean;
-  apiKey?: EncryptedPayload | PasswordEncryptedPayload | string;
-  apiKeyEncrypted?: string;
-  apiKeyIv?: string;
-  baseUrl?: string;
-  apiFormat?: 'anthropic' | 'openai' | 'native';
-  codingPlanEnabled?: boolean;
-  models?: Model[];
-}
-
-interface ProvidersImportPayload {
-  type?: string;
-  version?: number;
-  encryption?: {
-    algorithm?: string;
-    keySource?: string;
-    keyDerivation?: string;
-  };
-  providers?: Record<string, ProvidersImportEntry>;
-}
 
 const providerMeta: Record<ProviderType, { label: string; icon: React.ReactNode }> = {
   openai: { label: 'OpenAI', icon: <OpenAIIcon /> },
@@ -255,11 +149,6 @@ const providerLinks: Partial<Record<ProviderType, { website: string; apiKey?: st
   ollama:       { website: 'https://ollama.com' },
 };
 
-const providerRequiresApiKey = (provider: ProviderType) => provider !== 'ollama' && provider !== 'github-copilot';
-const normalizeBaseUrl = (baseUrl: string): string => baseUrl.trim().replace(/\/+$/, '').toLowerCase();
-const normalizeApiFormat = (value: unknown): 'anthropic' | 'openai' => (
-  value === 'openai' ? 'openai' : 'anthropic'
-);
 const ABOUT_CONTACT_EMAIL = 'hello@agora.ai';
 const ABOUT_USER_MANUAL_URL = 'https://agora.ai/docs';
 const ABOUT_USER_COMMUNITY_URL = '敬请期待';
@@ -334,158 +223,6 @@ const copyTextToClipboard = async (text: string): Promise<boolean> => {
   }
 };
 
-const getFixedApiFormatForProvider = (provider: string): 'anthropic' | 'openai' | 'gemini' | null => {
-  if (provider === 'openai' || provider === 'stepfun') {
-    return 'openai';
-  }
-  if (provider === 'youdaozhiyun' || provider === 'github-copilot') {
-    return 'openai';
-  }
-  // Moonshot /anthropic endpoint does not fully implement the Anthropic Messages
-  // spec (tool use, streaming, etc.), so the Claude Agent SDK cannot use it.
-  // Force OpenAI format — requests go through the built-in compat proxy instead.
-  if (provider === 'moonshot') {
-    return 'openai';
-  }
-  if (provider === 'anthropic') {
-    return 'anthropic';
-  }
-  if (provider === 'gemini') {
-    return 'gemini';
-  }
-  return null;
-};
-const getEffectiveApiFormat = (provider: string, value: unknown): 'anthropic' | 'openai' | 'gemini' => (
-  getFixedApiFormatForProvider(provider) ?? normalizeApiFormat(value)
-);
-const shouldShowApiFormatSelector = (provider: string): boolean => (
-  getFixedApiFormatForProvider(provider) === null
-);
-const getProviderDefaultBaseUrl = (
-  provider: ProviderType,
-  apiFormat: 'anthropic' | 'openai' | 'gemini'
-): string | null => {
-  if (apiFormat === 'gemini') return null;
-  return ProviderRegistry.getSwitchableBaseUrl(provider, apiFormat) ?? null;
-};
-const resolveBaseUrl = (
-  provider: ProviderType,
-  baseUrl: string,
-  apiFormat: 'anthropic' | 'openai' | 'gemini'
-): string => {
-  if (baseUrl.trim()) {
-    if (shouldAutoSwitchProviderBaseUrl(provider, baseUrl) && (apiFormat === 'anthropic' || apiFormat === 'openai')) {
-      const switchedUrl = ProviderRegistry.getSwitchableBaseUrl(provider, apiFormat);
-      if (switchedUrl) return switchedUrl;
-    }
-    return baseUrl;
-  }
-  return getProviderDefaultBaseUrl(provider, apiFormat)
-    || defaultConfig.providers?.[provider]?.baseUrl
-    || '';
-};
-const shouldAutoSwitchProviderBaseUrl = (provider: ProviderType, currentBaseUrl: string): boolean => {
-  const anthropicUrl = ProviderRegistry.getSwitchableBaseUrl(provider, 'anthropic');
-  const openaiUrl = ProviderRegistry.getSwitchableBaseUrl(provider, 'openai');
-  if (!anthropicUrl && !openaiUrl) {
-    return false;
-  }
-
-  const normalizedCurrent = normalizeBaseUrl(currentBaseUrl);
-  return (
-    (anthropicUrl ? normalizedCurrent === normalizeBaseUrl(anthropicUrl) : false)
-    || (openaiUrl ? normalizedCurrent === normalizeBaseUrl(openaiUrl) : false)
-  );
-};
-const buildOpenAICompatibleChatCompletionsUrl = (baseUrl: string, provider: string): string => {
-  const normalized = baseUrl.trim().replace(/\/+$/, '');
-  if (!normalized) {
-    return '/v1/chat/completions';
-  }
-  if (normalized.endsWith('/chat/completions')) {
-    return normalized;
-  }
-
-  const isGeminiLike = provider === 'gemini' || normalized.includes('generativelanguage.googleapis.com');
-  if (isGeminiLike) {
-    if (normalized.endsWith('/v1beta/openai') || normalized.endsWith('/v1/openai')) {
-      return `${normalized}/chat/completions`;
-    }
-    if (normalized.endsWith('/v1beta') || normalized.endsWith('/v1')) {
-      const betaBase = normalized.endsWith('/v1')
-        ? `${normalized.slice(0, -3)}v1beta`
-        : normalized;
-      return `${betaBase}/openai/chat/completions`;
-    }
-    return `${normalized}/v1beta/openai/chat/completions`;
-  }
-
-  if (provider === 'github-copilot') {
-    return `${normalized}/chat/completions`;
-  }
-
-  // Handle /v1, /v4 etc. versioned paths
-  if (/\/v\d+$/.test(normalized)) {
-    return `${normalized}/chat/completions`;
-  }
-  return `${normalized}/v1/chat/completions`;
-};
-const buildOpenAIResponsesUrl = (baseUrl: string): string => {
-  const normalized = baseUrl.trim().replace(/\/+$/, '');
-  if (!normalized) {
-    return '/v1/responses';
-  }
-  if (normalized.endsWith('/responses')) {
-    return normalized;
-  }
-  if (normalized.endsWith('/v1')) {
-    return `${normalized}/responses`;
-  }
-  return `${normalized}/v1/responses`;
-};
-const shouldUseOpenAIResponsesForProvider = (provider: string): boolean => (
-  provider === 'openai'
-);
-const shouldUseMaxCompletionTokensForOpenAI = (provider: string, modelId?: string): boolean => {
-  if (provider !== 'openai') {
-    return false;
-  }
-  const normalizedModel = (modelId ?? '').toLowerCase();
-  const resolvedModel = normalizedModel.includes('/')
-    ? normalizedModel.slice(normalizedModel.lastIndexOf('/') + 1)
-    : normalizedModel;
-  return resolvedModel.startsWith('gpt-5')
-    || resolvedModel.startsWith('o1')
-    || resolvedModel.startsWith('o3')
-    || resolvedModel.startsWith('o4');
-};
-const CONNECTIVITY_TEST_TOKEN_BUDGET = 64;
-
-const getDefaultProviders = (): ProvidersConfig => {
-  const providers = (defaultConfig.providers ?? {}) as ProvidersConfig;
-  const entries = Object.entries(providers) as Array<[string, ProviderConfig]>;
-  const secureSuffix = i18nService.t('modelSuffixSecure');
-  return Object.fromEntries(
-    entries.map(([providerKey, providerConfig]) => [
-      providerKey,
-      {
-        ...providerConfig,
-        models: providerConfig.models?.map(model => ({
-          ...model,
-          name: model.name.replace('(Secure)', secureSuffix),
-          supportsImage: model.supportsImage ?? false,
-        })),
-      },
-    ])
-  ) as ProvidersConfig;
-};
-
-const getDefaultActiveProvider = (): ProviderType => {
-  const providers = (defaultConfig.providers ?? {}) as ProvidersConfig;
-  const firstEnabledProvider = providerKeys.find(providerKey => providers[providerKey]?.enabled);
-  const defaultModelProvider = defaultConfig.model.defaultModelProvider as ProviderType | undefined;
-  return firstEnabledProvider ?? (defaultModelProvider && providers[defaultModelProvider] ? defaultModelProvider : providerKeys[0]);
-};
 
 // System shortcuts that should not be captured (clipboard, undo, select-all, quit, etc.)
 
@@ -507,12 +244,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     isSaving, setIsSaving,
     error, setError,
     noticeMessage, setNoticeMessage,
-    testResult, setTestResult,
-    isTestResultModalOpen, setIsTestResultModalOpen,
-    isTesting, setIsTesting,
     pendingDeleteProvider, setPendingDeleteProvider,
-    isImportingProviders, setIsImportingProviders,
-    isExportingProviders, setIsExportingProviders,
     testMode, setTestMode,
     testModeUnlocked, setTestModeUnlocked,
     initialThemeRef,
@@ -531,7 +263,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   // removed in a previous refactor but the read is still needed by
   // handleMiniMaxDeviceLogin. We declare it without a setter.
   // (If a region selector is reintroduced, restore the setter.)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const minimaxOAuthRegion: MiniMaxRegion = 'cn';
   const minimaxOAuthCancelRef = useRef(false);
 
@@ -545,7 +277,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   
   // 创建引用来确保内容区域的滚动
   const contentRef = useRef<HTMLDivElement>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
   const emailCopiedTimerRef = useRef<number | null>(null);
   const updateCheckTimerRef = useRef<number | null>(null);
   
@@ -564,13 +295,11 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const [copilotError, setCopilotError] = useState<string | null>(null);
 
   // State for model editing
-  const [isAddingModel, setIsAddingModel] = useState(false);
-  const [isEditingModel, setIsEditingModel] = useState(false);
-  const [editingModelId, setEditingModelId] = useState<string | null>(null);
-  const [newModelName, setNewModelName] = useState('');
-  const [newModelId, setNewModelId] = useState('');
-  const [newModelSupportsImage, setNewModelSupportsImage] = useState(false);
-  const [modelFormError, setModelFormError] = useState<string | null>(null);
+  const modelEditor = useModelEditor({
+    providers,
+    setProviders,
+    activeProvider,
+  });
 
   // About tab
   const [appVersion, setAppVersion] = useState('');
@@ -682,6 +411,19 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
   const [coworkAgentEngine, setCoworkAgentEngine] = useState<CoworkAgentEngine>(coworkConfig.agentEngine || CoworkAgentEngineValue.OpenCode);
   const [expandedCoworkAgentEngine, setExpandedCoworkAgentEngine] = useState<CoworkAgentEngine | null>(null);
+
+  const handleSelectCoworkAgentEngine = (engine: CoworkAgentEngine) => {
+    if (isSaving) return;
+    setCoworkAgentEngine(engine);
+    setExpandedCoworkAgentEngine(engine);
+  };
+
+  const handleToggleCoworkAgentEngineDetails = (engine: CoworkAgentEngine) => {
+    if (isSaving) return;
+    setExpandedCoworkAgentEngine((current) => (
+      current === engine ? null : engine
+    ));
+  };
   const [coworkMemoryEnabled, setCoworkMemoryEnabled] = useState<boolean>(coworkConfig.memoryEnabled ?? true);
   const [coworkMemoryLlmJudgeEnabled, setCoworkMemoryLlmJudgeEnabled] = useState<boolean>(coworkConfig.memoryLlmJudgeEnabled ?? false);
   const [coworkMemoryEntries, setCoworkMemoryEntries] = useState<CoworkUserMemoryEntry[]>([]);
@@ -1189,13 +931,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }));
     setActiveProvider(newKey);
     setShowApiKey(false);
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
+    handleCancelModelEdit();
   };
 
   // Handle deleting a custom provider
@@ -1227,17 +963,9 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
   // Handle provider change
   const handleProviderChange = (provider: ProviderType) => {
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
+    handleCancelModelEdit();
     setActiveProvider(provider);
     // 切换 provider 时清除测试结果
-    setIsTestResultModalOpen(false);
-    setTestResult(null);
   };
 
   // Handle provider configuration change
@@ -1494,68 +1222,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const isCoworkAgentConfigApplying = isSaving
     && activeTab === 'coworkAgentEngine'
     && hasCoworkAgentEngineApplyChanges;
-
-  const openClawProgressPercent = useMemo(() => {
-    if (typeof openClawEngineStatus?.progressPercent !== 'number' || !Number.isFinite(openClawEngineStatus.progressPercent)) {
-      return null;
-    }
-    return Math.max(0, Math.min(100, Math.round(openClawEngineStatus.progressPercent)));
-  }, [openClawEngineStatus]);
-
-  const hermesProgressPercent = useMemo(() => {
-    if (typeof hermesEngineStatus?.progressPercent !== 'number' || !Number.isFinite(hermesEngineStatus.progressPercent)) {
-      return null;
-    }
-    return Math.max(0, Math.min(100, Math.round(hermesEngineStatus.progressPercent)));
-  }, [hermesEngineStatus]);
-
-  const resolveOpenClawStatusText = (status: OpenClawEngineStatus | null): string => {
-    if (!status) {
-      return i18nService.t('coworkOpenClawNotInstalledNotice');
-    }
-    if ((status.phase === 'installing' || status.phase === 'error') && status.message?.trim()) {
-      return status.message.trim();
-    }
-    switch (status.phase) {
-      case 'not_installed':
-        return i18nService.t('coworkOpenClawNotInstalledNotice');
-      case 'installing':
-        return i18nService.t('coworkOpenClawInstalling');
-      case 'ready':
-        return i18nService.t('coworkOpenClawReadyNotice');
-      case 'starting':
-        return i18nService.t('coworkOpenClawStarting');
-      case 'error':
-        return i18nService.t('coworkOpenClawError');
-      case 'running':
-      default:
-        return i18nService.t('coworkOpenClawRunning');
-    }
-  };
-
-  const resolveHermesStatusText = (status: HermesEngineStatus | null): string => {
-    if (!status) {
-      return i18nService.t('coworkHermesNotInstalledNotice');
-    }
-    if (status.message?.trim()) {
-      return status.message.trim();
-    }
-    switch (status.phase) {
-      case 'not_installed':
-        return i18nService.t('coworkHermesNotInstalledNotice');
-      case 'installing':
-        return i18nService.t('coworkHermesInstalling');
-      case 'ready':
-        return i18nService.t('coworkHermesReadyNotice');
-      case 'starting':
-        return i18nService.t('coworkHermesStarting');
-      case 'error':
-        return i18nService.t('coworkHermesError');
-      case 'running':
-      default:
-        return i18nService.t('coworkHermesRunning');
-    }
-  };
 
   const loadCoworkMemoryData = useCallback(async () => {
     setCoworkMemoryListLoading(true);
@@ -1923,13 +1589,7 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   // 标签页切换处理
   const handleTabChange = (tab: TabType) => {
     if (tab !== 'model') {
-      setIsAddingModel(false);
-      setIsEditingModel(false);
-      setEditingModelId(null);
-      setNewModelName('');
-      setNewModelId('');
-      setNewModelSupportsImage(false);
-      setModelFormError(null);
+      handleCancelModelEdit();
     }
     setActiveTab(tab);
   };
@@ -1948,559 +1608,25 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   };
 
   // Handlers for model operations
-  const handleAddModel = () => {
-    setIsAddingModel(true);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
-  };
+  const {
+    isAddingModel,
+    isEditingModel,
+    newModelName,
+    setNewModelName,
+    newModelId,
+    setNewModelId,
+    newModelSupportsImage,
+    setNewModelSupportsImage,
+    modelFormError,
+    setModelFormError,
+    handleAddModel,
+    handleEditModel,
+    handleDeleteModel,
+    handleSaveNewModel,
+    handleCancelModelEdit,
+    handleModelDialogKeyDown,
+  } = modelEditor;
 
-  const handleEditModel = (modelId: string, modelName: string, supportsImage?: boolean) => {
-    setIsAddingModel(false);
-    setIsEditingModel(true);
-    setEditingModelId(modelId);
-    setNewModelName(modelName);
-    setNewModelId(modelId);
-    setNewModelSupportsImage(!!supportsImage);
-    setModelFormError(null);
-  };
-
-  const handleDeleteModel = (modelId: string) => {
-    if (!providers[activeProvider].models) return;
-    
-    const updatedModels = providers[activeProvider].models.filter(
-      model => model.id !== modelId
-    );
-    
-    setProviders(prev => ({
-      ...prev,
-      [activeProvider]: {
-        ...prev[activeProvider],
-        models: updatedModels
-      }
-    }));
-  };
-
-  const handleSaveNewModel = () => {
-    const modelId = newModelId.trim();
-
-    if (activeProvider === 'ollama') {
-      // For Ollama, only the model name (stored as modelId) is required
-      if (!modelId) {
-        setModelFormError(i18nService.t('ollamaModelNameRequired'));
-        return;
-      }
-    } else {
-      const modelName = newModelName.trim();
-      if (!modelName || !modelId) {
-        setModelFormError(i18nService.t('modelNameAndIdRequired'));
-        return;
-      }
-    }
-
-    // For Ollama, auto-fill display name from modelId if not provided
-    const modelName = activeProvider === 'ollama'
-      ? (newModelName.trim() && newModelName.trim() !== modelId ? newModelName.trim() : modelId)
-      : newModelName.trim();
-
-    const currentModels = providers[activeProvider].models ?? [];
-    const duplicateModel = currentModels.find(
-      model => model.id === modelId && (!isEditingModel || model.id !== editingModelId)
-    );
-    if (duplicateModel) {
-      setModelFormError(i18nService.t('modelIdExists'));
-      return;
-    }
-
-    const nextModel = {
-      id: modelId,
-      name: modelName,
-      supportsImage: newModelSupportsImage,
-    };
-    const updatedModels = isEditingModel && editingModelId
-      ? currentModels.map(model => (model.id === editingModelId ? nextModel : model))
-      : [...currentModels, nextModel];
-
-    setProviders(prev => ({
-      ...prev,
-      [activeProvider]: {
-        ...prev[activeProvider],
-        models: updatedModels
-      }
-    }));
-
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
-  };
-
-  const handleCancelModelEdit = () => {
-    setIsAddingModel(false);
-    setIsEditingModel(false);
-    setEditingModelId(null);
-    setNewModelName('');
-    setNewModelId('');
-    setNewModelSupportsImage(false);
-    setModelFormError(null);
-  };
-
-  const handleModelDialogKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      handleCancelModelEdit();
-      return;
-    }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSaveNewModel();
-    }
-  };
-
-  const showTestResultModal = (
-    result: Omit<ProviderConnectionTestResult, 'provider'>,
-    provider: ProviderType
-  ) => {
-    setTestResult({
-      ...result,
-      provider,
-    });
-    setIsTestResultModalOpen(true);
-  };
-
-  // 测试 API 连接
-  const handleTestConnection = async () => {
-    const testingProvider = activeProvider;
-    const providerConfig = providers[testingProvider];
-    setIsTesting(true);
-    setIsTestResultModalOpen(false);
-    setTestResult(null);
-
-    // Check if provider has valid authentication (API Key or OAuth for Qwen)
-    const hasValidAuth = providerConfig.apiKey || 
-      (testingProvider === 'qwen' && (providerConfig as any).oauthCredentials);
-    
-    if (providerRequiresApiKey(testingProvider) && !hasValidAuth) {
-      showTestResultModal({ success: false, message: i18nService.t('apiKeyRequired') }, testingProvider);
-      setIsTesting(false);
-      return;
-    }
-
-    // 获取第一个可用模型 - use a shallow copy to avoid mutating state
-    const originalModel = providerConfig.models?.[0];
-    if (!originalModel) {
-      showTestResultModal({ success: false, message: i18nService.t('noModelsConfigured') }, testingProvider);
-      setIsTesting(false);
-      return;
-    }
-
-    const firstModel = { ...originalModel };
-
-    try {
-      let response: Awaited<ReturnType<typeof window.electron.api.fetch>>;
-      // Apply Coding Plan endpoint switch
-      let effectiveBaseUrl = resolveBaseUrl(testingProvider, providerConfig.baseUrl, getEffectiveApiFormat(testingProvider, providerConfig.apiFormat));
-      let effectiveApiFormat = getEffectiveApiFormat(testingProvider, providerConfig.apiFormat);
-      
-      // Handle Coding Plan endpoint switch for supported providers
-      if ((providerConfig as { codingPlanEnabled?: boolean }).codingPlanEnabled && (effectiveApiFormat === 'anthropic' || effectiveApiFormat === 'openai')) {
-        const resolved = resolveCodingPlanBaseUrl(testingProvider, true, effectiveApiFormat, effectiveBaseUrl);
-        effectiveBaseUrl = resolved.baseUrl;
-        effectiveApiFormat = resolved.effectiveFormat;
-      }
-      
-      let normalizedBaseUrl = effectiveBaseUrl.replace(/\/+$/, '');
-
-      // Determine effective API key
-      let effectiveApiKey = providerConfig.apiKey;
-
-      if (testingProvider === 'qwen') {
-        // Use regular API Key mode
-        effectiveApiKey = providerConfig.apiKey;
-        // Ensure model ID is not an OAuth-mapped name (vision-model/coder-model)
-        // This can happen if a previous OAuth test mutated the model in state and it got persisted
-        if (firstModel.id === 'vision-model' || firstModel.id === 'coder-model') {
-          // Restore from defaultConfig's first qwen model
-          const defaultQwenModel = defaultConfig.providers?.qwen?.models?.[0];
-          firstModel.id = defaultQwenModel?.id || 'qwen3.5-plus';
-        }
-      }
-
-      // Determine format after all overrides (OAuth may switch to openai)
-      // 统一为两种协议格式：
-      // - anthropic: /v1/messages
-      // - openai provider: /v1/responses
-      // - other openai-compatible providers: /v1/chat/completions
-      const useAnthropicFormat = effectiveApiFormat === 'anthropic';
-
-      if (useAnthropicFormat) {
-        const anthropicUrl = normalizedBaseUrl.endsWith('/v1')
-          ? `${normalizedBaseUrl}/messages`
-          : `${normalizedBaseUrl}/v1/messages`;
-        response = await window.electron.api.fetch({
-          url: anthropicUrl,
-          method: 'POST',
-          headers: {
-            'x-api-key': effectiveApiKey,
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: firstModel.id,
-            max_tokens: CONNECTIVITY_TEST_TOKEN_BUDGET,
-            messages: [{ role: 'user', content: 'Hi' }],
-          }),
-        });
-      } else {
-        const useResponsesApi = shouldUseOpenAIResponsesForProvider(testingProvider);
-        const openaiUrl = useResponsesApi
-          ? buildOpenAIResponsesUrl(normalizedBaseUrl)
-          : buildOpenAICompatibleChatCompletionsUrl(normalizedBaseUrl, testingProvider);
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (effectiveApiKey) {
-          headers.Authorization = `Bearer ${effectiveApiKey}`;
-        }
-        if (testingProvider === 'github-copilot') {
-                  headers['Copilot-Integration-Id'] = 'vscode-chat';
-                  headers['Editor-Version'] = 'vscode/1.96.2';
-                  headers['Editor-Plugin-Version'] = 'copilot-chat/0.26.7';
-                  headers['User-Agent'] = 'GitHubCopilotChat/0.26.7';
-                  headers['Openai-Intent'] = 'conversation-panel';
-        }
-        const openAIRequestBody: Record<string, unknown> = useResponsesApi
-          ? {
-              model: firstModel.id,
-              input: [{ role: 'user', content: [{ type: 'input_text', text: 'Hi' }] }],
-              max_output_tokens: CONNECTIVITY_TEST_TOKEN_BUDGET,
-            }
-          : {
-              model: firstModel.id,
-              messages: [{ role: 'user', content: 'Hi' }],
-            };
-        if (!useResponsesApi && shouldUseMaxCompletionTokensForOpenAI(testingProvider, firstModel.id)) {
-          openAIRequestBody.max_completion_tokens = CONNECTIVITY_TEST_TOKEN_BUDGET;
-        } else {
-          if (!useResponsesApi) {
-            openAIRequestBody.max_tokens = CONNECTIVITY_TEST_TOKEN_BUDGET;
-          }
-        }
-        response = await window.electron.api.fetch({
-          url: openaiUrl,
-          method: 'POST',
-          headers,
-          body: JSON.stringify(openAIRequestBody),
-        });
-      }
-
-      if (response.ok) {
-        enableProvider(testingProvider);
-        showTestResultModal({ success: true, message: i18nService.t('connectionSuccess') }, testingProvider);
-      } else {
-        const data = response.data || {};
-        // 提取错误信息
-        const errorMessage = data.error?.message || data.message || `${i18nService.t('connectionFailed')}: ${response.status}`;
-        if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('model output limit was reached')) {
-          enableProvider(testingProvider);
-          showTestResultModal({ success: true, message: i18nService.t('connectionSuccess') }, testingProvider);
-          return;
-        }
-        showTestResultModal({ success: false, message: errorMessage }, testingProvider);
-      }
-    } catch (err) {
-      showTestResultModal({
-        success: false,
-        message: err instanceof Error ? err.message : i18nService.t('connectionFailed'),
-      }, testingProvider);
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const buildProvidersExport = async (password: string): Promise<ProvidersExportPayload> => {
-    const entries = await Promise.all(
-      Object.entries(providers).map(async ([providerKey, providerConfig]) => {
-        const apiKey = await encryptWithPassword(providerConfig.apiKey, password);
-        const apiFormat = getEffectiveApiFormat(providerKey, providerConfig.apiFormat);
-        return [
-          providerKey,
-          {
-            enabled: providerConfig.enabled,
-            apiKey,
-            baseUrl: resolveBaseUrl(providerKey as ProviderType, providerConfig.baseUrl, apiFormat),
-            apiFormat,
-            codingPlanEnabled: (providerConfig as ProviderConfig).codingPlanEnabled,
-            models: providerConfig.models,
-          },
-        ] as const;
-      })
-    );
-
-    return {
-      type: EXPORT_FORMAT_TYPE,
-      version: 2,
-      exportedAt: new Date().toISOString(),
-      encryption: {
-        algorithm: 'AES-GCM',
-        keySource: 'password',
-        keyDerivation: 'PBKDF2',
-      },
-      providers: Object.fromEntries(entries),
-    };
-  };
-
-  const normalizeModels = (models?: Model[]) =>
-    models?.map(model => ({
-      ...model,
-      supportsImage: model.supportsImage ?? false,
-    }));
-
-  const DEFAULT_EXPORT_PASSWORD = EXPORT_PASSWORD;
-
-  const handleExportProviders = async () => {
-    setError(null);
-    setIsExportingProviders(true);
-
-    try {
-      const payload = await buildProvidersExport(DEFAULT_EXPORT_PASSWORD);
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const date = new Date().toISOString().slice(0, 10);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${APP_ID}-providers-${date}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (err) {
-      console.error('Failed to export providers:', err);
-      setError(i18nService.t('exportProvidersFailed'));
-    } finally {
-      setIsExportingProviders(false);
-    }
-  };
-
-  const handleImportProvidersClick = () => {
-    importInputRef.current?.click();
-  };
-
-  const handleImportProviders = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-
-    setError(null);
-
-    try {
-      const raw = await file.text();
-      let payload: ProvidersImportPayload;
-      try {
-        payload = JSON.parse(raw) as ProvidersImportPayload;
-      } catch (parseError) {
-        setError(i18nService.t('invalidProvidersFile'));
-        return;
-      }
-
-      if (!payload || payload.type !== EXPORT_FORMAT_TYPE || !payload.providers) {
-        setError(i18nService.t('invalidProvidersFile'));
-        return;
-      }
-
-      // Check if it's version 2 (password-based encryption)
-      if (payload.version === 2 && payload.encryption?.keySource === 'password') {
-        await processImportPayloadWithPassword(payload);
-        return;
-      }
-
-      // Version 1 (legacy local-store key) - try to decrypt with local key
-      if (payload.version === 1) {
-        await processImportPayloadWithLocalKey(payload);
-        return;
-      }
-
-      setError(i18nService.t('invalidProvidersFile'));
-    } catch (err) {
-      console.error('Failed to import providers:', err);
-      setError(i18nService.t('importProvidersFailed'));
-    }
-  };
-
-  const processImportPayloadWithLocalKey = async (payload: ProvidersImportPayload) => {
-    setIsImportingProviders(true);
-    try {
-      const providerUpdates: Partial<ProvidersConfig> = {};
-      let hadDecryptFailure = false;
-      for (const providerKey of providerKeys) {
-        const providerData = payload.providers?.[providerKey];
-        if (!providerData) {
-          continue;
-        }
-
-        let apiKey: string | undefined;
-        if (typeof providerData.apiKey === 'string') {
-          apiKey = providerData.apiKey;
-        } else if (providerData.apiKey && typeof providerData.apiKey === 'object') {
-          try {
-            apiKey = await decryptSecret(providerData.apiKey as EncryptedPayload);
-          } catch (error) {
-            hadDecryptFailure = true;
-            console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
-          }
-        } else if (typeof providerData.apiKeyEncrypted === 'string' && typeof providerData.apiKeyIv === 'string') {
-          try {
-            apiKey = await decryptSecret({ encrypted: providerData.apiKeyEncrypted, iv: providerData.apiKeyIv });
-          } catch (error) {
-            hadDecryptFailure = true;
-            console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
-          }
-        }
-
-        const models = normalizeModels(providerData.models);
-
-        providerUpdates[providerKey] = {
-          enabled: typeof providerData.enabled === 'boolean' ? providerData.enabled : providers[providerKey].enabled,
-          apiKey: apiKey ?? providers[providerKey].apiKey,
-          baseUrl: typeof providerData.baseUrl === 'string' ? providerData.baseUrl : providers[providerKey].baseUrl,
-          apiFormat: getEffectiveApiFormat(providerKey, providerData.apiFormat ?? providers[providerKey].apiFormat),
-          codingPlanEnabled: typeof providerData.codingPlanEnabled === 'boolean' ? providerData.codingPlanEnabled : (providers[providerKey] as ProviderConfig).codingPlanEnabled,
-          models: models ?? providers[providerKey].models,
-        };
-      }
-
-      if (Object.keys(providerUpdates).length === 0) {
-        setError(i18nService.t('invalidProvidersFile'));
-        return;
-      }
-
-      setProviders(prev => {
-        const next = { ...prev };
-        Object.entries(providerUpdates).forEach(([providerKey, update]) => {
-          next[providerKey] = {
-            ...prev[providerKey],
-            ...update,
-          };
-        });
-        return next;
-      });
-      setIsTestResultModalOpen(false);
-      setTestResult(null);
-      if (hadDecryptFailure) {
-        setNoticeMessage(i18nService.t('decryptProvidersPartial'));
-      }
-    } catch (err) {
-      console.error('Failed to import providers:', err);
-      const isDecryptError = err instanceof Error
-        && (err.message === 'Invalid encrypted payload' || err.name === 'OperationError');
-      const message = isDecryptError
-        ? i18nService.t('decryptProvidersFailed')
-        : i18nService.t('importProvidersFailed');
-      setError(message);
-    } finally {
-      setIsImportingProviders(false);
-    }
-  };
-
-  const processImportPayloadWithPassword = async (payload: ProvidersImportPayload) => {
-    if (!payload.providers) {
-      return;
-    }
-
-    setIsImportingProviders(true);
-
-    try {
-      const providerUpdates: Partial<ProvidersConfig> = {};
-      let hadDecryptFailure = false;
-
-      for (const providerKey of providerKeys) {
-        const providerData = payload.providers[providerKey];
-        if (!providerData) {
-          continue;
-        }
-
-        let apiKey: string | undefined;
-        if (typeof providerData.apiKey === 'string') {
-          apiKey = providerData.apiKey;
-        } else if (providerData.apiKey && typeof providerData.apiKey === 'object') {
-          const apiKeyObj = providerData.apiKey as PasswordEncryptedPayload;
-          if (apiKeyObj.salt) {
-            // Version 2 password-based encryption
-            try {
-              apiKey = await decryptWithPassword(apiKeyObj, DEFAULT_EXPORT_PASSWORD);
-            } catch (error) {
-              hadDecryptFailure = true;
-              console.warn(`Failed to decrypt provider key for ${providerKey}`, error);
-            }
-          }
-        }
-
-        const models = normalizeModels(providerData.models);
-
-        providerUpdates[providerKey] = {
-          enabled: typeof providerData.enabled === 'boolean' ? providerData.enabled : providers[providerKey].enabled,
-          apiKey: apiKey ?? providers[providerKey].apiKey,
-          baseUrl: typeof providerData.baseUrl === 'string' ? providerData.baseUrl : providers[providerKey].baseUrl,
-          apiFormat: getEffectiveApiFormat(providerKey, providerData.apiFormat ?? providers[providerKey].apiFormat),
-          codingPlanEnabled: typeof providerData.codingPlanEnabled === 'boolean' ? providerData.codingPlanEnabled : (providers[providerKey] as ProviderConfig).codingPlanEnabled,
-          models: models ?? providers[providerKey].models,
-        };
-      }
-
-      if (Object.keys(providerUpdates).length === 0) {
-        setError(i18nService.t('invalidProvidersFile'));
-        return;
-      }
-
-      // Check if any key was successfully decrypted
-      const anyKeyDecrypted = Object.entries(providerUpdates).some(
-        ([key, update]) => update?.apiKey && update.apiKey !== providers[key]?.apiKey
-      );
-
-      if (!anyKeyDecrypted && hadDecryptFailure) {
-        // All decryptions failed - likely wrong password
-        setError(i18nService.t('decryptProvidersFailed'));
-        return;
-      }
-
-      setProviders(prev => {
-        const next = { ...prev };
-        Object.entries(providerUpdates).forEach(([providerKey, update]) => {
-          next[providerKey] = {
-            ...prev[providerKey],
-            ...update,
-          };
-        });
-        return next;
-      });
-      setIsTestResultModalOpen(false);
-      setTestResult(null);
-      if (hadDecryptFailure) {
-        setNoticeMessage(i18nService.t('decryptProvidersPartial'));
-      }
-    } catch (err) {
-      console.error('Failed to import providers:', err);
-      const isDecryptError = err instanceof Error
-        && (err.message === 'Invalid encrypted payload' || err.name === 'OperationError');
-      const message = isDecryptError
-        ? i18nService.t('decryptProvidersFailed')
-        : i18nService.t('importProvidersFailed');
-      setError(message);
-    } finally {
-      setIsImportingProviders(false);
-    }
-  };
-
-  // 渲染标签页
   const sidebarTabs: { key: TabType; label: string; icon: React.ReactNode }[] = useMemo(() => {
     const allTabs = [
       { key: 'general' as TabType,        label: i18nService.t('general'),        icon: <Cog6ToothIcon className="h-5 w-5" /> },
@@ -2517,8 +1643,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
       { key: 'about' as TabType,          label: i18nService.t('about'),          icon: <InformationCircleIcon className="h-5 w-5" /> },
     ];
     // Filter out tabs hidden by enterprise config
-    // Filter out tabs with 'hide' action in enterprise config
-    // e.g., ui: { "settings.im": "hide" } → hide the 'im' tab
     const ui = enterpriseConfig?.ui;
     if (ui) {
       return allTabs.filter(tab => ui[`settings.${tab.key}`] !== 'hide');
@@ -2529,469 +1653,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
   const activeTabLabel = useMemo(() => {
     return sidebarTabs.find(t => t.key === activeTab)?.label ?? '';
   }, [activeTab, sidebarTabs]);
-
-  const getCliEngineStatus = (engine: CoworkAgentEngine) => {
-    return agentEnvironmentSnapshot?.engines.find((item) => item.engine === engine) ?? null;
-  };
-
-  const refreshAgentEnvironmentSnapshot = async () => {
-    const snapshot = await coworkService.getAgentEngineSnapshot();
-    setAgentEnvironmentSnapshot(snapshot);
-  };
-
-  const handleInstallAgentCli = async (appType: ExternalAgentProviderAppType) => {
-    if (window.electron?.platform !== 'darwin') {
-      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
-      return;
-    }
-    setError(null);
-    setAgentCliInstallingAppType(appType);
-    setAgentCliInstallProgress((prev) => ({
-      ...prev,
-      [appType]: i18nService.t('coworkAgentEngineInstallCliStarting'),
-    }));
-    try {
-      const result = await coworkService.installAgentCli(appType);
-      if (result.snapshot) {
-        setAgentEnvironmentSnapshot(result.snapshot);
-      } else {
-        await refreshAgentEnvironmentSnapshot();
-      }
-      if (!result.success) {
-        setError(result.error || i18nService.t('coworkAgentEngineInstallCliFailed'));
-        return;
-      }
-      if (appType === 'hermes') {
-        setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
-      }
-      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
-      setAgentCliInstallProgress((prev) => ({
-        ...prev,
-        [appType]: result.version || result.binaryPath || i18nService.t('coworkAgentEngineInstallCliSuccess'),
-      }));
-    } finally {
-      setAgentCliInstallingAppType((current) => (
-        current === appType ? null : current
-      ));
-    }
-  };
-
-  const handleInstallHermesEngine = async () => {
-    if (window.electron?.platform !== 'darwin') {
-      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
-      return;
-    }
-    setError(null);
-    setAgentCliInstallingAppType('hermes');
-    setAgentCliInstallProgress((prev) => ({
-      ...prev,
-      hermes: i18nService.t('coworkAgentEngineInstallCliStarting'),
-    }));
-    setHermesEngineStatus((current) => ({
-      phase: 'installing',
-      version: current?.version ?? null,
-      progressPercent: 8,
-      message: i18nService.t('coworkHermesInstalling'),
-      canRetry: false,
-    }));
-    try {
-      const status = await coworkService.installHermesEngine();
-      if (status) {
-        setHermesEngineStatus(status);
-      }
-      await refreshAgentEnvironmentSnapshot();
-      if (!status || status.phase === 'error' || status.phase === 'not_installed') {
-        setError(status?.message || i18nService.t('coworkAgentEngineInstallCliFailed'));
-        return;
-      }
-      setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
-      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
-    } finally {
-      setAgentCliInstallingAppType((current) => (
-        current === 'hermes' ? null : current
-      ));
-    }
-  };
-
-  const handleSelectCoworkAgentEngine = (engine: CoworkAgentEngine) => {
-    if (isSaving) return;
-    setCoworkAgentEngine(engine);
-    setExpandedCoworkAgentEngine(engine);
-  };
-
-  const handleToggleCoworkAgentEngineDetails = (engine: CoworkAgentEngine) => {
-    if (isSaving) return;
-    setExpandedCoworkAgentEngine((current) => (
-      current === engine ? null : engine
-    ));
-  };
-
-  const renderCoworkAgentApplyProgress = () => {
-    if (!isCoworkAgentConfigApplying) return null;
-    return (
-      <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-3">
-        <div className="flex items-center justify-between gap-3 text-xs text-secondary">
-          <span>{i18nService.t('coworkAgentConfigApplying')}</span>
-          <span className="text-[11px] text-primary">
-            {i18nService.t('coworkAgentConfigApplyingHint')}
-          </span>
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-primary/15">
-          <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
-        </div>
-      </div>
-    );
-  };
-
-  const renderAgentEngineMeta = (engine: CoworkAgentEngine) => {
-    const cliStatus = getCliEngineStatus(engine);
-    if (!cliStatus) return null;
-    const isMacOS = window.electron?.platform === 'darwin';
-    const isInstalling = agentCliInstallingAppType === cliStatus.appType;
-    const installProgress = agentCliInstallProgress[cliStatus.appType];
-
-    const rows = [
-      {
-        label: i18nService.t('coworkAgentEngineCommandPath'),
-        value: cliStatus.path || cliStatus.error || '',
-      },
-      {
-        label: i18nService.t('coworkAgentEngineVersion'),
-        value: cliStatus.version || '',
-      },
-      {
-        label: i18nService.t('coworkAgentEngineConfigPath'),
-        value: cliStatus.config.primaryConfigPath,
-      },
-    ].filter((row) => row.value);
-
-    return (
-      <div className="mt-3 space-y-1.5 rounded-lg bg-surface-raised/60 px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${cliStatus.found ? 'bg-green-500' : 'bg-amber-500'}`} />
-            <span className={cliStatus.found ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}>
-              {i18nService.t(cliStatus.found ? 'coworkAgentEngineCliInstalled' : 'coworkAgentEngineCliMissing')}
-            </span>
-          </span>
-          {!cliStatus.found && (
-            isMacOS ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  void handleInstallAgentCli(cliStatus.appType);
-                }}
-                disabled={Boolean(agentCliInstallingAppType)}
-                className="rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-background disabled:opacity-50"
-              >
-                {i18nService.t(isInstalling ? 'coworkAgentEngineInstallCliInstalling' : 'coworkAgentEngineInstallCli')}
-              </button>
-            ) : (
-              <span className="text-[11px] text-secondary">
-                {i18nService.t('coworkAgentEngineInstallCliUnsupported')}
-              </span>
-            )
-          )}
-        </div>
-        {!cliStatus.found && installProgress && (
-          <div className="truncate text-[11px] leading-5 text-secondary" title={installProgress}>
-            {installProgress}
-          </div>
-        )}
-        {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[96px_minmax(0,1fr)] gap-2 text-[11px] leading-5">
-            <span className="text-secondary">{row.label}</span>
-            <span className="truncate font-mono text-foreground/80" title={row.value}>{row.value}</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderOpenClawAgentEngineDetails = () => {
-    const cliStatus = agentEnvironmentSnapshot?.engines.find((item) => item.appType === 'openclaw');
-    const installProgress = agentCliInstallProgress.openclaw;
-    const isInstalling = agentCliInstallingAppType === 'openclaw' || openClawEngineStatus?.phase === 'installing';
-    const statusRows = [
-      { label: i18nService.t('coworkAgentEngineCommandPath'), value: openClawEngineStatus?.binaryPath || cliStatus?.path || '-' },
-      { label: i18nService.t('coworkAgentEngineVersion'), value: openClawEngineStatus?.version || cliStatus?.version || '-' },
-      { label: i18nService.t('coworkAgentEngineConfigPath'), value: openClawEngineStatus?.configPath || cliStatus?.config.primaryConfigPath || '-' },
-      { label: i18nService.t('coworkAgentOpenClawGateway'), value: openClawEngineStatus?.gatewayUrl || (openClawEngineStatus?.gatewayPort ? `loopback:${openClawEngineStatus.gatewayPort}` : '-') },
-      { label: i18nService.t('coworkAgentOpenClawGatewayMode'), value: openClawEngineStatus?.gatewayMode ? i18nService.t(openClawEngineStatus.gatewayMode === 'attached' ? 'coworkAgentOpenClawGatewayAttached' : 'coworkAgentOpenClawGatewayManaged') : '-' },
-      { label: i18nService.t('coworkAgentOpenClawCurrentModel'), value: openClawEngineStatus?.currentModel || cliStatus?.config.currentProviderName || '-' },
-      { label: i18nService.t('coworkAgentOpenClawFeishuStatus'), value: openClawEngineStatus?.feishuRunning ? i18nService.t('coworkAgentOpenClawFeishuRunning') : openClawEngineStatus?.feishuConfigured ? i18nService.t('coworkAgentOpenClawFeishuConfigured') : '-' },
-    ];
-    const sourceOptions = [
-      {
-        value: ExternalAgentConfigSourceValue.LocalCli,
-        labelKey: 'coworkAgentConfigSourceLocalCli',
-        hintKey: 'coworkAgentOpenClawLocalCliHint',
-      },
-      {
-        value: ExternalAgentConfigSourceValue.AgoraModel,
-        labelKey: 'coworkAgentConfigSourceAgoraModel',
-        hintKey: 'coworkAgentOpenClawAgoraModelHint',
-      },
-    ];
-
-    return (
-      <div className="mt-4 space-y-4">
-        {renderAgentEngineMeta(CoworkAgentEngineValue.OpenClaw)}
-        <div className="space-y-3 border-t border-border pt-4">
-          <div className="text-sm font-medium text-foreground">
-            {i18nService.t('coworkAgentConfigSourceTitle')}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {sourceOptions.map((option) => {
-              const checked = openclawConfigSource === option.value;
-              return (
-                <label
-                  key={option.value}
-                  className={`flex gap-3 rounded-xl border px-3 py-3 transition-colors ${isSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'} ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised'}`}
-                >
-                  <input
-                    type="radio"
-                    name="openclaw-config-source"
-                    checked={checked}
-                    disabled={isSaving}
-                    onChange={() => setOpenClawConfigSource(option.value)}
-                    className="mt-1"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-foreground">
-                      {i18nService.t(option.labelKey)}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-secondary">
-                      {i18nService.t(option.hintKey)}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className={`rounded-xl border px-4 py-3 text-sm ${openClawEngineStatus?.phase === 'error'
-          ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300'
-          : 'border-border bg-surface-raised/60 text-foreground'}`}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              {resolveOpenClawStatusText(openClawEngineStatus)}
-              {openClawProgressPercent !== null && (
-                <span className="ml-2 text-xs opacity-80">{openClawProgressPercent}%</span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (openClawEngineStatus?.phase === 'not_installed') {
-                  void coworkService.installOpenClawEngine();
-                } else {
-                  void coworkService.restartOpenClawGateway();
-                }
-              }}
-              disabled={isInstalling || openClawEngineStatus?.phase === 'starting'}
-              className="shrink-0 rounded-md border border-current/20 px-2 py-1 text-[11px] font-medium hover:bg-black/5 disabled:cursor-wait disabled:opacity-50 dark:hover:bg-white/10"
-            >
-              {i18nService.t(openClawEngineStatus?.phase === 'not_installed'
-                ? 'coworkOpenClawInstallCli'
-                : openClawEngineStatus?.gatewayMode === 'attached'
-                  ? 'coworkOpenClawReconnectGateway'
-                  : 'coworkOpenClawRestartGateway')}
-            </button>
-          </div>
-          {installProgress && (
-            <div className="mt-2 truncate text-[11px] leading-5 text-secondary" title={installProgress}>
-              {installProgress}
-            </div>
-          )}
-          {openClawProgressPercent !== null && (
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
-              <div
-                className="h-full bg-primary transition-all"
-                style={{ width: `${openClawProgressPercent}%` }}
-              />
-            </div>
-          )}
-          <div className="mt-3 space-y-1">
-            {statusRows.map((row) => (
-              <div key={row.label} className="grid grid-cols-[104px_minmax(0,1fr)] gap-2 text-[11px] leading-5">
-                <span className="text-secondary">{row.label}</span>
-                <span className="truncate font-mono text-foreground/80" title={row.value}>{row.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border px-3 py-3 text-xs leading-5 text-secondary">
-          {i18nService.t('coworkAgentOpenClawFeishuLocalHint')}
-        </div>
-
-        {openclawConfigSource === ExternalAgentConfigSourceValue.AgoraModel && (
-          <div className="flex flex-col gap-2 rounded-xl border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs leading-5 text-secondary">
-              {i18nService.t('coworkAgentOpenClawSyncGlobalHint')}
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleSyncOpenClawGlobalConfig()}
-              disabled={openclawGlobalSyncing}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:cursor-wait disabled:opacity-50"
-            >
-              {i18nService.t(openclawGlobalSyncing
-                ? 'coworkAgentOpenClawSyncGlobalSyncing'
-                : 'coworkAgentOpenClawSyncGlobal')}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderHermesAgentEngineDetails = () => (
-    <div className="space-y-3 border-t border-border pt-4">
-      <div className="text-xs text-secondary">
-        {i18nService.t('coworkHermesInstallHint')}
-      </div>
-      <div className={`rounded-xl border px-4 py-3 text-sm ${hermesEngineStatus?.phase === 'error'
-        ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300'
-        : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300'}`}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            {resolveHermesStatusText(hermesEngineStatus)}
-            {hermesProgressPercent !== null && (
-              <span className="ml-2 text-xs opacity-80">{hermesProgressPercent}%</span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (hermesEngineStatus?.phase === 'not_installed') {
-                void handleInstallHermesEngine();
-              } else {
-                void coworkService.restartHermesGateway();
-              }
-            }}
-            disabled={
-              agentCliInstallingAppType === 'hermes'
-              || hermesEngineStatus?.phase === 'installing'
-              || hermesEngineStatus?.phase === 'starting'
-            }
-            className="shrink-0 rounded-md border border-current/20 px-2 py-1 text-[11px] font-medium hover:bg-black/5 disabled:cursor-wait disabled:opacity-50 dark:hover:bg-white/10"
-          >
-            {i18nService.t(
-              agentCliInstallingAppType === 'hermes'
-                ? 'coworkAgentEngineInstallCliInstalling'
-                : hermesEngineStatus?.phase === 'not_installed'
-                  ? 'coworkAgentEngineInstallCli'
-                  : 'coworkHermesRestartGateway',
-            )}
-          </button>
-        </div>
-        {hermesProgressPercent !== null && (
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
-            <div
-              className="h-full bg-primary transition-all"
-              style={{ width: `${hermesProgressPercent}%` }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderSelectedAgentEngineDetails = (engine: CoworkAgentEngine) => {
-    if (
-      engine === CoworkAgentEngineValue.ClaudeCode
-      || engine === CoworkAgentEngineValue.Codex
-      || engine === CoworkAgentEngineValue.Hermes
-      || engine === CoworkAgentEngineValue.OpenCode
-      || engine === CoworkAgentEngineValue.DeepSeekTui
-    ) {
-      return (
-        <div className="mt-4 space-y-4">
-          {renderAgentEngineMeta(engine)}
-          {engine === CoworkAgentEngineValue.Hermes && renderHermesAgentEngineDetails()}
-          {renderAgentConfigSourceSettings()}
-        </div>
-      );
-    }
-    if (engine === CoworkAgentEngineValue.OpenClaw) {
-      return renderOpenClawAgentEngineDetails();
-    }
-    return (
-      <div className="mt-4 rounded-lg border border-border bg-surface-raised/50 px-3 py-2 text-xs leading-5 text-secondary">
-        {i18nService.t('coworkAgentEngineNoExtraConfig')}
-      </div>
-    );
-  };
-
-  const renderAgentEngineOption = (option: typeof COWORK_AGENT_ENGINE_OPTIONS[number]) => {
-    const checked = coworkAgentEngine === option.value;
-    const expanded = checked && expandedCoworkAgentEngine === option.value;
-    return (
-      <div
-        key={option.value}
-        role="button"
-        tabIndex={0}
-        onClick={() => handleSelectCoworkAgentEngine(option.value)}
-        aria-disabled={isSaving}
-        onKeyDown={(event) => {
-          if (isSaving) return;
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handleSelectCoworkAgentEngine(option.value);
-          }
-        }}
-        className={`rounded-xl border px-3 py-3 text-sm transition-colors ${isSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'} ${checked
-          ? 'border-primary/60 bg-primary/5'
-          : `border-border ${isSaving ? '' : 'hover:bg-surface-raised'}`}`}
-      >
-        <div className="flex items-start gap-3">
-          <input
-            type="radio"
-            name="cowork-agent-engine"
-            checked={checked}
-            disabled={isSaving}
-            onChange={() => handleSelectCoworkAgentEngine(option.value)}
-            onClick={(event) => event.stopPropagation()}
-            className="mt-1"
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium text-foreground">
-              {i18nService.t(option.labelKey)}
-            </span>
-            <span className="mt-1 block text-xs leading-5 text-secondary">
-              {i18nService.t(option.hintKey)}
-            </span>
-          </span>
-          {checked && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                handleToggleCoworkAgentEngineDetails(option.value);
-              }}
-              disabled={isSaving}
-              className="shrink-0 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-foreground hover:bg-background disabled:cursor-wait disabled:opacity-50"
-            >
-              {i18nService.t(expanded ? 'coworkAgentEngineCollapseConfig' : 'coworkAgentEngineExpandConfig')}
-            </button>
-          )}
-        </div>
-        {expanded && renderSelectedAgentEngineDetails(option.value)}
-      </div>
-    );
-  };
 
   const selectedAgentConfigSource = useMemo<ExternalAgentConfigSource | null>(() => {
     if (selectedExternalAgentAppType === 'claude') return claudeCodeConfigSource;
@@ -3098,6 +1759,101 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }
   };
 
+  const refreshAgentEnvironmentSnapshot = async () => {
+    const snapshot = await coworkService.getAgentEngineSnapshot();
+    setAgentEnvironmentSnapshot(snapshot);
+  };
+
+  const handleInstallAgentCli = async (appType: ExternalAgentProviderAppType) => {
+    if (window.electron?.platform !== 'darwin') {
+      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
+      return;
+    }
+    setError(null);
+    setAgentCliInstallingAppType(appType);
+    setAgentCliInstallProgress((prev) => ({
+      ...prev,
+      [appType]: i18nService.t('coworkAgentEngineInstallCliStarting'),
+    }));
+    try {
+      const result = await coworkService.installAgentCli(appType);
+      if (result.snapshot) {
+        setAgentEnvironmentSnapshot(result.snapshot);
+      } else {
+        await refreshAgentEnvironmentSnapshot();
+      }
+      if (!result.success) {
+        setError(result.error || i18nService.t('coworkAgentEngineInstallCliFailed'));
+        return;
+      }
+      if (appType === 'hermes') {
+        setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
+      }
+      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
+      setAgentCliInstallProgress((prev) => ({
+        ...prev,
+        [appType]: result.version || result.binaryPath || i18nService.t('coworkAgentEngineInstallCliSuccess'),
+      }));
+    } finally {
+      setAgentCliInstallingAppType((current) => (
+        current === appType ? null : current
+      ));
+    }
+  };
+
+  const handleInstallHermesEngine = async () => {
+    if (window.electron?.platform !== 'darwin') {
+      setError(i18nService.t('coworkAgentEngineInstallCliUnsupported'));
+      return;
+    }
+    setError(null);
+    setAgentCliInstallingAppType('hermes');
+    setAgentCliInstallProgress((prev) => ({
+      ...prev,
+      hermes: i18nService.t('coworkAgentEngineInstallCliStarting'),
+    }));
+    setHermesEngineStatus((current) => ({
+      phase: 'installing',
+      version: current?.version ?? null,
+      progressPercent: 8,
+      message: i18nService.t('coworkHermesInstalling'),
+      canRetry: false,
+    }));
+    try {
+      const status = await coworkService.installHermesEngine();
+      if (status) {
+        setHermesEngineStatus(status);
+      }
+      await refreshAgentEnvironmentSnapshot();
+      if (!status || status.phase === 'error' || status.phase === 'not_installed') {
+        setError(status?.message || i18nService.t('coworkAgentEngineInstallCliFailed'));
+        return;
+      }
+      setHermesConfigSource(ExternalAgentConfigSourceValue.AgoraModel);
+      setNoticeMessage(i18nService.t('coworkAgentEngineInstallCliSuccess'));
+    } finally {
+      setAgentCliInstallingAppType((current) => (
+        current === 'hermes' ? null : current
+      ));
+    }
+  };
+
+  const handleInstallOpenClawEngine = () => coworkService.installOpenClawEngine();
+  const handleRestartOpenClawGateway = () => coworkService.restartOpenClawGateway();
+  const handleRestartHermesGateway = () => coworkService.restartHermesGateway();
+
+  const selectedEngineConfigPaths = useMemo<string[]>(() => {
+    if (!selectedExternalAgentAppType) return [];
+    const engine = agentEnvironmentSnapshot?.engines.find(
+      (item) => item.appType === selectedExternalAgentAppType,
+    );
+    if (!engine) return [];
+    return [
+      engine.config.primaryConfigPath,
+      ...(engine.config.secondaryConfigPaths ?? []),
+    ].filter(Boolean) as string[];
+  }, [agentEnvironmentSnapshot, selectedExternalAgentAppType]);
+
   const applyImportedModelProviderToState = (
     providerKey: string | undefined,
     providerConfig: {
@@ -3201,369 +1957,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
     }
   };
 
-  const renderAgentConfigSourceSettings = () => {
-    if (!selectedExternalAgentAppType || !selectedAgentConfigSource) return null;
-    const cliStatus = agentEnvironmentSnapshot?.engines.find((item) => item.appType === selectedExternalAgentAppType);
-    const configPaths = cliStatus
-      ? [cliStatus.config.primaryConfigPath, ...cliStatus.config.secondaryConfigPaths].filter(Boolean)
-      : [];
-    const isImporting = agentConfigImportingAppType === selectedExternalAgentAppType;
-    const sourceOptions = [
-      {
-        value: ExternalAgentConfigSourceValue.AgoraModel,
-        labelKey: 'coworkAgentConfigSourceAgoraModel',
-        hintKey: 'coworkAgentConfigSourceAgoraModelHint',
-      },
-      {
-        value: ExternalAgentConfigSourceValue.LocalCli,
-        labelKey: 'coworkAgentConfigSourceLocalCli',
-        hintKey: 'coworkAgentConfigSourceLocalCliHint',
-      },
-    ];
-
-    return (
-      <div className="space-y-4 border-t border-border pt-5">
-        <div>
-          <div className="text-sm font-medium text-foreground">
-            {i18nService.t('coworkAgentConfigSourceTitle')}
-          </div>
-          <div className="mt-1 text-xs leading-5 text-secondary">
-            {i18nService.t('coworkAgentConfigSourceHint')}
-          </div>
-        </div>
-
-        {renderCoworkAgentApplyProgress()}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {sourceOptions.map((option) => {
-            const checked = selectedAgentConfigSource === option.value;
-            return (
-              <label
-                key={option.value}
-                className={`flex gap-3 rounded-xl border px-3 py-3 transition-colors ${isSaving ? 'cursor-wait opacity-70' : 'cursor-pointer'} ${checked
-                  ? 'border-primary bg-primary/5'
-                  : `border-border ${isSaving ? '' : 'hover:bg-surface-raised'}`}`}
-              >
-                <input
-                  type="radio"
-                  name="external-agent-config-source"
-                  checked={checked}
-                  disabled={isSaving}
-                  onChange={() => setSelectedAgentConfigSource(option.value)}
-                  className="mt-1"
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-foreground">
-                    {i18nService.t(option.labelKey)}
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 text-secondary">
-                    {i18nService.t(option.hintKey)}
-                  </span>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        {selectedExternalAgentAppType === 'opencode' && (
-          <div className="rounded-xl border border-border px-3 py-3">
-            <div className="text-xs font-medium text-foreground">
-              {i18nService.t('coworkAgentOpenCodePermissionTitle')}
-            </div>
-            <div className="mt-1 text-[11px] leading-5 text-secondary">
-              {i18nService.t('coworkAgentOpenCodePermissionHint')}
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {[
-                {
-                  value: OpenCodePermissionModeValue.Auto,
-                  labelKey: 'coworkAgentOpenCodePermissionAuto',
-                  hintKey: 'coworkAgentOpenCodePermissionAutoHint',
-                },
-                {
-                  value: OpenCodePermissionModeValue.Conservative,
-                  labelKey: 'coworkAgentOpenCodePermissionConservative',
-                  hintKey: 'coworkAgentOpenCodePermissionConservativeHint',
-                },
-              ].map((option) => {
-                const checked = opencodePermissionMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="opencode-permission-mode"
-                      checked={checked}
-                      disabled={isSaving}
-                      onChange={() => setOpenCodePermissionMode(option.value)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block text-xs font-medium text-foreground">
-                        {i18nService.t(option.labelKey)}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-5 text-secondary">
-                        {i18nService.t(option.hintKey)}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {selectedExternalAgentAppType === 'claude' && (
-          <div className="rounded-xl border border-border px-3 py-3">
-            <div className="text-xs font-medium text-foreground">
-              {i18nService.t('coworkAgentClaudeCodePermissionTitle')}
-            </div>
-            <div className="mt-1 text-[11px] leading-5 text-secondary">
-              {i18nService.t('coworkAgentClaudeCodePermissionHint')}
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {[
-                {
-                  value: ClaudeCodePermissionModeValue.BypassPermissions,
-                  labelKey: 'coworkAgentClaudeCodePermissionAuto',
-                  hintKey: 'coworkAgentClaudeCodePermissionAutoHint',
-                },
-                {
-                  value: ClaudeCodePermissionModeValue.Default,
-                  labelKey: 'coworkAgentClaudeCodePermissionDefault',
-                  hintKey: 'coworkAgentClaudeCodePermissionDefaultHint',
-                },
-                {
-                  value: ClaudeCodePermissionModeValue.Plan,
-                  labelKey: 'coworkAgentClaudeCodePermissionPlan',
-                  hintKey: 'coworkAgentClaudeCodePermissionPlanHint',
-                },
-                {
-                  value: ClaudeCodePermissionModeValue.AcceptEdits,
-                  labelKey: 'coworkAgentClaudeCodePermissionAcceptEdits',
-                  hintKey: 'coworkAgentClaudeCodePermissionAcceptEditsHint',
-                },
-              ].map((option) => {
-                const checked = claudeCodePermissionMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="claude-code-permission-mode"
-                      checked={checked}
-                      disabled={isSaving}
-                      onChange={() => setClaudeCodePermissionMode(option.value)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block text-xs font-medium text-foreground">
-                        {i18nService.t(option.labelKey)}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-5 text-secondary">
-                        {i18nService.t(option.hintKey)}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {selectedExternalAgentAppType === 'deepseek_tui' && (
-          <div className="rounded-xl border border-border px-3 py-3">
-            <div className="text-xs font-medium text-foreground">
-              {i18nService.t('coworkAgentDeepSeekTuiPermissionTitle')}
-            </div>
-            <div className="mt-1 text-[11px] leading-5 text-secondary">
-              {i18nService.t('coworkAgentDeepSeekTuiPermissionHint')}
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {[
-                {
-                  value: DeepSeekTuiPermissionModeValue.Auto,
-                  labelKey: 'coworkAgentDeepSeekTuiPermissionAuto',
-                  hintKey: 'coworkAgentDeepSeekTuiPermissionAutoHint',
-                },
-                {
-                  value: DeepSeekTuiPermissionModeValue.Conservative,
-                  labelKey: 'coworkAgentDeepSeekTuiPermissionConservative',
-                  hintKey: 'coworkAgentDeepSeekTuiPermissionConservativeHint',
-                },
-              ].map((option) => {
-                const checked = deepseekTuiPermissionMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex gap-3 rounded-lg border px-3 py-2 ${checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-raised'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="deepseek-tui-permission-mode"
-                      checked={checked}
-                      disabled={isSaving}
-                      onChange={() => setDeepSeekTuiPermissionMode(option.value)}
-                      className="mt-1"
-                    />
-                    <span>
-                      <span className="block text-xs font-medium text-foreground">
-                        {i18nService.t(option.labelKey)}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-5 text-secondary">
-                        {i18nService.t(option.hintKey)}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {selectedAgentConfigSource === ExternalAgentConfigSourceValue.LocalCli && (
-          <div className="rounded-xl border border-border px-3 py-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-xs font-medium text-foreground">
-                  {i18nService.t('coworkAgentLocalModelTitle')}
-                </div>
-                <div className="mt-1 text-[11px] leading-5 text-secondary">
-                  {i18nService.t('coworkAgentLocalModelHint')}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => selectedExternalAgentAppType && void loadAgentProviders(selectedExternalAgentAppType)}
-                disabled={agentProviderLoadingAppType === selectedExternalAgentAppType}
-                className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:cursor-wait disabled:opacity-50"
-              >
-                {i18nService.t(agentProviderLoadingAppType === selectedExternalAgentAppType
-                  ? 'coworkAgentLocalModelRefreshing'
-                  : 'coworkAgentLocalModelRefresh')}
-              </button>
-            </div>
-            <select
-              value={selectedAgentProvider?.id ?? ''}
-              onChange={(event) => void handleSelectAgentProvider(event.target.value)}
-              disabled={
-                agentProviderLoadingAppType === selectedExternalAgentAppType
-                || Boolean(agentProviderSwitchingId)
-                || (selectedAgentProviderList?.providers ?? []).length === 0
-              }
-              className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary disabled:cursor-wait disabled:opacity-70"
-            >
-              {(selectedAgentProviderList?.providers ?? []).length === 0 ? (
-                <option value="">
-                  {i18nService.t(agentProviderLoadingAppType === selectedExternalAgentAppType
-                    ? 'loading'
-                    : 'coworkAgentLocalModelEmpty')}
-                </option>
-              ) : (
-                (selectedAgentProviderList?.providers ?? []).map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.summary.model
-                      ? `${provider.name} · ${provider.summary.model}`
-                      : provider.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-        )}
-
-        {selectedExternalAgentAppType === 'opencode' && selectedAgentConfigSource === ExternalAgentConfigSourceValue.AgoraModel && (
-          <div className="flex flex-col gap-2 rounded-xl border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs leading-5 text-secondary">
-              {i18nService.t('coworkAgentOpenCodeSyncGlobalHint')}
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleSyncOpenCodeGlobalConfig()}
-              disabled={opencodeGlobalSyncing}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:cursor-wait disabled:opacity-50"
-            >
-              {i18nService.t(opencodeGlobalSyncing
-                ? 'coworkAgentOpenCodeSyncGlobalSyncing'
-                : 'coworkAgentOpenCodeSyncGlobal')}
-            </button>
-          </div>
-        )}
-
-        {selectedExternalAgentAppType === 'deepseek_tui' && selectedAgentConfigSource === ExternalAgentConfigSourceValue.AgoraModel && (
-          <div className="flex flex-col gap-2 rounded-xl border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs leading-5 text-secondary">
-              {i18nService.t('coworkAgentDeepSeekTuiSyncGlobalHint')}
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleSyncDeepSeekTuiGlobalConfig()}
-              disabled={deepseekTuiGlobalSyncing}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:cursor-wait disabled:opacity-50"
-            >
-              {i18nService.t(deepseekTuiGlobalSyncing
-                ? 'coworkAgentDeepSeekTuiSyncGlobalSyncing'
-                : 'coworkAgentDeepSeekTuiSyncGlobal')}
-            </button>
-          </div>
-        )}
-
-        <div className="rounded-xl border border-border px-3 py-3">
-          <div className="text-xs font-medium text-foreground">
-            {i18nService.t('coworkAgentCurrentModelTitle')}
-          </div>
-          <div className="mt-2 grid gap-1.5 text-[11px] leading-5 text-secondary sm:grid-cols-2">
-            <div>
-              {i18nService.t('coworkAgentCurrentModelProvider')}: <span className="text-foreground">{effectiveAgentModelSummary.providerName}</span>
-            </div>
-            <div>
-              {i18nService.t('coworkAgentCurrentModelModel')}: <span className="font-mono text-foreground">{effectiveAgentModelSummary.modelId}</span>
-            </div>
-            {effectiveAgentModelSummary.apiFormat && (
-              <div>
-                {i18nService.t('coworkAgentCurrentModelFormat')}: <span className="font-mono text-foreground">{effectiveAgentModelSummary.apiFormat}</span>
-              </div>
-            )}
-            {effectiveAgentModelSummary.baseUrl && (
-              <div className="truncate" title={effectiveAgentModelSummary.baseUrl}>
-                {i18nService.t('coworkAgentCurrentModelBaseUrl')}: <span className="font-mono text-foreground">{effectiveAgentModelSummary.baseUrl}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 rounded-xl border border-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs leading-5 text-secondary">
-            {i18nService.t('coworkAgentConfigImportModelHint')}
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleImportLocalAgentConfigToModelSettings()}
-            disabled={isImporting}
-            className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground hover:bg-surface-raised disabled:opacity-50"
-          >
-            {i18nService.t(isImporting ? 'coworkAgentConfigImportModelImporting' : 'coworkAgentConfigImportModel')}
-          </button>
-        </div>
-
-        {configPaths.length > 0 && (
-          <div className="space-y-1 text-[11px] text-secondary">
-            <div>{i18nService.t('coworkAgentConfigLocalPath')}</div>
-            {configPaths.map((configPath) => (
-              <div key={configPath} className="truncate font-mono" title={configPath}>
-                {configPath}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderTabContent = () => {
     switch(activeTab) {
       case 'general':
@@ -3594,18 +1987,63 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
       case 'coworkAgentEngine':
         return (
-          <div className="space-y-6">
-            <AgentEnvironmentSetup
-              selectedEngine={coworkAgentEngine}
-              onEngineChange={(engine) => setCoworkAgentEngine(engine)}
-              onSnapshotChange={setAgentEnvironmentSnapshot}
-              compact
-            />
-            {expandedCoworkAgentEngine !== coworkAgentEngine && renderCoworkAgentApplyProgress()}
-            <div className="space-y-3">
-              {COWORK_AGENT_ENGINE_OPTIONS.map(renderAgentEngineOption)}
-            </div>
-          </div>
+          <CoworkAgentEngineTab
+            coworkAgentEngine={coworkAgentEngine}
+            onChangeCoworkAgentEngine={handleSelectCoworkAgentEngine}
+            expandedCoworkAgentEngine={expandedCoworkAgentEngine}
+            onToggleExpanded={handleToggleCoworkAgentEngineDetails}
+            isSaving={isSaving}
+            isCoworkAgentConfigApplying={isCoworkAgentConfigApplying}
+            agentEnvironmentSnapshot={agentEnvironmentSnapshot}
+            onChangeAgentEnvironmentSnapshot={setAgentEnvironmentSnapshot}
+            agentCliInstallingAppType={agentCliInstallingAppType}
+            agentCliInstallProgress={agentCliInstallProgress}
+            onInstallAgentCli={handleInstallAgentCli}
+            openClawEngineStatus={openClawEngineStatus}
+            openclawConfigSource={openclawConfigSource}
+            onChangeOpenClawConfigSource={setOpenClawConfigSource}
+            openclawGlobalSyncing={openclawGlobalSyncing}
+            onSyncOpenClawGlobalConfig={() => {
+              void handleSyncOpenClawGlobalConfig();
+            }}
+            onInstallOpenClawEngine={handleInstallOpenClawEngine}
+            onRestartOpenClawGateway={handleRestartOpenClawGateway}
+            hermesEngineStatus={hermesEngineStatus}
+            onInstallHermesEngine={() => {
+              void handleInstallHermesEngine();
+            }}
+            onRestartHermesGateway={handleRestartHermesGateway}
+            selectedExternalAgentAppType={selectedExternalAgentAppType}
+            selectedAgentConfigSource={selectedAgentConfigSource}
+            onSelectAgentConfigSource={setSelectedAgentConfigSource}
+            opencodePermissionMode={opencodePermissionMode}
+            onSelectOpenCodePermissionMode={setOpenCodePermissionMode}
+            claudeCodePermissionMode={claudeCodePermissionMode}
+            onSelectClaudeCodePermissionMode={setClaudeCodePermissionMode}
+            deepseekTuiPermissionMode={deepseekTuiPermissionMode}
+            onSelectDeepSeekTuiPermissionMode={setDeepSeekTuiPermissionMode}
+            agentProviderLists={agentProviderLists}
+            agentProviderLoadingAppType={agentProviderLoadingAppType}
+            agentProviderSwitchingId={agentProviderSwitchingId}
+            onRefreshAgentProviders={loadAgentProviders}
+            onSelectAgentProvider={(providerId) => {
+              void handleSelectAgentProvider(providerId);
+            }}
+            opencodeGlobalSyncing={opencodeGlobalSyncing}
+            onSyncOpenCodeGlobalConfig={() => {
+              void handleSyncOpenCodeGlobalConfig();
+            }}
+            deepseekTuiGlobalSyncing={deepseekTuiGlobalSyncing}
+            onSyncDeepSeekTuiGlobalConfig={() => {
+              void handleSyncDeepSeekTuiGlobalConfig();
+            }}
+            effectiveAgentModelSummary={effectiveAgentModelSummary}
+            agentConfigImportingAppType={agentConfigImportingAppType}
+            onImportLocalAgentConfigToModelSettings={() => {
+              void handleImportLocalAgentConfigToModelSettings();
+            }}
+            configPaths={selectedEngineConfigPaths}
+          />
         );
 
       case 'coworkMemory':
@@ -3625,400 +2063,47 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
 
       case 'model':
         return (
-          <div className="flex h-full">
-            <ProviderListSidebar
-              visibleProviders={visibleProviders as any}
-              providers={providers as any}
-              providerMeta={providerMeta as any}
-              customProviderKeys={CUSTOM_PROVIDER_KEYS}
-              activeProvider={activeProvider as any}
-              importInputRef={importInputRef}
-              isImportingProviders={isImportingProviders}
-              isExportingProviders={isExportingProviders}
-              handleProviderChange={handleProviderChange as any}
-              handleAddCustomProvider={handleAddCustomProvider as any}
-              handleDeleteCustomProvider={handleDeleteCustomProvider as any}
-              toggleProviderEnabled={toggleProviderEnabled as any}
-              handleImportProvidersClick={handleImportProvidersClick as any}
-              handleImportProviders={handleImportProviders as any}
-              handleExportProviders={handleExportProviders as any}
-              providerRequiresApiKey={providerRequiresApiKey as any}
-            />
-
-
-            {/* Provider Settings - Right Side */}
-            <div className="w-3/5 pl-4 pr-2 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
-              <ProviderConfigHeader
-                providerName={isCustomProvider(activeProvider)
-                  ? ((providers[activeProvider] as ProviderConfig)?.displayName || getCustomProviderDefaultName(activeProvider))
-                  : (providerMeta[activeProvider]?.label ?? getProviderDisplayName(activeProvider))}
-                websiteUrl={providerLinks[activeProvider]?.website}
-                enabled={providers[activeProvider].enabled}
-              />
-
-
-              {/* MiniMax OAuth auth section */}
-              {activeProvider === 'minimax' && (
-                <MiniMaxOAuthSection
-                  isOAuthMode={minimaxIsOAuthMode}
-                  onSelectOAuth={() => setProviders(prev => ({ ...prev, minimax: { ...prev.minimax, authType: 'oauth' } }))}
-                  onSelectApiKey={() => {
-                    setProviders(prev => ({ ...prev, minimax: { ...prev.minimax, authType: 'apikey' } }));
-                    setMinimaxOAuthPhase({ kind: 'idle' });
-                  }}
-                  apiKey={providers.minimax.apiKey}
-                  showApiKey={showApiKey}
-                  setShowApiKey={setShowApiKey}
-                  onApiKeyChange={(v) => handleProviderConfigChange('minimax', 'apiKey', v)}
-                  apiKeyLink={providerLinks.minimax?.apiKey}
-                  phase={minimaxOAuthPhase}
-                  hasApiKey={!!providers.minimax.apiKey}
-                  onSignIn={() => { void handleMiniMaxDeviceLogin(minimaxOAuthRegion); }}
-                  onCancel={handleCancelMiniMaxLogin}
-                  onSignOut={handleMiniMaxOAuthLogout}
-                />
-              )}
-
-              {/* Standard API key section for non-MiniMax providers */}
-              {providerRequiresApiKey(activeProvider) && activeProvider !== 'minimax' && (
-                <div>
-                  {activeProvider !== 'qwen' ? (
-                    <ApiKeySection
-                      activeProvider={activeProvider}
-                      apiKey={providers[activeProvider].apiKey}
-                      showApiKey={showApiKey}
-                      setShowApiKey={setShowApiKey}
-                      onChange={(v) => handleProviderConfigChange(activeProvider, 'apiKey', v)}
-                      apiKeyLink={providerLinks[activeProvider]?.apiKey}
-                    />
-                  ) : (
-                    <ApiKeySection
-                      activeProvider="qwen"
-                      apiKey={providers.qwen.apiKey}
-                      showApiKey={showApiKey}
-                      setShowApiKey={setShowApiKey}
-                      onChange={(v) => handleProviderConfigChange('qwen', 'apiKey', v)}
-                      apiKeyLink={providerLinks.qwen?.apiKey}
-                    />
-                  )}
-                </div>
-              )}
-
-              {activeProvider === 'github-copilot' && (
-                <GitHubCopilotAuthSection
-                  status={copilotAuthStatus}
-                  userCode={copilotUserCode}
-                  verificationUri={copilotVerificationUri}
-                  githubUser={copilotGithubUser}
-                  hasApiKey={!!providers['github-copilot'].apiKey}
-                  errorMessage={copilotError}
-                  onSignIn={handleCopilotSignIn}
-                  onCancel={handleCopilotCancelAuth}
-                  onSignOut={handleCopilotSignOut}
-                />
-              )}
-
-              {isCustomProvider(activeProvider) && (
-                <div>
-                  <label htmlFor={`${activeProvider}-displayName`} className="block text-xs font-medium dark:text-claude-darkText text-claude-text mb-1">
-                    {i18nService.t('customDisplayName')}
-                  </label>
-                  <input
-                    type="text"
-                    id={`${activeProvider}-displayName`}
-                    value={(providers[activeProvider] as ProviderConfig)?.displayName ?? ''}
-                    onChange={(e) => handleProviderConfigChange(activeProvider, 'displayName', e.target.value)}
-                    className="block w-full rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset dark:border-claude-darkBorder border-claude-border border focus:border-claude-accent focus:ring-1 focus:ring-claude-accent/30 dark:text-claude-darkText text-claude-text px-3 py-2 text-xs"
-                    placeholder={i18nService.t('customDisplayNamePlaceholder')}
-                  />
-                </div>
-              )}
-
-              {!(activeProvider === 'minimax' && minimaxIsOAuthMode) && (
-              <div>
-                <label htmlFor={`${activeProvider}-baseUrl`} className="block text-xs font-medium text-foreground mb-1">
-                  {i18nService.t('baseUrl')}
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    id={`${activeProvider}-baseUrl`}
-                    value={
-                      (() => {
-                        // Coding plan override: delegate to ProviderRegistry (50e20b76)
-                        const fmt = getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat);
-                        if (fmt !== 'gemini') {
-                          const cpUrl = (providers[activeProvider] as { codingPlanEnabled?: boolean }).codingPlanEnabled
-                            ? ProviderRegistry.getCodingPlanUrl(activeProvider, fmt)
-                            : undefined;
-                          if (cpUrl) return cpUrl;
-                        }
-                        return providers[activeProvider].baseUrl;
-                      })()
-                    }
-                    onChange={(e) => handleProviderConfigChange(activeProvider, 'baseUrl', e.target.value)}
-                    disabled={isBaseUrlLocked}
-                    className={`block w-full rounded-xl bg-claude-surfaceInset dark:bg-claude-darkSurfaceInset dark:border-claude-darkBorder border-claude-border border focus:border-claude-accent focus:ring-1 focus:ring-claude-accent/30 dark:text-claude-darkText text-claude-text px-3 py-2 pr-8 text-xs ${isBaseUrlLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    placeholder={
-                      activeProvider === 'qwen'
-                        ? 'https://dashscope.aliyuncs.com/apps/anthropic'
-                        : getProviderDefaultBaseUrl(activeProvider, getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat)) || defaultConfig.providers?.[activeProvider]?.baseUrl || i18nService.t('baseUrlPlaceholder')
-                    }
-                  />
-                  {providers[activeProvider].baseUrl && !isBaseUrlLocked && (
-                    <div className="absolute right-2 inset-y-0 flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => handleProviderConfigChange(activeProvider, 'baseUrl', '')}
-                        className="p-0.5 rounded text-claude-textSecondary dark:text-claude-darkTextSecondary hover:text-claude-accent transition-colors"
-                        title={i18nService.t('clear') || 'Clear'}
-                      >
-                        <XCircleIconSolid className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {isCustomProvider(activeProvider) && (
-                <div className="mt-1.5 space-y-0.5 text-[11px] text-secondary">
-                  <p>
-                    <span className="text-sm text-muted mr-1">•</span>
-                    {i18nService.t('baseUrlHint1')}
-                    <code className="ml-1 text-primary break-all">{i18nService.t('baseUrlHintExample1')}</code>
-                  </p>
-                  <p>
-                    <span className="text-sm text-muted mr-1">•</span>
-                    {i18nService.t('baseUrlHint2')}
-                    <code className="ml-1 text-primary break-all">{i18nService.t('baseUrlHintExample2')}</code>
-                  </p>
-                </div>
-                )}
-                {/* GLM Coding Plan 提示 */}
-                {activeProvider === 'zhipu' && providers.zhipu.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary-muted border border-primary-muted">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">GLM Coding Plan:</span> {i18nService.t('zhipuCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Qwen Coding Plan 提示 */}
-                {activeProvider === 'qwen' && providers.qwen.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary-muted border border-primary-muted">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('qwenCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Volcengine Coding Plan 提示 */}
-                {activeProvider === 'volcengine' && providers.volcengine.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary-muted border border-primary-muted">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('volcengineCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-                {/* Moonshot Coding Plan 提示 */}
-                {activeProvider === 'moonshot' && providers.moonshot.codingPlanEnabled && (
-                  <div className="mt-1.5 p-2 rounded-lg bg-primary-muted border border-primary-muted">
-                    <p className="text-[11px] text-primary dark:text-primary">
-                      <span className="font-medium">Coding Plan:</span> {i18nService.t('moonshotCodingPlanEndpointHint')}
-                    </p>
-                  </div>
-                )}
-              </div>
-              )}
-
-              {/* API 格式选择器 */}
-              {shouldShowApiFormatSelector(activeProvider) && !(activeProvider === 'minimax' && minimaxIsOAuthMode) && (
-                <div>
-                  <label htmlFor={`${activeProvider}-apiFormat`} className="block text-xs font-medium text-foreground mb-1">
-                    {i18nService.t('apiFormat')}
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name={`${activeProvider}-apiFormat`}
-                        value="anthropic"
-                        checked={getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat) !== 'openai'}
-                        onChange={() => handleProviderConfigChange(activeProvider, 'apiFormat', 'anthropic')}
-                        className="h-3.5 w-3.5 text-claude-accent focus:ring-claude-accent dark:bg-claude-darkSurface bg-claude-surface disabled:opacity-50"
-                      />
-                      <span className="ml-2 text-xs text-foreground">
-                        {i18nService.t('apiFormatNative')}
-                      </span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name={`${activeProvider}-apiFormat`}
-                        value="openai"
-                        checked={getEffectiveApiFormat(activeProvider, providers[activeProvider].apiFormat) === 'openai'}
-                        onChange={() => handleProviderConfigChange(activeProvider, 'apiFormat', 'openai')}
-                        className="h-3.5 w-3.5 text-claude-accent focus:ring-claude-accent dark:bg-claude-darkSurface bg-claude-surface disabled:opacity-50"
-                      />
-                      <span className="ml-2 text-xs text-foreground">
-                        {i18nService.t('apiFormatOpenAI')}
-                      </span>
-                    </label>
-                  </div>
-                  <p className="mt-1 text-xs text-secondary">
-                    {i18nService.t('apiFormatHint')}
-                  </p>
-                </div>
-              )}
-
-              {/* GLM Coding Plan 开关 (仅 Zhipu) */}
-              {activeProvider === 'zhipu' && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-foreground">
-                        GLM Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary-muted text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-secondary">
-                      {i18nService.t('zhipuCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.zhipu.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('zhipu', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Qwen Coding Plan 开关 (仅 Qwen) */}
-              {activeProvider === 'qwen' && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-foreground">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary-muted text-primary">
-                        {i18nService.t('codingPlanSubscriptionBadge')}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-secondary">
-                      {i18nService.t('qwenCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.qwen.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('qwen', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Volcengine Coding Plan 开关 (仅 Volcengine) */}
-              {activeProvider === 'volcengine' && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-foreground">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary-muted text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-secondary">
-                      {i18nService.t('volcengineCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.volcengine.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('volcengine', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* Moonshot Coding Plan 开关 (仅 Moonshot) */}
-              {activeProvider === 'moonshot' && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-medium text-foreground">
-                        Coding Plan
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-primary-muted text-primary">
-                        Beta
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-secondary">
-                      {i18nService.t('moonshotCodingPlanHint')}
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer ml-3">
-                    <input
-                      type="checkbox"
-                      checked={providers.moonshot.codingPlanEnabled ?? false}
-                      onChange={(e) => handleProviderConfigChange('moonshot', 'codingPlanEnabled', e.target.checked ? 'true' : 'false')}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
-                  </label>
-                </div>
-              )}
-
-              {/* 测试连接按钮 */}
-              {!(activeProvider === 'minimax' && minimaxIsOAuthMode) && (
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={isTesting || (providerRequiresApiKey(activeProvider) && !providers[activeProvider].apiKey && !(activeProvider === 'qwen' && (providers.qwen as any).oauthCredentials))}
-                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-xl border dark:border-claude-darkBorder border-claude-border dark:text-claude-darkText text-claude-text dark:hover:bg-claude-darkSurfaceHover hover:bg-claude-surfaceHover disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-[0.98]"
-                >
-                  <SignalIcon className="h-3.5 w-3.5 mr-1.5" />
-                  {isTesting ? i18nService.t('testing') : i18nService.t('testConnection')}
-                </button>
-              </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <h3 className="text-xs font-medium text-foreground">
-                    {i18nService.t('availableModels')}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={handleAddModel}
-                    className="inline-flex items-center text-xs text-primary hover:text-primary-hover"
-                  >
-                    <PlusCircleIcon className="h-3.5 w-3.5 mr-1" />
-                    {i18nService.t('addModel')}
-                  </button>
-                </div>
-
-                <ModelsListSection
-                  models={providers[activeProvider].models}
-                  onAddModel={handleAddModel}
-                  onEditModel={(m) => handleEditModel(m.id, m.name, m.supportsImage)}
-                  onDeleteModel={handleDeleteModel}
-                />
-
-              </div>
-            </div>
-          </div>
+          <ModelTab
+            visibleProviders={visibleProviders}
+            providers={providers}
+            providerMeta={providerMeta}
+            providerLinks={providerLinks}
+            activeProvider={activeProvider}
+            showApiKey={showApiKey}
+            setShowApiKey={setShowApiKey}
+            setProviders={setProviders}
+            setError={setError}
+            setNoticeMessage={setNoticeMessage}
+            minimaxIsOAuthMode={minimaxIsOAuthMode}
+            minimaxOAuthPhase={minimaxOAuthPhase}
+            copilotAuthStatus={copilotAuthStatus}
+            copilotUserCode={copilotUserCode}
+            copilotVerificationUri={copilotVerificationUri}
+            copilotGithubUser={copilotGithubUser}
+            copilotError={copilotError}
+            isBaseUrlLocked={isBaseUrlLocked}
+            onProviderChange={handleProviderChange}
+            onAddCustomProvider={handleAddCustomProvider}
+            onDeleteCustomProvider={handleDeleteCustomProvider}
+            onToggleProviderEnabled={toggleProviderEnabled}
+            onProviderConfigChange={handleProviderConfigChange}
+            onSelectMiniMaxOAuth={() => {
+              setProviders(prev => ({ ...prev, minimax: { ...prev.minimax, authType: 'oauth' } }));
+            }}
+            onSelectMiniMaxApiKey={() => {
+              setProviders(prev => ({ ...prev, minimax: { ...prev.minimax, authType: 'apikey' } }));
+              setMinimaxOAuthPhase({ kind: 'idle' });
+            }}
+            onMiniMaxSignIn={() => { void handleMiniMaxDeviceLogin(minimaxOAuthRegion); }}
+            onCancelMiniMaxLogin={handleCancelMiniMaxLogin}
+            onMiniMaxSignOut={handleMiniMaxOAuthLogout}
+            onCopilotSignIn={handleCopilotSignIn}
+            onCopilotCancelAuth={handleCopilotCancelAuth}
+            onCopilotSignOut={handleCopilotSignOut}
+            onAddModel={handleAddModel}
+            onEditModel={handleEditModel}
+            onDeleteModel={handleDeleteModel}
+          />
         );
 
       case 'coworkAgent':
@@ -4200,15 +2285,6 @@ const Settings: React.FC<SettingsProps> = ({ onClose, initialTab, notice, notice
           )}
 
         </div>
-
-        {isTestResultModalOpen && testResult && (
-          <TestResultModal
-            providerLabel={providerMeta[testResult.provider as ProviderType]?.label ?? testResult.provider}
-            success={!!testResult.success}
-            message={testResult.message}
-            onClose={() => setIsTestResultModalOpen(false)}
-          />
-        )}
 
         {pendingDeleteProvider && (
           <DeleteProviderModal
