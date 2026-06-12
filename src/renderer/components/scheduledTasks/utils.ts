@@ -7,7 +7,7 @@ import type {
   ScheduledTaskDelivery,
   ScheduledTaskPayload,
   TaskLastStatus,
-} from '../../../scheduledTask/types';
+} from '../../../scheduled-task/types';
 import { PlatformRegistry } from '../../../shared/platform';
 import { i18nService } from '../../services/i18n';
 

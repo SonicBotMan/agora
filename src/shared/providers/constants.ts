@@ -13,7 +13,7 @@
  *
  * Follows the same pattern as PlatformRegistry in src/shared/platform/.
  * String literal constants follow AGENTS.md "String Literal Constants" spec,
- * modeled after src/scheduledTask/constants.ts.
+ * modeled after src/scheduled-task/constants.ts.
  */
 
 // ═══════════════════════════════════════════════════════

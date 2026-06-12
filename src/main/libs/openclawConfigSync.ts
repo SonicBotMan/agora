@@ -2,7 +2,7 @@ import { app } from 'electron';
 import fs from 'fs';
 import path from 'path';
 
-import { buildScheduledTaskEnginePrompt } from '../../scheduledTask/enginePrompt';
+import { buildScheduledTaskEnginePrompt } from '../../scheduled-task/enginePrompt';
 import { ExternalAgentConfigSource } from '../../shared/cowork/constants';
 import { PlatformRegistry } from '../../shared/platform';
 import { OpenClawApi as OpenClawApiConst,OpenClawProviderId, ProviderName } from '../../shared/providers';

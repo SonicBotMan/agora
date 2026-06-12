@@ -2,7 +2,7 @@
  * Hacker News crawler — fetches top stories from the HN API.
  */
 
-import type { CrawlResult, CrawlerOptions, TopicItem } from '../types';
+import type { CrawlerOptions, CrawlResult, TopicItem } from '../types';
 
 const HN_TOP_STORIES_URL = 'https://hacker-news.firebaseio.com/v0/topstories.json';
 const HN_ITEM_URL = 'https://hacker-news.firebaseio.com/v0/item';
@@ -28,7 +28,7 @@ export class HackerNewsCrawler {
 
       const topics: TopicItem[] = stories
         .filter((s): s is HackerNewsStory => s !== null && s.type === 'story' && s.title != null)
-        .map((s, i) => ({
+        .map((s) => ({
           id: `hn-${s.id}`,
           title: s.title,
           summary: s.text?.slice(0, 200) ?? s.title,

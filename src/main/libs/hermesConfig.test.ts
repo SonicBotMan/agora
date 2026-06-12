@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-  buildHermesFeishuEnvForInstances,
   buildHermesDotenv,
   buildHermesEnvForAgoraModel,
-  DEFAULT_HERMES_MODEL,
+  buildHermesFeishuEnvForInstances,
   buildHermesRuntimeEnvForLocalCli,
+  DEFAULT_HERMES_MODEL,
   HERMES_AGORA_FEISHU_ENV_BLOCK,
   listHermesModelProviders,
-  mergeHermesManagedDotenvBlock,
   mergeHermesConfigForAgoraModel,
+  mergeHermesManagedDotenvBlock,
   parseHermesConfigText,
   parseHermesDotenvText,
   summarizeHermesSettingsConfig,

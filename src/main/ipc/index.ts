@@ -12,22 +12,61 @@
  */
 
 import { BrowserWindow } from 'electron';
-import { registerWindowHandlers } from './windowHandlers';
-import { registerAppHandlers, type AppDeps } from './appHandlers';
-import { registerStoreHandlers, type StoreDeps } from './storeHandlers';
-import { registerDialogHandlers, type DialogDeps } from './dialogHandlers';
+
+import { type AgentsDeps, registerAgentsHandlers } from './agentsHandlers';
+import { type ApiDeps, registerApiHandlers } from './apiHandlers';
+import { type AppDeps, registerAppHandlers } from './appHandlers';
+import { type AuthDeps, registerAuthHandlers } from './authHandlers';
+import { type CoworkAgentProviderDeps, registerCoworkAgentProviderHandlers } from './coworkAgentProviderHandlers';
+import { type CoworkBootstrapDeps, registerCoworkBootstrapHandlers } from './coworkBootstrapHandlers';
+import { type CoworkConfigDeps, registerCoworkConfigHandlers } from './coworkConfigHandlers';
+import { registerCoworkExportHandlers } from './coworkExportHandlers';
+import { type CoworkMemoryDeps, registerCoworkMemoryHandlers } from './coworkMemoryHandlers';
+import { type CoworkRuntimeDeps, registerCoworkRuntimeHandlers } from './coworkRuntimeHandlers';
+import { type DialogDeps, registerDialogHandlers } from './dialogHandlers';
+import { type EngineDeps, registerEngineHandlers } from './engineHandlers';
+import {
+  type FrontendStationDeps,
+  registerFrontendStationHandlers,
+} from './frontendStationHandlers';
+import {
+  type HotTopicsDeps,
+  registerHotTopicsHandlers,
+} from './hotTopicsHandlers';
+import { type ImCoreDeps, registerImCoreHandlers } from './imCoreHandlers';
+import { type ImDeps } from './imDeps';
+import {
+  type ImFeishuInstanceDeps,
+  registerImFeishuInstanceHandlers,
+} from './imFeishuInstanceHandlers';
+import {
+  type ImFeishuManagementDeps,
+  registerImFeishuManagementHandlers,
+} from './imFeishuManagementHandlers';
+import { type ImInstanceDeps, registerImInstanceHandlers } from './imInstanceHandlers';
+import { type ImPairingDeps, registerImPairingHandlers } from './imPairingHandlers';
+import {
+  type KnowledgeDeps,
+  registerKnowledgeHandlers,
+} from './knowledgeHandlers';
+import { type LogDeps, registerLogHandlers } from './logHandlers';
+import { type McpDeps, registerMcpHandlers } from './mcpHandlers';
+import {
+  type OrchestratorDeps,
+  registerOrchestratorHandlers,
+} from './orchestratorHandlers';
+import { type PermissionDeps, registerPermissionHandlers } from './permissionHandlers';
+import {
+  registerResearchHandlers,
+  type ResearchDeps,
+} from './researchHandlers';
+import type { SessionDeps } from './sessionDeps';
+import { registerSessionHandlers } from './sessionHandlers';
 import { registerShellHandlers, type ShellDeps } from './shellHandlers';
-import { registerPermissionHandlers, type PermissionDeps } from './permissionHandlers';
-import { registerUpdateHandlers, type UpdateDeps } from './updateHandlers';
-import { registerLogHandlers, type LogDeps } from './logHandlers';
-import { registerAuthHandlers, type AuthDeps } from './authHandlers';
 import { registerSkillHandlers, type SkillDeps } from './skillHandlers';
-import { registerSessionHandlers, type SessionDeps } from './sessionHandlers';
-import { registerImHandlers, type ImDeps } from './imHandlers';
-import { registerEngineHandlers, type EngineDeps } from './engineHandlers';
-import { registerAgentsHandlers, type AgentsDeps } from './agentsHandlers';
-import { registerMcpHandlers, type McpDeps } from './mcpHandlers';
-import { registerApiHandlers, type ApiDeps } from './apiHandlers';
+import { registerStoreHandlers, type StoreDeps } from './storeHandlers';
+import { registerUpdateHandlers, type UpdateDeps } from './updateHandlers';
+import { registerWindowHandlers } from './windowHandlers';
 
 /**
  * Aggregated dependencies for all handler groups.
@@ -65,6 +104,10 @@ export interface AllHandlerDeps {
 
   // Sessions / Cowork
   sessions: SessionDeps;
+  research: ResearchDeps;
+  knowledge: KnowledgeDeps;
+  hotTopics: HotTopicsDeps;
+  frontendStation: FrontendStationDeps;
 
   // IM
   im: ImDeps;
@@ -103,7 +146,22 @@ export function registerAllHandlers(deps: AllHandlerDeps): void {
   registerAuthHandlers(deps.auth);
   registerSkillHandlers(deps.skills);
   registerSessionHandlers(deps.sessions);
-  registerImHandlers(deps.im);
+  registerCoworkExportHandlers();
+  registerCoworkRuntimeHandlers(deps.sessions);
+  registerCoworkAgentProviderHandlers(deps.sessions);
+  registerCoworkBootstrapHandlers(deps.sessions);
+  registerCoworkConfigHandlers(deps.sessions);
+  registerCoworkMemoryHandlers(deps.sessions);
+  registerOrchestratorHandlers(deps.sessions);
+  registerResearchHandlers(deps.research);
+  registerKnowledgeHandlers(deps.knowledge);
+  registerHotTopicsHandlers(deps.hotTopics);
+  registerFrontendStationHandlers(deps.frontendStation);
+  registerImCoreHandlers(deps.im);
+  registerImFeishuManagementHandlers(deps.im);
+  registerImFeishuInstanceHandlers(deps.im);
+  registerImPairingHandlers(deps.im);
+  registerImInstanceHandlers(deps.im);
   registerEngineHandlers(deps.engines);
   registerAgentsHandlers(deps.agents);
   registerMcpHandlers(deps.mcp);
@@ -114,20 +172,36 @@ export function registerAllHandlers(deps: AllHandlerDeps): void {
  * Re-export all deps interfaces for convenience.
  */
 export type {
-  AllHandlerDeps as AgoraHandlerDeps,
-  AppDeps,
-  StoreDeps,
-  DialogDeps,
-  ShellDeps,
-  PermissionDeps,
-  UpdateDeps,
-  LogDeps,
-  AuthDeps,
-  SkillDeps,
-  SessionDeps,
-  ImDeps,
-  EngineDeps,
   AgentsDeps,
-  McpDeps,
+  AllHandlerDeps as AgoraHandlerDeps,
   ApiDeps,
+  AppDeps,
+  AuthDeps,
+  CoworkAgentProviderDeps,
+  CoworkBootstrapDeps,
+  CoworkConfigDeps,
+  CoworkMemoryDeps,
+  CoworkRuntimeDeps,
+  DialogDeps,
+  EngineDeps,
+  FrontendStationDeps,
+  HotTopicsDeps,
+  ImCoreDeps,
+  ImDeps,
+  ImFeishuInstanceDeps,
+  ImFeishuManagementDeps,
+  ImInstanceDeps,
+  ImPairingDeps,
+  KnowledgeDeps,
+  LogDeps,
+  McpDeps,
+  OrchestratorDeps,
+  PermissionDeps,
+  ResearchDeps,
+  ShellDeps,
+  SkillDeps,
+  StoreDeps,
+  UpdateDeps,
 };
+
+export type { SessionDeps } from './sessionDeps';

@@ -20,7 +20,7 @@
   <strong>English</strong> | <a href="README_zh.md">简体中文</a>
 </p>
 
-Agora is an open-source desktop workspace for AI coding agents. Built with Electron, React, and TypeScript, it provides a unified visual interface for installing, configuring, and running multiple local agent engines — including Claude Code (default), OpenCode, OpenClaw, Hermes, DeepSeek-TUI, and Codex. Agora connects these engines to chat, tools, files, IM platforms, model providers, and runtime analytics in a single desktop application.
+Agora is an open-source desktop workspace for AI coding agents. Built with Electron, React, and TypeScript, it provides a unified visual interface for installing, configuring, and running multiple local agent engines — with OpenCode as the default, alongside OpenClaw, Claude Code, Hermes, DeepSeek-TUI, and Codex. Agora also ships focused workbenches for deep research, agent orchestration, local knowledge retrieval, hot-topic monitoring, skill operations, and frontend iteration in a single desktop application.
 
 > If Agora improves your agent workflow, give it a star — it helps more developers discover the project.
 
@@ -34,6 +34,7 @@ Terminal-native coding agents are powerful, but their setup, model routing, perm
 - **Visual chat surface** — Run agents through a rich chat interface with tool panels, slash commands, file diffs, and permission prompts.
 - **IM integration** — Route agent tasks through Feishu, DingTalk, Telegram, Discord, WeChat, WeCom, and QQ.
 - **Runtime observability** — Track every task's engine, model, token usage, time-to-first-token (TTFT), tokens-per-second (TPS), tool latency, steps, status, and duration.
+- **Specialized workbenches** — Launch research, orchestration, knowledge, trend, skill, and frontend workflows without leaving the same desktop app.
 - **Extensible** — Extend workflows with SkillHub marketplace skills, built-in skills, scheduled tasks, and cross-session memory.
 
 ---
@@ -42,23 +43,23 @@ Terminal-native coding agents are powerful, but their setup, model routing, perm
 
 | # | Feature | Description |
 |---|---------|-------------|
-| 1 | **Agent Engine Hub** | Run Claude Code (default), OpenCode, OpenClaw, Hermes, DeepSeek-TUI, or Codex — one-click install or reuse existing local CLI configs. |
+| 1 | **Agent Engine Hub** | Run OpenCode (default), OpenClaw, Claude Code, Hermes, DeepSeek-TUI, or Codex — one-click install or reuse existing local CLI configs. |
 | 2 | **Unified Model Providers** | Configure OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Moonshot, Ollama, OpenRouter, GitHub Copilot, and custom OpenAI-compatible endpoints. |
 | 3 | **IM Agent Hub** | Route messages from Feishu, DingTalk, Telegram, Discord, WeChat, WeCom, and QQ into any engine with per-platform bot profiles. |
 | 4 | **AI Runtime Dashboard** | Measure calls by engine, model, source, status, tokens, completion time, TTFT, output-phase TPS, estimated model TPS, tool latency, and agent steps. |
-| 5 | **SkillHub Marketplace** | Discover, install, enable, disable, update, and remove skills through an integrated marketplace. |
+| 5 | **Skill Operations** | Discover, install, enable, disable, update, and remove skills through SkillHub and local skill management flows. |
 | 6 | **Scheduled Tasks & Memory** | Create recurring agent jobs for research, reports, monitoring, and reminders with automatic memory extraction across sessions. |
 
-### Planned Features
+### Featured Workbenches
 
 | Feature | Description |
 |---------|-------------|
-| 🔬 **Deep Research** | Autonomous multi-source research agent with citation tracking and report generation. |
-| 🧩 **Agent Orchestration** | Multi-agent coordination for complex workflows with task delegation and handoff. |
-| 📚 **Knowledge Base** | Persistent vector store for documents, codebases, and project context. |
-| 🔥 **Hot Topics** | Real-time trend discovery and auto-summarization from community sources. |
-| ⚙️ **Skill Center** | Dedicated hub for creating, testing, and publishing custom agent skills. |
-| 🖥️ **Frontend Station** | Visual component playground for AI-generated UI previews and iteration. |
+| 🔬 **Deep Research** | Multi-source research sessions with source collection, citation capture, and structured report generation. |
+| 🧩 **Agent Orchestrator** | DAG-based task planning, scheduling, and result aggregation for multi-step agent workflows. |
+| 📚 **Knowledge Base** | Local document, research, and conversation ingestion with SQLite persistence and hybrid retrieval. |
+| 🔥 **Hot Topics** | Source crawlers, digest generation, and follow-up actions for research, publishing, IM delivery, and knowledge capture. |
+| ⚙️ **Skill Center** | SkillHub marketplace browsing, local skill lifecycle management, and built-in security review surfaces. |
+| 🖥️ **Frontend Station** | Project workspace with file tree, Monaco editor, terminal, dev-server preview, and linked coding-agent tasks. |
 
 ---
 
@@ -75,7 +76,7 @@ Terminal-native coding agents are powerful, but their setup, model routing, perm
   </tr>
   <tr>
     <td><strong>Cowork Chat</strong><br>Run local coding agents as a desktop chat with engine and model controls.</td>
-    <td><strong>Agent Engines</strong><br>Configure OpenCode, OpenClaw, Claude Code, Hermes, DeepSeek-TUI, and Codex.</td>
+    <td><strong>Agent Engines</strong><br>Use OpenCode as the default engine and switch to OpenClaw, Claude Code, Hermes, DeepSeek-TUI, or Codex when needed.</td>
   </tr>
   <tr>
     <td width="50%">
@@ -90,16 +91,12 @@ Terminal-native coding agents are powerful, but their setup, model routing, perm
     <td><strong>Live Workspace</strong><br>Watch file writes, code changes, tool activity, and generated artifacts while the agent works.</td>
   </tr>
   <tr>
-    <td width="50%">
+    <td colspan="2" align="center">
       <img src="public/readme/screenshots/skills-marketplace.png" alt="Agora skills marketplace">
-    </td>
-    <td width="50%">
-      <img src="public/readme/screenshots/studio-pet.png" alt="Agora studio">
     </td>
   </tr>
   <tr>
-    <td><strong>Skills Marketplace</strong><br>Browse SkillHub categories, install skills locally, and manage installed skills from Agora.</td>
-    <td><strong>Studio</strong><br>Visual workspace to observe agent activity and task progress.</td>
+    <td colspan="2"><strong>Skills Marketplace</strong><br>Browse SkillHub categories, review skill metadata, and manage installed skills from Agora.</td>
   </tr>
 </table>
 
@@ -187,6 +184,9 @@ OPENCLAW_SKIP_ENSURE=1 npm run electron:dev:openclaw
 ### Build
 
 ```bash
+# Tests
+npm test
+
 # TypeScript + Vite
 npm run build
 
@@ -219,46 +219,33 @@ Managed runtime metadata is declared in `package.json`. Generated runtime folder
 
 ## Project Structure
 
-Agora uses Electron process isolation. The renderer never directly accesses Node.js APIs; privileged operations go through a typed preload bridge and IPC handlers in the main process.
+Agora uses Electron process isolation. The renderer never directly accesses Node.js APIs; privileged operations go through a typed preload bridge and IPC handlers in the main process. The current source tree is organized around shared runtime contracts, feature modules, and process-specific wiring:
 
 ```
 src/
-├── main/                        # Electron main process
-│   ├── main.ts                  # Entry point, IPC handlers, window lifecycle
-│   ├── preload.ts               # Safe renderer bridge via contextBridge
-│   ├── sqliteStore.ts           # Local persistence (settings, sessions, etc.)
-│   ├── coworkStore.ts           # Cowork session and message storage
-│   ├── skillManager.ts          # Skill loading and management
+├── core/                        # Shared runtime contracts and domain primitives
+├── engines/                     # Engine adapters grouped by engine
+├── features/                    # Domain modules: research, orchestration, knowledge, hot topics, skills, frontend station
+├── ipc/                         # Shared IPC contracts and helpers
+├── main/                        # Electron main process and runtime wiring
+│   ├── core/                    # Stores, config, and session primitives
+│   ├── engines/                 # Main-process engine integrations
+│   ├── features/                # Feature-facing runtime bridges
 │   ├── im/                      # IM gateway integrations
-│   │   ├── feishu/              # Feishu (Lark) gateway
-│   │   ├── dingtalk/            # DingTalk gateway
-│   │   ├── telegram/            # Telegram gateway
-│   │   ├── discord/             # Discord gateway
-│   │   ├── wecom/               # WeCom gateway
-│   │   ├── wechat/              # WeChat gateway
-│   │   └── qq/                  # QQ gateway
-│   └── libs/
-│       ├── agentEngine/         # Engine adapters and router
-│       │   ├── coworkEngineRouter.ts   # Routes to built-in or external engines
-│       │   ├── claudeRuntimeAdapter.ts # Built-in Claude Agent SDK adapter
-│       │   └── openclawRuntimeAdapter.ts # OpenClaw gateway adapter
-│       ├── coworkRunner.ts      # Agent execution engine
-│       ├── coworkMemoryExtractor.ts # Memory extraction from conversations
-│       └── openclawEngineManager.ts  # OpenClaw runtime lifecycle
-│
-├── renderer/                    # React frontend (renderer process)
-│   ├── App.tsx                  # App shell
-│   ├── components/
-│   │   ├── cowork/              # Chat, studio, activity workspace, engine UI
-│   │   ├── Settings.tsx         # Model, engine, IM, skills, memory, and app settings
-│   │   └── pet/                 # Desktop companion UI
-│   ├── services/                # IPC wrappers and app services
-│   └── store/slices/            # Redux state management
-│
-├── shared/                      # Shared constants and types
-│
+│   ├── ipc/                     # IPC registration and handlers
+│   └── libs/                    # Runtime utilities, config sync, security helpers
+├── renderer/                    # React frontend workbenches
+│   ├── components/              # Cowork, research, orchestrator, knowledge, hot topics, frontend station, skills, settings
+│   ├── services/                # Typed renderer-side API wrappers
+│   ├── store/                   # Redux state
+│   └── theme/                   # Theme system
+├── scheduledTask/               # Recurring task scheduler and policies
+├── shared/                      # Cross-process types and constants
+└── test/                        # Test helpers
+
 SKILLs/                          # Built-in skills
 scripts/                         # Runtime, packaging, and setup scripts
+docs/                            # Architecture and supporting docs
 ```
 
 ### Built-in Skills
@@ -297,13 +284,22 @@ Contributions are welcome! Whether it's bug fixes, new features, documentation i
 4. **Push to the branch**: `git push origin feat/my-feature`.
 5. **Open a Pull Request**.
 
-Please ensure your code passes linting (`npm run lint`) and follows the existing code style.
+Please ensure your code passes the relevant checks and follows the existing code style.
 
 ### Development Guidelines
 
 - Use conventional commit messages (`feat:`, `fix:`, `docs:`, `refactor:`, etc.).
 - Keep the renderer free of Node.js direct dependencies — use IPC bridges.
-- Add tests for new features when applicable (run with `npm run test:memory`).
+- Add or update tests for behavior changes when applicable (`npm test`).
+
+Common contributor baseline:
+
+```bash
+npm run lint
+npm test
+npm run build
+npm run compile:electron
+```
 
 ---
 

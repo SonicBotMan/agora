@@ -2,13 +2,13 @@
  * Unified crawler interface and factory.
  */
 
-import type { CrawlResult, CrawlerOptions, SourceConfig } from '../types';
-import { HackerNewsCrawler } from './hackernews';
-import { TwitterCrawler } from './twitter';
-import { RedditCrawler } from './reddit';
+import type { CrawlerOptions, CrawlResult, SourceConfig } from '../types';
 import { ArxivCrawler } from './arxiv';
-import { WeiboCrawler } from './weibo';
 import { CustomCrawler } from './custom';
+import { HackerNewsCrawler } from './hackernews';
+import { RedditCrawler } from './reddit';
+import { TwitterCrawler } from './twitter';
+import { WeiboCrawler } from './weibo';
 
 // ── Crawler Adapter Interface ────────────────────────────────────────────────
 
@@ -71,10 +71,10 @@ export class CrawlerFactory {
 
 // ── Re-export crawler classes ────────────────────────────────────────────────
 
-export { HackerNewsCrawler } from './hackernews';
-export { TwitterCrawler } from './twitter';
-export { RedditCrawler } from './reddit';
 export { ArxivCrawler } from './arxiv';
-export { WeiboCrawler } from './weibo';
-export { CustomCrawler } from './custom';
 export type { CustomCrawlerConfig } from './custom';
+export { CustomCrawler } from './custom';
+export { HackerNewsCrawler } from './hackernews';
+export { RedditCrawler } from './reddit';
+export { TwitterCrawler } from './twitter';
+export { WeiboCrawler } from './weibo';

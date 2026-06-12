@@ -8,7 +8,7 @@ import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
 
-import { buildScheduledTaskEnginePrompt } from '../../scheduledTask/enginePrompt';
+import { buildScheduledTaskEnginePrompt } from '../../scheduled-task/enginePrompt';
 import {
   AgentRunTargetType,
   CoworkSessionKind,
@@ -34,6 +34,8 @@ interface MessageAccumulator {
   resolve?: (text: string) => void;
   reject?: (error: Error) => void;
   timeoutId?: NodeJS.Timeout;
+  onProgress?: (text: string) => void | Promise<void>;
+  lastProgressText?: string;
   backgroundDelivery?: {
     conversationId: string;
     platform: Platform;
@@ -94,6 +96,10 @@ export interface IMCoworkHandlerOptions {
     prompt: string;
     runtimeSource: RuntimeCallSource;
   }) => Promise<void>;
+}
+
+export interface IMCoworkProcessOptions {
+  onProgress?: (text: string) => void | Promise<void>;
 }
 
 export class IMCoworkHandler extends EventEmitter {
@@ -186,21 +192,24 @@ export class IMCoworkHandler extends EventEmitter {
   /**
    * Process an incoming IM message using CoworkRuntime
    */
-  async processMessage(message: IMMessage): Promise<string> {
+  async processMessage(
+    message: IMMessage,
+    options: IMCoworkProcessOptions = {},
+  ): Promise<string> {
     const pendingPermissionReply = await this.handlePendingPermissionReply(message);
     if (pendingPermissionReply !== null) {
       return pendingPermissionReply;
     }
 
     try {
-      return await this.processMessageInternal(message, false);
+      return await this.processMessageInternal(message, false, options);
     } catch (error) {
       if (!this.isSessionNotFoundError(error)) {
         if (this.shouldRetryWithFreshSession(error, message)) {
           console.warn(
             `[IMCoworkHandler] Detected recoverable API 400 for ${message.platform}:${message.conversationId}, recreating session and retrying once`
           );
-          return this.processMessageInternal(message, true);
+          return this.processMessageInternal(message, true, options);
         }
         throw error;
       }
@@ -208,11 +217,15 @@ export class IMCoworkHandler extends EventEmitter {
       console.warn(
         `[IMCoworkHandler] Cowork session mapping is stale for ${message.platform}:${message.conversationId}, recreating session`
       );
-      return this.processMessageInternal(message, true);
+      return this.processMessageInternal(message, true, options);
     }
   }
 
-  private async processMessageInternal(message: IMMessage, forceNewSession: boolean): Promise<string> {
+  private async processMessageInternal(
+    message: IMMessage,
+    forceNewSession: boolean,
+    options: IMCoworkProcessOptions,
+  ): Promise<string> {
     const coworkSessionId = await this.getOrCreateCoworkSession(
       message.conversationId,
       message.platform,
@@ -256,7 +269,10 @@ export class IMCoworkHandler extends EventEmitter {
       return analyzeIMReply(updatedSession?.messages || []).assistantText || DEFAULT_IM_EMPTY_REPLY;
     }
 
-    const responsePromise = this.createAccumulatorPromise(coworkSessionId);
+    const responsePromise = this.createAccumulatorPromise(
+      coworkSessionId,
+      options.onProgress,
+    );
 
     // Start or continue session
     const isActive = this.coworkRuntime.isSessionActive(coworkSessionId);
@@ -632,6 +648,7 @@ export class IMCoworkHandler extends EventEmitter {
     console.log('[IMCoworkHandler:handleMessage] accumulator exists:', !!accumulator, 'backgroundDelivery:', !!accumulator?.backgroundDelivery);
     if (accumulator) {
       accumulator.messages.push(message);
+      this.emitAccumulatorProgress(sessionId, accumulator);
     }
   }
 
@@ -648,6 +665,7 @@ export class IMCoworkHandler extends EventEmitter {
       const existingIndex = accumulator.messages.findIndex(m => m.id === messageId);
       if (existingIndex >= 0) {
         accumulator.messages[existingIndex].content = content;
+        this.emitAccumulatorProgress(sessionId, accumulator);
       }
     }
   }
@@ -656,7 +674,10 @@ export class IMCoworkHandler extends EventEmitter {
     return `${platform}:${conversationId}`;
   }
 
-  private createAccumulatorPromise(sessionId: string): Promise<string> {
+  private createAccumulatorPromise(
+    sessionId: string,
+    onProgress?: (text: string) => void | Promise<void>,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const existingAccumulator = this.messageAccumulators.get(sessionId);
       if (existingAccumulator) {
@@ -684,10 +705,37 @@ export class IMCoworkHandler extends EventEmitter {
       this.messageAccumulators.set(sessionId, {
         messages: [],
         storeMessageStartIndex: this.getStoreMessageStartIndex(sessionId),
+        onProgress,
         resolve,
         reject,
         timeoutId,
       });
+    });
+  }
+
+  private emitAccumulatorProgress(
+    sessionId: string,
+    accumulator: MessageAccumulator,
+  ): void {
+    if (!accumulator.onProgress || accumulator.backgroundDelivery) {
+      return;
+    }
+
+    const partialReply = this.formatReplyRaw(accumulator.messages);
+    if (!partialReply || partialReply === DEFAULT_IM_EMPTY_REPLY) {
+      return;
+    }
+
+    if (partialReply === accumulator.lastProgressText) {
+      return;
+    }
+
+    accumulator.lastProgressText = partialReply;
+    void Promise.resolve(accumulator.onProgress(partialReply)).catch((error) => {
+      console.warn('[IMCoworkHandler] Failed to emit IM progress update', JSON.stringify({
+        sessionId,
+        error: error instanceof Error ? error.message : String(error),
+      }));
     });
   }
 

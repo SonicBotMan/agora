@@ -2,7 +2,7 @@
  * arXiv crawler — fetches recent papers from arXiv API.
  */
 
-import type { CrawlResult, CrawlerOptions, TopicItem } from '../types';
+import type { CrawlerOptions, CrawlResult, TopicItem } from '../types';
 
 const ARXIV_QUERY_URL = 'https://export.arxiv.org/api/query';
 

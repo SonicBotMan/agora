@@ -8,7 +8,7 @@
 import { ipcMain } from 'electron';
 import https from 'https';
 
-import type { McpStore, McpServerFormData } from '../mcpStore';
+import type { McpServerFormData,McpStore } from '../mcpStore';
 
 export interface McpDeps {
   getMcpStore: () => McpStore;

@@ -3,8 +3,8 @@
  * detects conflicts between overlapping results, and produces a summary.
  */
 
-import type { TaskGraph, TaskNode, ConflictInfo, AggregateResult } from './types';
 import { TaskGraphHelper } from './TaskGraph';
+import type { AggregateResult,ConflictInfo, TaskGraph, TaskNode } from './types';
 
 export class TaskResultAggregator {
   /**

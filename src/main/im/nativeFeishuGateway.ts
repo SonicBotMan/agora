@@ -4,7 +4,9 @@ import type {
   IMMessage,
 } from './types';
 
-type NativeFeishuReplyFn = (text: string) => Promise<void>;
+type NativeFeishuReplyFn = ((text: string) => Promise<void>) & {
+  finalize?: (text: string) => Promise<void>;
+};
 type NativeFeishuMessageCallback = (
   message: IMMessage,
   replyFn: NativeFeishuReplyFn,
@@ -33,11 +35,15 @@ type FeishuClientLike = {
         reply(payload: {
           path: { message_id: string };
           data: { content: string; msg_type: string };
-        }): Promise<unknown>;
+        }): Promise<FeishuApiResponse>;
         create(payload: {
           params: { receive_id_type: string };
           data: { receive_id: string; content: string; msg_type: string };
-        }): Promise<unknown>;
+        }): Promise<FeishuApiResponse>;
+        update(payload: {
+          path: { message_id: string };
+          data: { content: string; msg_type: string };
+        }): Promise<FeishuApiResponse>;
       };
     };
   };
@@ -118,6 +124,7 @@ const FeishuChatType = {
 const MAX_SEEN_MESSAGE_IDS = 1000;
 const FEISHU_TEXT_CHUNK_SIZE = 3500;
 const FEISHU_TYPING_EMOJI_TYPE = 'Typing';
+const FEISHU_STREAM_PREVIEW_SUFFIX = '…';
 
 const getString = (value: unknown): string => (
   typeof value === 'string' ? value.trim() : ''
@@ -397,9 +404,10 @@ export class NativeFeishuGateway {
 
     const typingState = await this.addTypingIndicator(state, messageId);
     try {
-      await this.messageCallback(message, async (text) => {
-        await this.sendReply(state, chatId, messageId, text);
-      });
+      await this.messageCallback(
+        message,
+        this.createReplyDispatcher(state, chatId, messageId),
+      );
     } finally {
       await this.removeTypingIndicator(state, typingState);
     }
@@ -490,26 +498,153 @@ export class NativeFeishuGateway {
     const chunks = splitText(text);
     for (let index = 0; index < chunks.length; index += 1) {
       const chunk = chunks[index];
-      if (replyToMessageId && index === 0) {
-        await state.client.im.v1.message.reply({
+      await this.sendTextMessage(
+        state,
+        chatId,
+        replyToMessageId && index === 0 ? replyToMessageId : null,
+        chunk,
+      );
+    }
+    state.status.lastOutboundAt = Date.now();
+  }
+
+  private createReplyDispatcher(
+    state: NativeFeishuClientState,
+    chatId: string,
+    replyToMessageId: string,
+  ): NativeFeishuReplyFn {
+    if (state.instance.replyMode !== 'streaming') {
+      return (async (text: string) => {
+        await this.sendReply(state, chatId, replyToMessageId, text);
+      }) as NativeFeishuReplyFn;
+    }
+
+    let outboundMessageId: string | null = null;
+    let latestRenderedText = '';
+
+    const applyRenderedText = async (
+      nextRenderedText: string,
+      options?: { finalize?: boolean; allowChunkOverflow?: boolean },
+    ): Promise<void> => {
+      const renderedText = nextRenderedText.trim();
+      if (!renderedText) {
+        return;
+      }
+
+      if (renderedText === latestRenderedText && !options?.finalize) {
+        return;
+      }
+
+      if (!options?.allowChunkOverflow && renderedText.length > FEISHU_TEXT_CHUNK_SIZE) {
+        return;
+      }
+
+      if (!outboundMessageId) {
+        outboundMessageId = await this.sendTextMessage(
+          state,
+          chatId,
+          replyToMessageId,
+          renderedText,
+        );
+      } else {
+        await this.updateTextMessage(state, outboundMessageId, renderedText);
+      }
+
+      latestRenderedText = renderedText;
+      state.status.lastOutboundAt = Date.now();
+    };
+
+    const replyFn = (async (text: string) => {
+      await applyRenderedText(this.buildStreamingPreviewText(text));
+    }) as NativeFeishuReplyFn;
+
+    replyFn.finalize = async (text: string) => {
+      const normalized = text.trim();
+      if (!normalized) {
+        return;
+      }
+
+      const chunks = splitText(normalized);
+      if (chunks.length === 0) {
+        return;
+      }
+
+      if (!outboundMessageId) {
+        await this.sendReply(state, chatId, replyToMessageId, normalized);
+        return;
+      }
+
+      if (chunks.length === 1 && chunks[0] === latestRenderedText) {
+        state.status.lastOutboundAt = Date.now();
+        return;
+      }
+
+      await applyRenderedText(chunks[0], {
+        finalize: true,
+        allowChunkOverflow: true,
+      });
+      for (let index = 1; index < chunks.length; index += 1) {
+        await this.sendTextMessage(state, chatId, null, chunks[index]);
+      }
+      state.status.lastOutboundAt = Date.now();
+    };
+
+    return replyFn;
+  }
+
+  private buildStreamingPreviewText(text: string): string {
+    const normalized = text.trim();
+    if (normalized.length <= FEISHU_TEXT_CHUNK_SIZE) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, FEISHU_TEXT_CHUNK_SIZE - FEISHU_STREAM_PREVIEW_SUFFIX.length)}${FEISHU_STREAM_PREVIEW_SUFFIX}`;
+  }
+
+  private async sendTextMessage(
+    state: NativeFeishuClientState,
+    chatId: string,
+    replyToMessageId: string | null,
+    text: string,
+  ): Promise<string | null> {
+    const response = replyToMessageId
+      ? await state.client.im.v1.message.reply({
           path: { message_id: replyToMessageId },
           data: {
-            content: JSON.stringify({ text: chunk }),
+            content: JSON.stringify({ text }),
             msg_type: 'text',
           },
-        });
-      } else {
-        await state.client.im.v1.message.create({
+        })
+      : await state.client.im.v1.message.create({
           params: { receive_id_type: 'chat_id' },
           data: {
             receive_id: chatId,
-            content: JSON.stringify({ text: chunk }),
+            content: JSON.stringify({ text }),
             msg_type: 'text',
           },
         });
-      }
-    }
-    state.status.lastOutboundAt = Date.now();
+
+    const responseData = response?.data ?? {};
+    const message = responseData.message && typeof responseData.message === 'object'
+      ? responseData.message as Record<string, unknown>
+      : null;
+    return getString(responseData.message_id)
+      || getString(message?.message_id)
+      || null;
+  }
+
+  private async updateTextMessage(
+    state: NativeFeishuClientState,
+    messageId: string,
+    text: string,
+  ): Promise<void> {
+    await state.client.im.v1.message.update({
+      path: { message_id: messageId },
+      data: {
+        content: JSON.stringify({ text }),
+        msg_type: 'text',
+      },
+    });
   }
 
   private async resolveBotOpenId(client: FeishuClientLike): Promise<string | null> {

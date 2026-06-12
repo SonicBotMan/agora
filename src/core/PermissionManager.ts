@@ -1,65 +1,156 @@
 /**
- * PermissionManager — permission request approval pipeline.
+ * PermissionManager — shared permission lifecycle coordinator.
  *
- * Manages permission request lifecycle: submission, approval, and denial.
- * Extends EventEmitter to notify listeners of permission state changes.
+ * Tracks pending runtime permission requests, supports resolution/dismissal,
+ * and emits lifecycle events that UI forwarders can observe.
  */
 
+import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { EventEmitter } from 'events';
 
 import type { PermissionRequest } from '../main/libs/agentEngine/types';
 
-/**
- * Events emitted by PermissionManager.
- */
-export interface PermissionManagerEvents {
-  requestCreated: (request: PermissionRequest) => void;
-  requestApproved: (requestId: string) => void;
-  requestDenied: (requestId: string) => void;
+export type PermissionResolutionAction = 'approve' | 'deny';
+
+export type PermissionDismissReason =
+  | 'external'
+  | 'session-complete'
+  | 'session-error'
+  | 'session-stopped';
+
+export interface PendingPermissionRecord {
+  requestId: string;
+  sessionId: string;
+  request: PermissionRequest;
+  createdAt: number;
 }
 
-/**
- * PermissionManager — handles permission request lifecycle.
- */
+export interface PermissionResolvedEvent {
+  permission: PendingPermissionRecord;
+  action: PermissionResolutionAction;
+  result: PermissionResult;
+}
+
+export interface PermissionDismissedEvent {
+  permission: PendingPermissionRecord;
+  reason: PermissionDismissReason;
+}
+
+export interface PermissionManagerEvents {
+  requestCreated: (permission: PendingPermissionRecord) => void;
+  requestResolved: (event: PermissionResolvedEvent) => void;
+  requestDismissed: (event: PermissionDismissedEvent) => void;
+}
+
 export class PermissionManager extends EventEmitter {
-  private readonly pendingRequests: Map<string, PermissionRequest> = new Map();
+  private readonly pendingRequests = new Map<string, PendingPermissionRecord>();
 
-  /**
-   * Submits a new permission request for approval.
-   */
-  requestPermission(request: PermissionRequest): void {
-    this.pendingRequests.set(request.requestId, request);
-    this.emit('requestCreated', request);
+  requestPermission(request: PermissionRequest): PendingPermissionRecord;
+  requestPermission(
+    sessionId: string,
+    request: PermissionRequest,
+  ): PendingPermissionRecord;
+  requestPermission(
+    sessionIdOrRequest: string | PermissionRequest,
+    maybeRequest?: PermissionRequest,
+  ): PendingPermissionRecord {
+    const sessionId =
+      typeof sessionIdOrRequest === 'string'
+        ? sessionIdOrRequest
+        : '__unknown__';
+    const request =
+      typeof sessionIdOrRequest === 'string'
+        ? maybeRequest
+        : sessionIdOrRequest;
+
+    if (!request) {
+      throw new Error('Permission request payload is required.');
+    }
+
+    const existing = this.pendingRequests.get(request.requestId);
+    if (existing) {
+      return existing;
+    }
+
+    const permission: PendingPermissionRecord = {
+      requestId: request.requestId,
+      sessionId,
+      request,
+      createdAt: Date.now(),
+    };
+    this.pendingRequests.set(request.requestId, permission);
+    this.emit('requestCreated', permission);
+    return permission;
   }
 
-  /**
-   * Approves a pending permission request. Returns true if the request existed.
-   */
-  approvePermission(requestId: string): boolean {
-    if (!this.pendingRequests.has(requestId)) {
+  approvePermission(requestId: string, result: PermissionResult): boolean {
+    return this.resolvePermission(requestId, 'approve', result);
+  }
+
+  denyPermission(requestId: string, result: PermissionResult): boolean {
+    return this.resolvePermission(requestId, 'deny', result);
+  }
+
+  dismissPermission(
+    requestId: string,
+    reason: PermissionDismissReason = 'external',
+  ): boolean {
+    const permission = this.pendingRequests.get(requestId);
+    if (!permission) {
       return false;
     }
+
     this.pendingRequests.delete(requestId);
-    this.emit('requestApproved', requestId);
+    this.emit('requestDismissed', {
+      permission,
+      reason,
+    } satisfies PermissionDismissedEvent);
     return true;
   }
 
-  /**
-   * Denies a pending permission request. Returns true if the request existed.
-   */
-  denyPermission(requestId: string): boolean {
-    if (!this.pendingRequests.has(requestId)) {
-      return false;
-    }
-    this.pendingRequests.delete(requestId);
-    this.emit('requestDenied', requestId);
-    return true;
+  dismissSessionPermissions(
+    sessionId: string,
+    reason: PermissionDismissReason,
+  ): number {
+    const requestIds = Array.from(this.pendingRequests.values())
+      .filter((permission) => permission.sessionId === sessionId)
+      .map((permission) => permission.requestId);
+
+    requestIds.forEach((requestId) => {
+      this.dismissPermission(requestId, reason);
+    });
+
+    return requestIds.length;
   }
 
-  /**
-   * Returns all currently pending permission requests.
-   */
-  getPendingRequests(): PermissionRequest[] {
-    return Array.from(this.pendingRequests.values());
+  getPendingPermission(requestId: string): PendingPermissionRecord | null {
+    return this.pendingRequests.get(requestId) ?? null;
+  }
+
+  getPendingRequests(sessionId?: string): PendingPermissionRecord[] {
+    const pending = Array.from(this.pendingRequests.values());
+    if (!sessionId) {
+      return pending;
+    }
+    return pending.filter((permission) => permission.sessionId === sessionId);
+  }
+
+  private resolvePermission(
+    requestId: string,
+    action: PermissionResolutionAction,
+    result: PermissionResult,
+  ): boolean {
+    const permission = this.pendingRequests.get(requestId);
+    if (!permission) {
+      return false;
+    }
+
+    this.pendingRequests.delete(requestId);
+    this.emit('requestResolved', {
+      permission,
+      action,
+      result,
+    } satisfies PermissionResolvedEvent);
+    return true;
   }
 }

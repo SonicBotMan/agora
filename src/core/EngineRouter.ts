@@ -9,10 +9,10 @@
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { EventEmitter } from 'events';
 
-import { CoworkAgentEngine, DefaultCoworkAgentEngine, isCoworkAgentEngine } from '../shared/cowork/constants';
-import type { CoworkAgentEngine as CoworkAgentEngineType } from '../shared/cowork/constants';
-import type { CoworkRuntime, CoworkRuntimeEvents, CoworkStartOptions, CoworkContinueOptions } from './CoworkRuntime';
 import { ENGINE_SWITCHED_CODE } from '../main/libs/agentEngine/types';
+import type { CoworkAgentEngine as CoworkAgentEngineType } from '../shared/cowork/constants';
+import { CoworkAgentEngine, DefaultCoworkAgentEngine, isCoworkAgentEngine } from '../shared/cowork/constants';
+import type { CoworkContinueOptions,CoworkRuntime, CoworkRuntimeEvents, CoworkStartOptions } from './CoworkRuntime';
 
 /**
  * Dependencies required to construct an EngineRouter.

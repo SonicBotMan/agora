@@ -36,6 +36,7 @@ export interface ResearchRound {
 export interface ResearchResult {
   query: string;
   rounds: ResearchRound[];
+  findings: Finding[];
   synthesis: string;
   sources: Source[];
   confidence: number; // 0-1

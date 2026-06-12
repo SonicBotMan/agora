@@ -8,7 +8,7 @@ import {
   type ProvidersConfig,
   type ProviderType,
 } from '../providerConfigUtils';
-import { type ModelTabProps, ModelTab } from './ModelTab';
+import { ModelTab,type ModelTabProps } from './ModelTab';
 
 const createProviderMeta = () => Object.fromEntries(
   providerKeys.map((providerKey) => [

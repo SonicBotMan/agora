@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../store';
-import { scheduledTaskService } from '../../services/scheduledTask';
+
+import type { ScheduledTaskRun } from '../../../scheduled-task/types';
 import { i18nService } from '../../services/i18n';
-import type { ScheduledTaskRun } from '../../../scheduledTask/types';
+import { scheduledTaskService } from '../../services/scheduledTask';
+import { RootState } from '../../store';
 import RunSessionModal from './RunSessionModal';
 import { formatDateTime, formatDuration } from './utils';
 

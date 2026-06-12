@@ -7,21 +7,26 @@
 
 import { EventEmitter } from 'events';
 
+import { DocumentProcessor } from './DocumentProcessor';
+import { EmbeddingEngine } from './EmbeddingEngine';
+import { EntityExtractor } from './EntityExtractor';
+import { KnowledgeStore } from './KnowledgeStore';
 import type {
+  Entity,
+  IngestionResult,
+  IngestionSummary,
   KnowledgeDocument,
   KnowledgeSource,
   ResearchResult,
-  IngestionResult,
-  IngestionSummary,
 } from './types';
-import { DocumentProcessor } from './DocumentProcessor';
-import { EntityExtractor } from './EntityExtractor';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface ResearchIngestorOptions {
   documentProcessor?: DocumentProcessor;
   entityExtractor?: EntityExtractor;
+  embeddingEngine?: EmbeddingEngine;
+  knowledgeStore?: KnowledgeStore;
 }
 
 export type ResearchIngestorEventType =
@@ -41,11 +46,15 @@ export interface ResearchIngestorEvent {
 export class ResearchIngestor extends EventEmitter {
   private processor: DocumentProcessor;
   private extractor: EntityExtractor;
+  private embedder: EmbeddingEngine;
+  private store?: KnowledgeStore;
 
   constructor(options: ResearchIngestorOptions = {}) {
     super();
     this.processor = options.documentProcessor ?? new DocumentProcessor();
     this.extractor = options.entityExtractor ?? new EntityExtractor();
+    this.embedder = options.embeddingEngine ?? new EmbeddingEngine();
+    this.store = options.knowledgeStore;
   }
 
   /**
@@ -60,6 +69,7 @@ export class ResearchIngestor extends EventEmitter {
    */
   async ingest(researchResult: ResearchResult): Promise<IngestionSummary> {
     const { query, synthesis, sources, findings } = researchResult;
+    const batchId = this.createBatchId(query);
 
     this.emitEvent('ingest:start', query, {
       sourceCount: sources.length,
@@ -70,7 +80,12 @@ export class ResearchIngestor extends EventEmitter {
 
     // 1. Ingest the synthesis / report body
     try {
-      const synthesisDocs = await this.ingestSynthesis(query, synthesis, sources);
+      const synthesisDocs = await this.ingestSynthesis(
+        query,
+        synthesis,
+        sources,
+        `${batchId}-report`,
+      );
       results.push(...synthesisDocs);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -100,15 +115,13 @@ export class ResearchIngestor extends EventEmitter {
         });
 
         const entities = await this.extractor.extract(finding.snippet);
-
-        const enriched = documents.map((doc) => ({
-          ...doc,
-          metadata: {
-            ...doc.metadata,
-            entities: [...doc.metadata.entities, ...entities],
-          },
-          sourceId: finding.url,
-        }));
+        const enriched = await this.prepareDocuments(
+          documents,
+          `${batchId}-finding-${i + 1}`,
+          finding.url,
+          entities,
+        );
+        await this.persistDocuments(enriched);
 
         results.push({
           success: true,
@@ -142,18 +155,23 @@ export class ResearchIngestor extends EventEmitter {
     return { total: results.length, succeeded, failed, results };
   }
 
+  hasKnowledgeStore(): boolean {
+    return Boolean(this.store);
+  }
+
   // ── Private ─────────────────────────────────────────────────────────────
 
   private async ingestSynthesis(
     query: string,
     synthesis: string,
-    sources: Array<{ url: string; title: string; snippet: string }>
+    sources: Array<{ url: string; title: string }>,
+    batchId: string,
   ): Promise<IngestionResult[]> {
     const results: IngestionResult[] = [];
 
     // Build a combined report with source citations
     const sourceList = sources
-      .map((s) => `- [${s.title}](${s.url}): ${s.snippet}`)
+      .map((s) => `- [${s.title}](${s.url})`)
       .join('\n');
 
     const reportText = `# Research: ${query}\n\n## Synthesis\n\n${synthesis}\n\n## Sources\n\n${sourceList}`;
@@ -165,15 +183,13 @@ export class ResearchIngestor extends EventEmitter {
     });
 
     const entities = await this.extractor.extract(synthesis);
-
-    const enriched = documents.map((doc) => ({
-      ...doc,
-      metadata: {
-        ...doc.metadata,
-        entities: [...doc.metadata.entities, ...entities],
-      },
-      sourceId: sources[0]?.url,
-    }));
+    const enriched = await this.prepareDocuments(
+      documents,
+      batchId,
+      sources[0]?.url,
+      entities,
+    );
+    await this.persistDocuments(enriched);
 
     results.push({
       success: true,
@@ -184,6 +200,87 @@ export class ResearchIngestor extends EventEmitter {
     });
 
     return results;
+  }
+
+  private async prepareDocuments(
+    documents: KnowledgeDocument[],
+    batchId: string,
+    sourceId: string | undefined,
+    entities: Entity[],
+  ): Promise<KnowledgeDocument[]> {
+    const uniqueEntities = this.mergeEntities(
+      documents[0]?.metadata.entities ?? [],
+      entities,
+    );
+    const normalized = documents.map((doc, index) => ({
+      ...doc,
+      id: `${batchId}-${index + 1}-${doc.id}`,
+      sourceId,
+      metadata: {
+        ...doc.metadata,
+        tags: [...new Set(doc.metadata.tags)],
+        entities: uniqueEntities,
+      },
+    }));
+
+    return this.embedder.embedDocuments(normalized);
+  }
+
+  private async persistDocuments(
+    documents: KnowledgeDocument[],
+  ): Promise<void> {
+    if (!this.store) {
+      return;
+    }
+
+    await Promise.all(documents.map(async (document) => {
+      await this.store?.save(document);
+    }));
+  }
+
+  private mergeEntities(
+    left: Entity[],
+    right: Entity[],
+  ): Entity[] {
+    const entities = new Map<string, typeof left[number]>();
+
+    for (const entity of [...left, ...right]) {
+      const existing = entities.get(entity.name);
+      if (!existing) {
+        entities.set(entity.name, {
+          ...entity,
+          relations: [...entity.relations],
+        });
+        continue;
+      }
+
+      const relations = new Map(
+        existing.relations.map((relation) => [
+          `${relation.target}:${relation.type}`,
+          relation,
+        ]),
+      );
+
+      for (const relation of entity.relations) {
+        relations.set(`${relation.target}:${relation.type}`, relation);
+      }
+
+      entities.set(entity.name, {
+        ...existing,
+        relations: Array.from(relations.values()),
+      });
+    }
+
+    return Array.from(entities.values());
+  }
+
+  private createBatchId(query: string): string {
+    const slug = query
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48);
+    return `research-${slug || 'result'}-${Date.now()}`;
   }
 
   private extractTags(text: string): string[] {

@@ -1,4 +1,11 @@
-import { ChartBarIcon, CheckIcon, ChevronDownIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import {
+  ChartBarIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  QueueListIcon,
+} from '@heroicons/react/24/outline';
 import { AgentRunTargetType } from '@shared/cowork/constants';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
@@ -12,7 +19,9 @@ import DefaultAgentIcon from './agent/DefaultAgentIcon';
 import Modal from './common/Modal';
 import CoworkSearchModal from './cowork/CoworkSearchModal';
 import CoworkSessionList from './cowork/CoworkSessionList';
+import AcademicCapIcon from './icons/AcademicCapIcon';
 import ComposeIcon from './icons/ComposeIcon';
+import FolderPlusIcon from './icons/FolderPlusIcon';
 import PuzzleIcon from './icons/PuzzleIcon';
 import SearchIcon from './icons/SearchIcon';
 import SidebarToggleIcon from './icons/SidebarToggleIcon';
@@ -23,11 +32,25 @@ import LoginButton from './LoginButton';
 interface SidebarProps {
   onShowSettings: () => void;
   onShowLogin?: () => void;
-  activeView: 'cowork' | 'skills' | 'runtime' | 'agents';
+  activeView:
+    | 'cowork'
+    | 'skills'
+    | 'runtime'
+    | 'agents'
+    | 'frontend-station'
+    | 'research'
+    | 'knowledge'
+    | 'hot-topics'
+    | 'orchestrator';
   onShowSkills: () => void;
   onShowCowork: () => void;
   onShowRuntimeDashboard: () => void;
   onShowAgents: () => void;
+  onShowFrontendStation: () => void;
+  onShowResearch: () => void;
+  onShowKnowledge: () => void;
+  onShowHotTopics: () => void;
+  onShowOrchestrator: () => void;
   onShowAgentSettings: () => void;
   onNewChat: () => void;
   isCollapsed: boolean;
@@ -43,6 +66,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   onShowCowork,
   onShowRuntimeDashboard,
   onShowAgents,
+  onShowFrontendStation,
+  onShowResearch,
+  onShowKnowledge,
+  onShowHotTopics,
+  onShowOrchestrator,
   onShowAgentSettings,
   onNewChat,
   isCollapsed,
@@ -227,6 +255,81 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <PuzzleIcon className="h-4 w-4" />
             {i18nService.t('skills')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onShowResearch();
+            }}
+            className={`w-full inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              activeView === 'research'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                : 'text-secondary hover:text-foreground hover:bg-surface-raised'
+            }`}
+          >
+            <AcademicCapIcon className="h-4 w-4" />
+            {i18nService.t('researchNav')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onShowKnowledge();
+            }}
+            className={`w-full inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              activeView === 'knowledge'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                : 'text-secondary hover:text-foreground hover:bg-surface-raised'
+            }`}
+          >
+            <DocumentTextIcon className="h-4 w-4" />
+            {i18nService.t('knowledgeNav')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onShowHotTopics();
+            }}
+            className={`w-full inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              activeView === 'hot-topics'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                : 'text-secondary hover:text-foreground hover:bg-surface-raised'
+            }`}
+          >
+            <ExclamationTriangleIcon className="h-4 w-4" />
+            {i18nService.t('hotTopicsNav')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onShowOrchestrator();
+            }}
+            className={`w-full inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              activeView === 'orchestrator'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                : 'text-secondary hover:text-foreground hover:bg-surface-raised'
+            }`}
+          >
+            <QueueListIcon className="h-4 w-4" />
+            {i18nService.t('orchestratorNav')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearchOpen(false);
+              onShowFrontendStation();
+            }}
+            className={`w-full inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+              activeView === 'frontend-station'
+                ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                : 'text-secondary hover:text-foreground hover:bg-surface-raised'
+            }`}
+          >
+            <FolderPlusIcon className="h-4 w-4" />
+            {i18nService.t('frontendStationNav')}
           </button>
           <button
             type="button"

@@ -9,24 +9,24 @@
  * lines 5995–6196 (api:fetch/stream/cancel + copilot retry).
  */
 
-import { ipcMain, session, BrowserWindow, session as electronSession } from 'electron';
+import { BrowserWindow, ipcMain, session as electronSession,session } from 'electron';
 
-import {
-  requestDeviceCode,
-  pollForAccessToken,
-  getCopilotToken,
-  getGitHubUser,
-  cancelPolling,
-} from '../libs/githubCopilotAuth';
+import { CoworkAgentEngine } from '../../shared/cowork/constants';
+import { getCurrentApiConfig, resolveCurrentApiConfig } from '../libs/claudeSettings';
 import {
   clearCopilotTokenState,
   refreshCopilotTokenNow,
   setCopilotTokenState,
 } from '../libs/copilotTokenManager';
-import { getCurrentApiConfig, resolveCurrentApiConfig } from '../libs/claudeSettings';
 import { saveCoworkApiConfig } from '../libs/coworkConfigStore';
 import { generateSessionTitle, probeCoworkModelReadiness } from '../libs/coworkUtil';
-import { CoworkAgentEngine } from '../../shared/cowork/constants';
+import {
+  cancelPolling,
+  getCopilotToken,
+  getGitHubUser,
+  pollForAccessToken,
+  requestDeviceCode,
+} from '../libs/githubCopilotAuth';
 
 // In-memory controller map for active stream requests, keyed by requestId.
 // Module-scope so it survives across handler invocations.

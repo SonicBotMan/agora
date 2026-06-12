@@ -1,33 +1,40 @@
 /**
- * IPC handlers barrel export.
- * Aggregates all domain-specific handler registrations.
+ * Top-level IPC facade that preserves the documented `src/ipc/*` surface
+ * while delegating to the real main-process implementation in `src/main/ipc`.
  */
 
-import type { IpcMain } from 'electron';
-import { registerSessionHandlers } from './sessionHandlers';
-import { registerEngineHandlers } from './engineHandlers';
-import { registerImHandlers } from './imHandlers';
-import { registerSkillHandlers } from './skillHandlers';
-import { registerPermissionHandlers } from './permissionHandlers';
-import { registerAttachmentHandlers } from './attachmentHandlers';
+import {
+  type AllHandlerDeps,
+  registerAllHandlers,
+} from '../main/ipc';
 
-/**
- * Register all domain IPC handlers on the given IpcMain instance.
- * Call this during Electron main process initialization.
- */
-export function registerAllIpcHandlers(ipcMain: IpcMain): void {
-  registerSessionHandlers(ipcMain);
-  registerEngineHandlers(ipcMain);
-  registerImHandlers(ipcMain);
-  registerSkillHandlers(ipcMain);
-  registerPermissionHandlers(ipcMain);
-  registerAttachmentHandlers(ipcMain);
+export function registerAllIpcHandlers(deps: AllHandlerDeps): void {
+  registerAllHandlers(deps);
 }
 
-export { registerSessionHandlers } from './sessionHandlers';
-export { registerEngineHandlers } from './engineHandlers';
-export { registerImHandlers } from './imHandlers';
-export { registerSkillHandlers } from './skillHandlers';
-export { registerPermissionHandlers } from './permissionHandlers';
+export type { AllHandlerDeps as IpcFacadeDeps } from '../main/ipc';
+export type { AttachmentDeps } from './attachmentHandlers';
 export { registerAttachmentHandlers } from './attachmentHandlers';
+export type { EngineDeps } from './engineHandlers';
+export { registerEngineHandlers } from './engineHandlers';
+export type { FrontendStationDeps } from './frontendStationHandlers';
+export { registerFrontendStationHandlers } from './frontendStationHandlers';
+export type { HotTopicsDeps } from './hotTopicsHandlers';
+export { registerHotTopicsHandlers } from './hotTopicsHandlers';
+export type { ImDeps } from './imHandlers';
+export { registerImHandlers } from './imHandlers';
+export type { KnowledgeDeps } from './knowledgeHandlers';
+export { registerKnowledgeHandlers } from './knowledgeHandlers';
+export type { McpDeps } from './mcpHandlers';
+export { registerMcpHandlers } from './mcpHandlers';
+export type { OrchestratorDeps } from './orchestratorHandlers';
+export { registerOrchestratorHandlers } from './orchestratorHandlers';
+export type { PermissionDeps } from './permissionHandlers';
+export { registerPermissionHandlers } from './permissionHandlers';
+export type { ResearchDeps } from './researchHandlers';
+export { registerResearchHandlers } from './researchHandlers';
+export type { SessionDeps } from './sessionHandlers';
+export { registerSessionHandlers } from './sessionHandlers';
+export type { SkillDeps } from './skillHandlers';
+export { registerSkillHandlers } from './skillHandlers';
 export type { IpcHandlerRegistration } from './types';

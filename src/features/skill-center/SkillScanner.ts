@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'fs/promises';
-import { join, extname } from 'path';
+import { extname,join } from 'path';
+
 import { SkillManifest } from './types';
 
 const YAML_FENCE_PATTERN = /^---\n([\s\S]*?)\n---/;

@@ -8,7 +8,7 @@ import type {
   ScheduledTaskChannelOption,
   ScheduledTaskConversationOption,
   ScheduledTaskInput,
-} from '../../../scheduledTask/types';
+} from '../../../scheduled-task/types';
 import { i18nService } from '../../services/i18n';
 import { scheduledTaskService } from '../../services/scheduledTask';
 import { RootState } from '../../store';

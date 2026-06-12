@@ -11,22 +11,22 @@ import {
 } from '../../../config';
 import { i18nService } from '../../../services/i18n';
 import PlusCircleIcon from '../../icons/PlusCircleIcon';
+import { useProviderImportExport } from '../hooks/useProviderImportExport';
+import { useProviderTestConnection } from '../hooks/useProviderTestConnection';
+import { TestResultModal } from '../modals/TestResultModal';
 import {
   CUSTOM_PROVIDER_KEYS,
   getEffectiveApiFormat,
   getProviderDefaultBaseUrl,
+  type ProviderConfig,
   providerKeys,
   providerRequiresApiKey,
-  resolveBaseUrl,
-  shouldShowApiFormatSelector,
-  type ProviderConfig,
   type ProvidersConfig,
   type ProviderType,
+  resolveBaseUrl,
+  shouldShowApiFormatSelector,
 } from '../providerConfigUtils';
-import { useProviderImportExport } from '../hooks/useProviderImportExport';
-import { useProviderTestConnection } from '../hooks/useProviderTestConnection';
 import { ApiKeySection } from './ApiKeySection';
-import { TestResultModal } from '../modals/TestResultModal';
 import {
   type CopilotAuthStatus,
   GitHubCopilotAuthSection,

@@ -19,8 +19,8 @@
 
 import React from 'react';
 
-import GitHubCopilotIcon from '../../icons/providers/GitHubCopilotIcon';
 import { i18nService } from '../../../services/i18n';
+import GitHubCopilotIcon from '../../icons/providers/GitHubCopilotIcon';
 
 export type CopilotAuthStatus =
   | 'idle'

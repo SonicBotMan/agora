@@ -1,4 +1,4 @@
-import { CronJobService } from '../../../scheduledTask/cronJobService';
+import { CronJobService } from '../../../scheduled-task/cronJobService';
 
 type GatewayClientLike = {
   request: <T = Record<string, unknown>>(

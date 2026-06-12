@@ -1,11 +1,15 @@
 /**
- * Twitter/X crawler — skeleton for fetching trending topics.
+ * Twitter/X crawler — configurable wrapper over the generic custom crawler.
  */
 
-import type { CrawlResult, CrawlerOptions, TopicItem } from '../types';
+import type { CrawlerOptions,CrawlResult } from '../types';
+import { CustomCrawler, type CustomCrawlerConfig } from './custom';
+
+export type TwitterCrawlerConfig = Omit<CustomCrawlerConfig, 'source'>;
 
 export class TwitterCrawler {
   private options: Required<CrawlerOptions>;
+  private customCrawler: CustomCrawler;
 
   constructor(options: CrawlerOptions = {}) {
     this.options = {
@@ -13,25 +17,24 @@ export class TwitterCrawler {
       maxRetries: options.maxRetries ?? 3,
       userAgent: options.userAgent ?? 'Agora-HotTopics/1.0',
     };
+    this.customCrawler = new CustomCrawler(this.options);
   }
 
-  async fetch(_config?: Record<string, unknown>): Promise<CrawlResult> {
+  async fetch(config?: Record<string, unknown>): Promise<CrawlResult> {
     const now = new Date().toISOString();
+    const merged = this.buildConfig(config);
 
     try {
-      // TODO: Replace with actual Twitter/X API v2 call
-      // const bearerToken = config?.bearerToken as string;
-      // const res = await fetch('https://api.twitter.com/2/tweets/search/recent?query=trending&max_results=10', {
-      //   headers: { Authorization: `Bearer ${bearerToken}` },
-      // });
+      if (!merged) {
+        return {
+          source: 'twitter',
+          topics: [],
+          fetchedAt: now,
+          error: 'Twitter crawler requires a custom config with url and type',
+        };
+      }
 
-      const topics: TopicItem[] = [];
-
-      return {
-        source: 'twitter',
-        topics,
-        fetchedAt: now,
-      };
+      return await this.customCrawler.fetch(merged as unknown as Record<string, unknown>);
     } catch (err) {
       return {
         source: 'twitter',
@@ -40,5 +43,18 @@ export class TwitterCrawler {
         error: err instanceof Error ? err.message : String(err),
       };
     }
+  }
+
+  private buildConfig(config?: Record<string, unknown>): CustomCrawlerConfig | null {
+    if (!config?.url || !config?.type) {
+      return null;
+    }
+
+    return {
+      ...(config as unknown as TwitterCrawlerConfig),
+      source: 'twitter',
+      category: (config.category as CustomCrawlerConfig['category'] | undefined) ?? 'social',
+      tags: ['twitter', ...(((config.tags as string[] | undefined) ?? []))],
+    };
   }
 }

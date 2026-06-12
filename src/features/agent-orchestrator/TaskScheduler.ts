@@ -5,9 +5,9 @@
 
 import { EventEmitter } from 'events';
 
-import type { TaskGraph, TaskNode, OrchestratorEvent, CoworkRuntime } from './types';
-import { TaskGraphHelper } from './TaskGraph';
 import type { AgentPool } from './AgentPool';
+import { TaskGraphHelper } from './TaskGraph';
+import type { CoworkRuntime,OrchestratorEvent, TaskGraph, TaskNode } from './types';
 
 export interface SchedulerOptions {
   /** Maximum number of tasks to run concurrently. 0 = unlimited. */
@@ -18,11 +18,19 @@ export interface SchedulerOptions {
   defaultRetry?: number;
 }
 
+class TaskCancelledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TaskCancelledError';
+  }
+}
+
 export class TaskScheduler extends EventEmitter {
   private runtime: CoworkRuntime;
   private agentPool: AgentPool;
   private options: Required<SchedulerOptions>;
   private abortController: AbortController | null = null;
+  private readonly activeNodeSessions = new Map<string, string>();
 
   constructor(
     runtime: CoworkRuntime,
@@ -32,6 +40,7 @@ export class TaskScheduler extends EventEmitter {
     super();
     this.runtime = runtime;
     this.agentPool = agentPool;
+    void this.agentPool;
     this.options = {
       maxConcurrency: options.maxConcurrency ?? 3,
       defaultTimeout: options.defaultTimeout ?? 120_000,
@@ -73,6 +82,7 @@ export class TaskScheduler extends EventEmitter {
       // Find all nodes whose dependencies are satisfied
       const ready = queue.filter(id =>
         !executed.has(id)
+        && helper.getNode(id)?.status === 'pending'
         && helper.dependenciesSatisfied(id)
         && !this.isInFlight(id, inFlight),
       );
@@ -128,10 +138,23 @@ export class TaskScheduler extends EventEmitter {
     }
   }
 
+  cancelNode(graphId: string, nodeId: string): boolean {
+    const sessionId = this.activeNodeSessions.get(this.buildNodeRunKey(graphId, nodeId));
+    if (!sessionId) {
+      return false;
+    }
+    this.runtime.stopSession(sessionId);
+    return true;
+  }
+
   /** Check if a node is currently running (in-flight). */
-  private isInFlight(nodeId: string, inFlight: Set<Promise<void>>): boolean {
+  private isInFlight(_nodeId: string, _inFlight: Set<Promise<void>>): boolean {
     // We track in-flight nodes via a separate set passed in execute()
     return false; // handled by caller's `inFlight` set
+  }
+
+  private buildNodeRunKey(graphId: string, nodeId: string): string {
+    return `${graphId}:${nodeId}`;
   }
 
   /**
@@ -170,7 +193,12 @@ export class TaskScheduler extends EventEmitter {
       }
 
       try {
-        const result = await this.runTaskWithTimeout(node, timeoutMs, signal);
+        const result = await this.runTaskWithTimeout(
+          helper.getData().id,
+          node,
+          timeoutMs,
+          signal,
+        );
         helper.updateNodeStatus(nodeId, 'completed', { result });
         this.emit('orchestrator:event', {
           type: 'execute:node-complete',
@@ -182,6 +210,18 @@ export class TaskScheduler extends EventEmitter {
         return;
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
+
+        if (err instanceof TaskCancelledError) {
+          helper.updateNodeStatus(nodeId, 'cancelled', { error: errorMessage });
+          this.emit('orchestrator:event', {
+            type: 'execute:node-cancelled',
+            graphId: helper.getData().id,
+            nodeId,
+            timestamp: new Date().toISOString(),
+            payload: { error: errorMessage },
+          } satisfies OrchestratorEvent);
+          return;
+        }
 
         if (attempt < maxRetries) {
           this.emit('orchestrator:event', {
@@ -207,42 +247,130 @@ export class TaskScheduler extends EventEmitter {
   }
 
   /**
-   * Run a single task node with a timeout guard.
-   * TODO: Replace placeholder with actual CoworkRuntime.startSession() call.
+   * Run a single task node against the shared CoworkRuntime with a timeout guard.
    */
   private async runTaskWithTimeout(
+    graphId: string,
     node: TaskNode,
     timeoutMs: number,
     signal: AbortSignal,
   ): Promise<string> {
     const sessionId = `orchestrator-${node.id}-${Date.now()}`;
+    const activeKey = this.buildNodeRunKey(graphId, node.id);
 
     return new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const assistantMessages = new Map<string, string>();
+      const assistantMessageOrder: string[] = [];
+
+      const cleanup = (): void => {
+        clearTimeout(timeout);
+        signal.removeEventListener('abort', onAbort);
+        this.runtime.off('message', onMessage);
+        this.runtime.off('messageUpdate', onMessageUpdate);
+        this.runtime.off('complete', onComplete);
+        this.runtime.off('error', onError);
+        this.runtime.off('sessionStopped', onSessionStopped);
+        this.activeNodeSessions.delete(activeKey);
+      };
+
+      const settle = (
+        callback: (value: string) => void,
+        value: string,
+      ): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        callback(value);
+      };
+
+      const settleError = (error: Error): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+
+      const buildResult = (): string => {
+        const combined = assistantMessageOrder
+          .map((messageId) => assistantMessages.get(messageId)?.trim() ?? '')
+          .filter(Boolean)
+          .join('\n\n')
+          .trim();
+        return combined || `Task "${node.id}" completed without assistant output.`;
+      };
+
       const timeout = setTimeout(() => {
         this.runtime.stopSession(sessionId);
-        reject(new Error(`Task "${node.id}" timed out after ${timeoutMs}ms`));
+        settleError(
+          new Error(`Task "${node.id}" timed out after ${timeoutMs}ms`),
+        );
       }, timeoutMs);
 
+      const upsertAssistantMessage = (
+        messageId: string,
+        content: string,
+      ): void => {
+        if (!assistantMessages.has(messageId)) {
+          assistantMessageOrder.push(messageId);
+        }
+        assistantMessages.set(messageId, content);
+      };
+
+      const onMessage = (
+        activeSessionId: string,
+        message: { id: string; type: string; content: string },
+      ): void => {
+        if (activeSessionId !== sessionId || message.type !== 'assistant') return;
+        upsertAssistantMessage(message.id, message.content);
+      };
+
+      const onMessageUpdate = (
+        activeSessionId: string,
+        messageId: string,
+        content: string,
+      ): void => {
+        if (activeSessionId !== sessionId) return;
+        upsertAssistantMessage(messageId, content);
+      };
+
+      const onComplete = (activeSessionId: string): void => {
+        if (activeSessionId !== sessionId) return;
+        settle(resolve, buildResult());
+      };
+
+      const onError = (activeSessionId: string, error: string): void => {
+        if (activeSessionId !== sessionId) return;
+        settleError(new Error(error));
+      };
+
       const onAbort = (): void => {
-        clearTimeout(timeout);
         this.runtime.stopSession(sessionId);
-        reject(new Error(`Task "${node.id}" was cancelled`));
+        settleError(new TaskCancelledError(`Task "${node.id}" was cancelled`));
+      };
+
+      const onSessionStopped = (activeSessionId: string): void => {
+        if (activeSessionId !== sessionId) return;
+        settleError(new TaskCancelledError(`Task "${node.id}" was cancelled`));
       };
 
       signal.addEventListener('abort', onAbort, { once: true });
+      this.runtime.on('message', onMessage);
+      this.runtime.on('messageUpdate', onMessageUpdate);
+      this.runtime.on('complete', onComplete);
+      this.runtime.on('error', onError);
+      this.runtime.on('sessionStopped', onSessionStopped);
+      this.activeNodeSessions.set(activeKey, sessionId);
 
-      // TODO: Replace placeholder with actual LLM dispatch via runtime
-      // this.runtime.startSession(sessionId, node.prompt, {
-      //   agentEngine: node.agentEngine,
-      //   agentId: node.agentId,
-      // });
-
-      // Placeholder: simulate async execution
-      Promise.resolve().then(() => {
-        clearTimeout(timeout);
-        signal.removeEventListener('abort', onAbort);
-        resolve(`[Placeholder result for "${node.id}"] ${node.prompt.substring(0, 60)}...`);
-      }).catch(reject);
+      void this.runtime.startSession(sessionId, node.prompt, {
+        agentEngine: node.agentEngine,
+        agentId: node.agentId,
+      }).catch((error) => {
+        const normalizedError = error instanceof Error
+          ? error
+          : new Error(String(error));
+        settleError(normalizedError);
+      });
     });
   }
 }

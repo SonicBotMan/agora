@@ -1,11 +1,11 @@
 export { SkillManager } from './SkillManager';
+export { SkillMarketplace } from './SkillMarketplace';
 export { SkillScanner } from './SkillScanner';
 export { SkillSecurity } from './SkillSecurity';
-export { SkillMarketplace } from './SkillMarketplace';
 export type {
+  SkillInstallResult,
   SkillManifest,
   SkillPermission,
-  SkillInstallResult,
   SkillSecurityReport,
   SkillSource,
 } from './types';

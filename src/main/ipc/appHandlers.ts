@@ -6,7 +6,7 @@
  * Extracted from main.ts lines 2685–2843.
  */
 
-import { ipcMain, app, powerSaveBlocker } from 'electron';
+import { app, ipcMain, powerSaveBlocker } from 'electron';
 
 import { getAutoLaunchEnabled, setAutoLaunchEnabled } from '../autoLaunchManager';
 

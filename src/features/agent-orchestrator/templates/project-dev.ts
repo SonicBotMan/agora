@@ -3,8 +3,8 @@
  * Decomposes a development goal into standard backend/frontend/test/deploy tasks.
  */
 
-import type { WorkflowTemplate, TaskGraph, TaskNode } from '../types';
 import { CoworkAgentEngine } from '../../../shared/cowork/constants';
+import type { TaskGraph, TaskNode,WorkflowTemplate } from '../types';
 
 function createGraph(goal: string, _context?: string): TaskGraph {
   const now = new Date().toISOString();

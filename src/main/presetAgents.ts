@@ -1,6 +1,7 @@
-import { CoworkAgentEngine, DefaultCoworkAgentEngine } from '../shared/cowork/constants';
+import { type CoworkAgentEngine } from '../shared/cowork/constants';
 import type { CreateAgentRequest } from './coworkStore';
 import { getLanguage } from './i18n';
+import { buildPresetAgentCreateRequest } from './presetAgentsSupport';
 
 export interface PresetAgent {
   id: string;
@@ -339,16 +340,5 @@ export const PRESET_AGENTS: PresetAgent[] = [
  * Selects localized fields based on the current language.
  */
 export function presetToCreateRequest(preset: PresetAgent): CreateAgentRequest {
-  const isEn = getLanguage() === 'en';
-  return {
-    id: preset.id,
-    name: isEn && preset.nameEn ? preset.nameEn : preset.name,
-    description: isEn && preset.descriptionEn ? preset.descriptionEn : preset.description,
-    systemPrompt: isEn && preset.systemPromptEn ? preset.systemPromptEn : preset.systemPrompt,
-    icon: preset.icon,
-    skillIds: preset.skillIds,
-    agentEngine: preset.agentEngine || DefaultCoworkAgentEngine,
-    source: 'preset',
-    presetId: preset.id,
-  };
+  return buildPresetAgentCreateRequest(preset, getLanguage());
 }

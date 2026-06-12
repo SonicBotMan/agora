@@ -94,12 +94,7 @@ export interface ConversationMessage {
 
 // ── Research Ingestion ──────────────────────────────────────────────────────
 
-export interface ResearchResult {
-  query: string;
-  synthesis: string;
-  sources: Array<{ url: string; title: string; snippet: string }>;
-  findings: Array<{ title: string; snippet: string; url: string; relevanceScore: number }>;
-}
+export type ResearchResult = import('../deep-research/types').ResearchResult;
 
 // ── Document Chunk ──────────────────────────────────────────────────────────
 

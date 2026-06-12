@@ -1,25 +1,31 @@
 /**
- * KnowledgeStore — in-memory document store with SQLite + FTS5 adapter interface.
+ * KnowledgeStore — document store with an in-process cache plus optional
+ * SQLite / FTS5 persistence hooks.
  *
- * Mirrors the MessageStore pattern: a lightweight in-memory Map backbone
- * backed by an optional SQLiteAdapter for persistent FTS5 full-text search.
+ * Mirrors the MessageStore pattern: hot reads come from the local Map while
+ * persistence and full-text indexing can be delegated to the configured adapter.
  */
 
 import { EventEmitter } from 'events';
 
 import type {
-  KnowledgeDocument,
-  KnowledgeSource,
   FTSQuery,
   FTSResult,
+  KnowledgeDocument,
+  KnowledgeSource,
 } from './types';
+
+type Awaitable<T> = T | Promise<T>;
 
 // ── SQLiteAdapter Interface ─────────────────────────────────────────────────
 
 export interface SQLiteAdapter {
-  query(sql: string, params?: unknown[]): Promise<unknown[]>;
-  exec(sql: string): Promise<void>;
-  close(): Promise<void>;
+  query(sql: string, params?: unknown[]): Awaitable<unknown[]>;
+  exec(sql: string, params?: unknown[]): Awaitable<void>;
+  close(): Awaitable<void>;
+  saveDocument?(doc: KnowledgeDocument): Awaitable<void>;
+  deleteDocument?(id: string): Awaitable<boolean | void>;
+  clearDocuments?(): Awaitable<void>;
 }
 
 // ── Store Events ────────────────────────────────────────────────────────────
@@ -42,6 +48,7 @@ export interface KnowledgeStoreEvent {
 
 export interface KnowledgeStoreOptions {
   adapter?: SQLiteAdapter;
+  initialDocuments?: KnowledgeDocument[];
 }
 
 // ── Store Implementation ────────────────────────────────────────────────────
@@ -54,6 +61,9 @@ export class KnowledgeStore extends EventEmitter {
   constructor(options: KnowledgeStoreOptions = {}) {
     super();
     this.adapter = options.adapter;
+    for (const document of options.initialDocuments ?? []) {
+      this.documents.set(document.id, document);
+    }
   }
 
   // ── CRUD ────────────────────────────────────────────────────────────────
@@ -64,13 +74,22 @@ export class KnowledgeStore extends EventEmitter {
 
     if (this.adapter) {
       try {
-        await this.adapter.exec(
-          `INSERT OR REPLACE INTO ${this.ftsTableName} (document_id, title, content, source, tags)
-           VALUES (?, ?, ?, ?, ?)`,
-          [doc.id, doc.title, doc.content, doc.source, doc.metadata.tags.join(',')]
-        );
+        if (this.adapter.saveDocument) {
+          await this.adapter.saveDocument(doc);
+        } else {
+          await this.adapter.exec(
+            `INSERT OR REPLACE INTO ${this.ftsTableName} (document_id, title, content, source, tags)
+             VALUES (?, ?, ?, ?, ?)`,
+            [doc.id, doc.title, doc.content, doc.source, doc.metadata.tags.join(',')],
+          );
+        }
       } catch (err) {
-        this.emit('error', { type: 'error', documentId: doc.id, timestamp: new Date().toISOString(), payload: err });
+        this.emit('error', {
+          type: 'error',
+          documentId: doc.id,
+          timestamp: new Date().toISOString(),
+          payload: err,
+        });
       }
     }
 
@@ -91,12 +110,21 @@ export class KnowledgeStore extends EventEmitter {
 
     if (existed && this.adapter) {
       try {
-        await this.adapter.exec(
-          `DELETE FROM ${this.ftsTableName} WHERE document_id = ?`,
-          [id]
-        );
+        if (this.adapter.deleteDocument) {
+          await this.adapter.deleteDocument(id);
+        } else {
+          await this.adapter.exec(
+            `DELETE FROM ${this.ftsTableName} WHERE document_id = ?`,
+            [id],
+          );
+        }
       } catch (err) {
-        this.emit('error', { type: 'error', documentId: id, timestamp: new Date().toISOString(), payload: err });
+        this.emit('error', {
+          type: 'error',
+          documentId: id,
+          timestamp: new Date().toISOString(),
+          payload: err,
+        });
       }
     }
 
@@ -112,7 +140,7 @@ export class KnowledgeStore extends EventEmitter {
   }
 
   async list(offset = 0, limit = 50): Promise<KnowledgeDocument[]> {
-    return Array.from(this.documents.values()).slice(offset, offset + limit);
+    return this.sortedDocuments().slice(offset, offset + limit);
   }
 
   async count(): Promise<number> {
@@ -203,7 +231,31 @@ export class KnowledgeStore extends EventEmitter {
     this.documents.clear();
 
     if (this.adapter) {
-      await this.adapter.exec(`DELETE FROM ${this.ftsTableName}`);
+      if (this.adapter.clearDocuments) {
+        await this.adapter.clearDocuments();
+      } else {
+        await this.adapter.exec(`DELETE FROM ${this.ftsTableName}`);
+      }
     }
+  }
+
+  private sortedDocuments(): KnowledgeDocument[] {
+    return Array.from(this.documents.values()).sort((left, right) => {
+      const updated =
+        new Date(right.metadata.updatedAt).getTime() -
+        new Date(left.metadata.updatedAt).getTime();
+      if (updated !== 0) {
+        return updated;
+      }
+
+      const created =
+        new Date(right.metadata.createdAt).getTime() -
+        new Date(left.metadata.createdAt).getTime();
+      if (created !== 0) {
+        return created;
+      }
+
+      return left.title.localeCompare(right.title);
+    });
   }
 }
