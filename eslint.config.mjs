@@ -73,9 +73,23 @@ export default [
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
 
-      // React hooks
-      ...reactHooks.configs.recommended.rules,
+      // React hooks (v7: keep classic rules as error, downgrade compiler rules to warn)
+      'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-hooks/use-memo': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+      'react-hooks/incompatible-library': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/globals': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/error-boundaries': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/set-state-in-render': 'warn',
+      'react-hooks/unsupported-syntax': 'warn',
+      'react-hooks/config': 'warn',
+      'react-hooks/gating': 'warn',
 
       // React refresh
       'react-refresh/only-export-components': 'off',
@@ -87,6 +101,10 @@ export default [
       // Disable rules that TypeScript compiler already handles
       'no-undef': 'off',
       'no-redeclare': 'off',
+
+      // ESLint 10 new rules — downgrade to warn for gradual adoption
+      'no-useless-assignment': 'warn',
+      'preserve-caught-error': 'warn',
 
       // Rules kept off (existing codebase compatibility)
       'no-control-regex': 'off',
