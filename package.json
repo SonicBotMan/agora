@@ -190,7 +190,7 @@
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^40.2.1",
-    "electron-builder": "^26.15.2",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.12",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
