@@ -18,6 +18,7 @@ import ComposeIcon from '../icons/ComposeIcon';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import ThemedSelect from '../ui/ThemedSelect';
 import WindowTitleBar from '../window/WindowTitleBar';
+import DagVisualizer from './DagVisualizer';
 
 interface OrchestratorViewProps {
   isSidebarCollapsed?: boolean;
@@ -103,6 +104,8 @@ const OrchestratorView: React.FC<OrchestratorViewProps> = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [actionGraphId, setActionGraphId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'dag' | 'list'>('dag');
   const selectedGraph = useMemo(
     () => graphs.find((graph) => graph.id === selectedGraphId) ?? null,
     [graphs, selectedGraphId],
@@ -488,35 +491,100 @@ const OrchestratorView: React.FC<OrchestratorViewProps> = ({
                     </div>
                   )}
 
-                  <div className="rounded-lg border border-border bg-surface p-4">
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {i18nService.t('orchestratorNodesTitle')}
-                    </h3>
-                    <div className="mt-3 space-y-3">
-                      {selectedGraph.nodes.map((node) => (
-                        <div key={node.id} className="rounded-lg border border-border bg-background px-3 py-3">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-foreground">{node.id}</div>
-                              <div className="mt-1 text-xs text-secondary">
-                                {node.agentEngine}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {i18nService.t('orchestratorNodesTitle')}
+                      </h3>
+                      <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('dag')}
+                          className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors ${
+                            viewMode === 'dag' ? 'bg-surface-raised text-foreground' : 'text-secondary hover:text-foreground'
+                          }`}
+                        >
+                          DAG
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setViewMode('list')}
+                          className={`h-7 px-2.5 rounded-md text-xs font-medium transition-colors ${
+                            viewMode === 'list' ? 'bg-surface-raised text-foreground' : 'text-secondary hover:text-foreground'
+                          }`}
+                        >
+                          List
+                        </button>
+                      </div>
+                    </div>
+
+                    {viewMode === 'dag' ? (
+                      <DagVisualizer
+                        graph={selectedGraph}
+                        selectedNodeId={selectedNodeId}
+                        onSelectNode={setSelectedNodeId}
+                      />
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedGraph.nodes.map((node) => (
+                          <div key={node.id} className="rounded-lg border border-border bg-background px-3 py-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-foreground">{node.id}</div>
+                                <div className="mt-1 text-xs text-secondary">
+                                  {node.agentEngine}
+                                </div>
                               </div>
+                              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${
+                                node.status === 'completed'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : node.status === 'failed'
+                                    ? 'bg-red-500/10 text-red-600'
+                                    : node.status === 'running'
+                                      ? 'bg-amber-500/10 text-amber-600'
+                                      : 'bg-surface-raised text-secondary'
+                              }`}>
+                                {getNodeStatusLabel(node.status)}
+                              </span>
                             </div>
-                            <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${
-                              node.status === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-600'
-                                : node.status === 'failed'
-                                  ? 'bg-red-500/10 text-red-600'
-                                  : node.status === 'running'
-                                    ? 'bg-amber-500/10 text-amber-600'
-                                    : 'bg-surface-raised text-secondary'
-                            }`}>
+                            <div className="mt-3 whitespace-pre-wrap text-sm text-secondary">
+                              {node.prompt}
+                            </div>
+                            {node.dependsOn.length > 0 && (
+                              <div className="mt-3 text-xs text-secondary">
+                                {i18nService.t('orchestratorDependsOn')}: {node.dependsOn.join(', ')}
+                              </div>
+                            )}
+                            {node.result && (
+                              <pre className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-surface px-3 py-3 text-xs text-foreground">
+                                {node.result}
+                              </pre>
+                            )}
+                            {node.error && (
+                              <div className="mt-3 text-xs text-red-600">
+                                {node.error}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedNodeId && (() => {
+                      const node = selectedGraph.nodes.find((n) => n.id === selectedNodeId);
+                      if (!node) return null;
+                      return (
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-foreground">{node.id}</div>
+                              <div className="mt-1 text-xs text-secondary">{node.agentEngine}</div>
+                            </div>
+                            <span className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium bg-surface-raised text-secondary">
                               {getNodeStatusLabel(node.status)}
                             </span>
                           </div>
-                          <div className="mt-3 whitespace-pre-wrap text-sm text-secondary">
-                            {node.prompt}
-                          </div>
+                          <div className="mt-3 whitespace-pre-wrap text-sm text-secondary">{node.prompt}</div>
                           {node.dependsOn.length > 0 && (
                             <div className="mt-3 text-xs text-secondary">
                               {i18nService.t('orchestratorDependsOn')}: {node.dependsOn.join(', ')}
@@ -528,13 +596,11 @@ const OrchestratorView: React.FC<OrchestratorViewProps> = ({
                             </pre>
                           )}
                           {node.error && (
-                            <div className="mt-3 text-xs text-red-600">
-                              {node.error}
-                            </div>
+                            <div className="mt-3 text-xs text-red-600">{node.error}</div>
                           )}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
