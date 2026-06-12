@@ -1,21 +1,16 @@
-import type { IpcMain } from 'electron';
+import {
+  type DialogDeps,
+  registerDialogHandlers,
+} from '../main/ipc/dialogHandlers';
+
+export type AttachmentDeps = DialogDeps;
 
 /**
- * Register IPC handlers for file attachment operations.
+ * Top-level architecture facade for attachment-related dialogs.
+ *
+ * The real implementation lives in `src/main/ipc/dialogHandlers.ts`, which
+ * owns file selection, save, and preview style flows.
  */
-export function registerAttachmentHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle('attachment:upload', async (_event, sessionId: string, filePath: string) => {
-    console.log('[IPC] attachment:upload', { sessionId, filePath });
-    throw new Error('Not implemented');
-  });
-
-  ipcMain.handle('attachment:download', async (_event, attachmentId: string) => {
-    console.log('[IPC] attachment:download', { attachmentId });
-    throw new Error('Not implemented');
-  });
-
-  ipcMain.handle('attachment:preview', async (_event, attachmentId: string) => {
-    console.log('[IPC] attachment:preview', { attachmentId });
-    throw new Error('Not implemented');
-  });
+export function registerAttachmentHandlers(deps: AttachmentDeps): void {
+  registerDialogHandlers(deps);
 }

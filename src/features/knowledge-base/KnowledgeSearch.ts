@@ -5,16 +5,15 @@
 
 import { EventEmitter } from 'events';
 
+import { EmbeddingEngine } from './EmbeddingEngine';
+import { KnowledgeStore } from './KnowledgeStore';
 import type {
+  Entity,
   KnowledgeDocument,
-  KnowledgeSearchResult,
   KnowledgeSearchOptions,
   KnowledgeSearchQuery,
-  Entity,
+  KnowledgeSearchResult,
 } from './types';
-import { KnowledgeStore } from './KnowledgeStore';
-import { EmbeddingEngine } from './EmbeddingEngine';
-import { EntityExtractor } from './EntityExtractor';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -38,7 +37,6 @@ const DEFAULT_CONFIG: Required<KnowledgeSearchConfig> = {
 export class HybridSearchEngine extends EventEmitter {
   private store: KnowledgeStore;
   private embedder: EmbeddingEngine;
-  private extractor: EntityExtractor;
   private config: Required<KnowledgeSearchConfig>;
 
   constructor(
@@ -49,7 +47,6 @@ export class HybridSearchEngine extends EventEmitter {
     super();
     this.store = store;
     this.embedder = embedder;
-    this.extractor = new EntityExtractor();
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
@@ -66,21 +63,20 @@ export class HybridSearchEngine extends EventEmitter {
     const keywords = query.keywords ?? [];
     if (keywords.length === 0) return [];
 
-    const ftsQuery = this.store.buildFTSQuery(keywords.join(' '));
-    const docs = await this.store.search(ftsQuery.raw, {
-      limit: options.limit,
-      source: options.source,
-    });
+    const rawQuery = keywords.join(' ');
+    this.store.buildFTSQuery(rawQuery);
+    const docs = await this.listCandidateDocuments(options);
 
-    return docs.map((doc) => {
-      const score = this.computeKeywordScore(doc, keywords);
-      return {
-        document: doc,
-        score,
-        matchType: 'keyword' as const,
-        snippet: this.buildSnippet(doc.content, keywords),
-      };
-    })
+    return docs
+      .map((doc) => {
+        const score = this.computeKeywordScore(doc, keywords);
+        return {
+          document: doc,
+          score,
+          matchType: 'keyword' as const,
+          snippet: this.buildSnippet(doc.content, keywords),
+        };
+      })
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, options.limit ?? 50);
@@ -105,14 +101,12 @@ export class HybridSearchEngine extends EventEmitter {
       return [];
     }
 
-    const docs = await this.store.list(0, options.limit ?? 200);
-    const source = options.source;
+    const docs = await this.listCandidateDocuments(options);
+    const embeddedDocs = await this.ensureEmbeddings(docs);
 
     const results: KnowledgeSearchResult[] = [];
 
-    for (const doc of docs) {
-      if (source && doc.source !== source) continue;
-
+    for (const doc of embeddedDocs) {
       const docEmbedding = doc.metadata.embedding;
       if (!docEmbedding || docEmbedding.length === 0) continue;
 
@@ -141,6 +135,8 @@ export class HybridSearchEngine extends EventEmitter {
     options: KnowledgeSearchOptions = {}
   ): Promise<KnowledgeSearchResult[]> {
     const mergedOptions: KnowledgeSearchOptions = { ...options, limit: undefined };
+    const embeddingWeight = clampWeight(query.hybridWeight ?? this.config.embeddingWeight);
+    const keywordWeight = 1 - embeddingWeight;
 
     // Run both searches in parallel with generous limits
     const [keywordResults, embeddingResults] = await Promise.all([
@@ -166,8 +162,8 @@ export class HybridSearchEngine extends EventEmitter {
 
     const results: KnowledgeSearchResult[] = [];
     for (const { doc, keywordScore, embeddingScore } of fused.values()) {
-      const kw = keywordScore * this.config.keywordWeight;
-      const emb = embeddingScore * this.config.embeddingWeight;
+      const kw = keywordScore * keywordWeight;
+      const emb = embeddingScore * embeddingWeight;
       const score = kw + emb;
 
       if (score < this.config.minScore) continue;
@@ -201,15 +197,12 @@ export class HybridSearchEngine extends EventEmitter {
     const entityNames = query.entities;
     if (!entityNames || entityNames.length === 0) return [];
 
-    const docs = await this.store.list(0, 1000);
-    const source = options.source;
+    const docs = await this.listCandidateDocuments(options);
 
     // Phase 1: Direct match — documents containing the named entities
     const directMatches: KnowledgeSearchResult[] = [];
 
     for (const doc of docs) {
-      if (source && doc.source !== source) continue;
-
       const docEntityNames = doc.metadata.entities.map((e: Entity) => e.name.toLowerCase());
       const matched = entityNames.filter((en) =>
         docEntityNames.some((den) => den.includes(en.toLowerCase()))
@@ -240,7 +233,6 @@ export class HybridSearchEngine extends EventEmitter {
 
     if (relatedEntities.size > 0) {
       for (const doc of docs) {
-        if (source && doc.source !== source) continue;
         if (directMatches.some((m) => m.document.id === doc.id)) continue;
 
         const docEntityNames = doc.metadata.entities.map((e: Entity) => e.name.toLowerCase());
@@ -273,6 +265,47 @@ export class HybridSearchEngine extends EventEmitter {
   ): Promise<KnowledgeSearchResult[]> {
     const embedding = await this.embedder.provider.embed(text);
     return this.searchByEmbedding({ embedding }, options);
+  }
+
+  private async listCandidateDocuments(
+    options: KnowledgeSearchOptions,
+  ): Promise<KnowledgeDocument[]> {
+    const total = await this.store.count();
+    const docs = await this.store.list(0, total || 0);
+
+    return docs.filter((doc) => {
+      if (options.source && doc.source !== options.source) {
+        return false;
+      }
+
+      if (options.tags && options.tags.length > 0) {
+        return options.tags.every((tag) => doc.metadata.tags.includes(tag));
+      }
+
+      return true;
+    });
+  }
+
+  private async ensureEmbeddings(
+    docs: KnowledgeDocument[],
+  ): Promise<KnowledgeDocument[]> {
+    const missing = docs.filter((doc) => !doc.metadata.embedding || doc.metadata.embedding.length === 0);
+    if (missing.length === 0) {
+      return docs;
+    }
+
+    const embeddedMissing = await this.embedder.embedDocuments(missing);
+    const embeddedById = new Map(
+      embeddedMissing.map((doc) => [doc.id, doc] as const),
+    );
+
+    await Promise.all(
+      embeddedMissing.map(async (document) => {
+        await this.store.save(document);
+      }),
+    );
+
+    return docs.map((doc) => embeddedById.get(doc.id) ?? doc);
   }
 
   /**
@@ -319,4 +352,12 @@ export class HybridSearchEngine extends EventEmitter {
 
     return snippet;
   }
+}
+
+function clampWeight(value: number): number {
+  if (Number.isNaN(value)) {
+    return DEFAULT_CONFIG.embeddingWeight;
+  }
+
+  return Math.min(1, Math.max(0, value));
 }

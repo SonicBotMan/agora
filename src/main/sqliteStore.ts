@@ -7,25 +7,28 @@ import path from 'path';
 
 import { CoworkAgentEngine, DefaultCoworkAgentEngine } from '../shared/cowork/constants';
 import { DB_FILENAME } from './appConstants';
+import {
+  createMemoryFingerprint,
+  getLegacyMemoryCandidates,
+  parseLegacyMemoryEntries,
+  tryReadLegacyMemoryText,
+  USER_MEMORIES_MIGRATION_KEY,
+} from './sqliteStoreSupport';
 
 type ChangePayload<T = unknown> = {
   key: string;
   newValue: T | undefined;
   oldValue: T | undefined;
 };
-
-const USER_MEMORIES_MIGRATION_KEY = 'userMemories.migration.v1.completed';
 const DEFAULT_AGENT_DB_NAME = 'Default Agent';
 const DEFAULT_AGENT_ENGINE = DefaultCoworkAgentEngine;
 
 export class SqliteStore {
   private db: Database.Database;
-  private dbPath: string;
   private emitter = new EventEmitter();
 
-  private constructor(db: Database.Database, dbPath: string) {
+  private constructor(db: Database.Database, _dbPath: string) {
     this.db = db;
-    this.dbPath = dbPath;
   }
 
   static create(userDataPath?: string): SqliteStore {
@@ -440,8 +443,8 @@ export class SqliteStore {
       console.warn('Failed to migrate cowork execution mode:', error);
     }
 
-    this.migrateLegacyMemoryFileToUserMemories();
     this.migrateFromElectronStore(basePath);
+    this.migrateLegacyMemoryFileToUserMemories();
   }
 
   onDidChange<T = unknown>(
@@ -500,68 +503,21 @@ export class SqliteStore {
     this.db.close();
   }
 
-  private tryReadLegacyMemoryText(): string {
-    const candidates = [
-      path.join(process.cwd(), 'MEMORY.md'),
-      path.join(app.getAppPath(), 'MEMORY.md'),
-      path.join(process.cwd(), 'memory.md'),
-      path.join(app.getAppPath(), 'memory.md'),
-    ];
-
-    for (const candidate of candidates) {
-      try {
-        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-          return fs.readFileSync(candidate, 'utf8');
-        }
-      } catch {
-        // Skip unreadable candidates.
-      }
-    }
-    return '';
-  }
-
-  private parseLegacyMemoryEntries(raw: string): string[] {
-    const normalized = raw.replace(/```[\s\S]*?```/g, ' ');
-    const lines = normalized.split(/\r?\n/);
-    const entries: string[] = [];
-    const seen = new Set<string>();
-
-    for (const line of lines) {
-      const match = line.trim().match(/^-+\s*(?:\[[^\]]+\]\s*)?(.+)$/);
-      if (!match?.[1]) continue;
-      const text = match[1].replace(/\s+/g, ' ').trim();
-      if (!text || text.length < 6) continue;
-      if (/^\(empty\)$/i.test(text)) continue;
-      const key = text.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      entries.push(text.length > 360 ? `${text.slice(0, 359)}…` : text);
-    }
-
-    return entries.slice(0, 200);
-  }
-
-  private memoryFingerprint(text: string): string {
-    const normalized = text
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    return crypto.createHash('sha1').update(normalized).digest('hex');
-  }
-
   private migrateLegacyMemoryFileToUserMemories(): void {
     if (this.get<string>(USER_MEMORIES_MIGRATION_KEY) === '1') {
       return;
     }
 
-    const content = this.tryReadLegacyMemoryText();
+    const content = tryReadLegacyMemoryText(
+      getLegacyMemoryCandidates(process.cwd(), app.getAppPath()),
+      fs,
+    );
     if (!content.trim()) {
       this.set(USER_MEMORIES_MIGRATION_KEY, '1');
       return;
     }
 
-    const entries = this.parseLegacyMemoryEntries(content);
+    const entries = parseLegacyMemoryEntries(content);
     if (entries.length === 0) {
       this.set(USER_MEMORIES_MIGRATION_KEY, '1');
       return;
@@ -583,7 +539,7 @@ export class SqliteStore {
 
     const migrate = this.db.transaction(() => {
       for (const text of entries) {
-        const fingerprint = this.memoryFingerprint(text);
+        const fingerprint = createMemoryFingerprint(text);
         if (checkExisting.get(fingerprint)) continue;
 
         const memoryId = crypto.randomUUID();

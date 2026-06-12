@@ -20,7 +20,7 @@
   <a href="README.md">English</a> | <strong>简体中文</strong>
 </p>
 
-Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 TypeScript 构建。它提供了统一的图形界面，用于安装、配置和运行多种本地 Agent 引擎——包括 Claude Code（默认引擎）、OpenCode、OpenClaw、Hermes、DeepSeek-TUI 和 Codex。Agora 将这些引擎与聊天、工具、文件、IM 平台、模型供应商和运行监控整合到一款桌面应用中。
+Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 TypeScript 构建。它提供统一的图形界面，用于安装、配置和运行多种本地 Agent 引擎——默认引擎为 OpenCode，同时支持 OpenClaw、Claude Code、Hermes、DeepSeek-TUI 和 Codex。Agora 还内置了深度研究、Agent 编排、本地知识检索、热点监控、技能管理和前端迭代等专门工作台，把这些能力整合到一款桌面应用中。
 
 > 如果 Agora 对你的 Agent 工作流有帮助，欢迎点亮 Star，让更多开发者发现这个项目。
 
@@ -34,6 +34,7 @@ Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 
 - **可视化对话界面** —— 通过丰富的聊天界面运行 Agent，支持工具面板、斜杠命令、文件 diff 和权限提示。
 - **IM 集成** —— 将 Agent 任务接入飞书、钉钉、Telegram、Discord、微信、企业微信和 QQ。
 - **运行时可观测性** —— 追踪每次任务的引擎、模型、Token 用量、首 token 延迟（TTFT）、每秒 token 数（TPS）、工具耗时、步骤、状态和耗时。
+- **专门工作台** —— 在同一个桌面应用里直接发起研究、编排、知识、热点、技能和前端开发流程。
 - **可扩展** —— 通过 SkillHub 技能市场、内置技能、定时任务和跨会话记忆扩展工作流。
 
 ---
@@ -42,23 +43,23 @@ Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 
 
 | # | 功能 | 描述 |
 |---|------|------|
-| 1 | **Agent 引擎中心** | 统一运行 Claude Code（默认）、OpenCode、OpenClaw、Hermes、DeepSeek-TUI 和 Codex，支持一键安装或复用本机 CLI 配置。 |
+| 1 | **Agent 引擎中心** | 统一运行 OpenCode（默认）、OpenClaw、Claude Code、Hermes、DeepSeek-TUI 和 Codex，支持一键安装或复用本机 CLI 配置。 |
 | 2 | **统一模型供应商** | 配置 OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Qwen、Moonshot、Ollama、OpenRouter、GitHub Copilot 和自定义 OpenAI-compatible 接口。 |
 | 3 | **IM Agent Hub** | 将飞书、钉钉、Telegram、Discord、微信、企业微信和 QQ 的消息接入任意引擎，支持按平台配置机器人。 |
 | 4 | **AI Runtime Dashboard** | 按引擎、模型、来源、状态、Token、总耗时、TTFT、输出阶段 TPS、估算 Model TPS、工具耗时和 Agent 步数统计调用。 |
-| 5 | **SkillHub 技能市场** | 发现、安装、启用、禁用、更新和删除技能，全部在集成的市场中完成。 |
+| 5 | **技能运维** | 通过 SkillHub 和本地技能管理流程，完成技能发现、安装、启用、停用、更新和删除。 |
 | 6 | **定时任务与记忆** | 创建研究报告、监控、邮件整理、提醒等重复任务，自动提取对话记忆并跨会话延续上下文。 |
 
-### 规划中的功能
+### 特色工作台
 
 | 功能 | 描述 |
 |------|------|
-| 🔬 **Deep Research** | 自主多源研究 Agent，支持引用追踪和报告生成。 |
-| 🧩 **Agent Orchestration** | 多 Agent 协同编排，支持任务委派和交接，处理复杂工作流。 |
-| 📚 **知识库** | 持久化向量存储，支持文档、代码库和项目上下文检索。 |
-| 🔥 **热点话题** | 实时趋势发现，自动汇总社区热点内容。 |
-| ⚙️ **技能中心** | 专门用于创建、测试和发布自定义 Agent 技能的工坊。 |
-| 🖥️ **前端工作站** | 可视化组件沙盒，用于 AI 生成的 UI 预览和迭代调试。 |
+| 🔬 **Deep Research** | 多源研究会话，支持资料采集、引用记录和结构化报告生成。 |
+| 🧩 **Agent Orchestrator** | 基于 DAG 的任务拆解、调度和结果汇总，用于多步骤 Agent 工作流。 |
+| 📚 **知识库** | 本地文档、研究结果和对话历史摄入，基于 SQLite 持久化并支持混合检索。 |
+| 🔥 **热点话题** | 多源抓取、摘要生成，以及面向研究、发文、IM 投递和知识沉淀的后续动作。 |
+| ⚙️ **技能中心** | SkillHub 市场浏览、本地技能生命周期管理和内置安全扫描视图。 |
+| 🖥️ **前端工作站** | 提供项目工作区、文件树、Monaco 编辑器、终端、dev server 预览和联动 Agent 任务。 |
 
 ---
 
@@ -75,7 +76,7 @@ Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 
   </tr>
   <tr>
     <td><strong>Cowork 对话</strong><br>把本地编码 Agent 变成桌面 Chat，支持引擎和模型切换。</td>
-    <td><strong>Agent 引擎</strong><br>配置 OpenCode、OpenClaw、Claude Code、Hermes、DeepSeek-TUI 和 Codex。</td>
+    <td><strong>Agent 引擎</strong><br>以 OpenCode 作为默认引擎，并按需切换到 OpenClaw、Claude Code、Hermes、DeepSeek-TUI 或 Codex。</td>
   </tr>
   <tr>
     <td width="50%">
@@ -90,16 +91,12 @@ Agora 是一款开源的桌面 AI Agent 工作台，基于 Electron、React 和 
     <td><strong>实时工作区</strong><br>在 Agent 工作过程中查看文件写入、代码变更、工具活动和产出文件。</td>
   </tr>
   <tr>
-    <td width="50%">
+    <td colspan="2" align="center">
       <img src="public/readme/screenshots/skills-marketplace.png" alt="Agora 技能市场">
-    </td>
-    <td width="50%">
-      <img src="public/readme/screenshots/studio-pet.png" alt="Agora 工作室">
     </td>
   </tr>
   <tr>
-    <td><strong>技能市场</strong><br>按 SkillHub 分类浏览技能，下载安装到本地 Agora 技能目录。</td>
-    <td><strong>工作室</strong><br>可视化工作区，观察 Agent 活动和任务进度。</td>
+    <td colspan="2"><strong>技能市场</strong><br>按 SkillHub 分类浏览技能，查看元信息，并在 Agora 内管理已安装技能。</td>
   </tr>
 </table>
 
@@ -187,6 +184,9 @@ OPENCLAW_SKIP_ENSURE=1 npm run electron:dev:openclaw
 ### 构建
 
 ```bash
+# 测试
+npm test
+
 # TypeScript + Vite
 npm run build
 
@@ -219,46 +219,33 @@ npm run dist:linux
 
 ## 项目结构
 
-Agora 使用 Electron 进程隔离架构。Renderer 不直接访问 Node.js API，高权限操作通过 preload bridge 和 main process IPC 完成。
+Agora 使用 Electron 进程隔离架构。Renderer 不直接访问 Node.js API，高权限操作通过 preload bridge 和 main process IPC 完成。当前源码目录围绕共享运行时抽象、功能模块和进程内接线组织：
 
 ```
 src/
-├── main/                        # Electron 主进程
-│   ├── main.ts                  # 入口、IPC 处理器、窗口生命周期
-│   ├── preload.ts               # 通过 contextBridge 的安全桥接
-│   ├── sqliteStore.ts           # 本地持久化（设置、会话等）
-│   ├── coworkStore.ts           # Cowork 会话和消息存储
-│   ├── skillManager.ts          # 技能加载和管理
+├── core/                        # 共享运行时契约和领域基础抽象
+├── engines/                     # 按引擎拆分的适配器实现
+├── features/                    # 研究、编排、知识库、热点、技能、前端工作站等模块
+├── ipc/                         # 共享 IPC 契约与辅助层
+├── main/                        # Electron 主进程和运行时接线
+│   ├── core/                    # Store、配置和会话基础设施
+│   ├── engines/                 # 主进程引擎集成
+│   ├── features/                # 功能模块对应的运行时桥接
 │   ├── im/                      # IM 网关集成
-│   │   ├── feishu/              # 飞书网关
-│   │   ├── dingtalk/            # 钉钉网关
-│   │   ├── telegram/            # Telegram 网关
-│   │   ├── discord/             # Discord 网关
-│   │   ├── wecom/               # 企业微信网关
-│   │   ├── wechat/              # 微信网关
-│   │   └── qq/                  # QQ 网关
-│   └── libs/
-│       ├── agentEngine/         # 引擎适配器和路由
-│       │   ├── coworkEngineRouter.ts   # 路由到内置或外部引擎
-│       │   ├── claudeRuntimeAdapter.ts # 内置 Claude Agent SDK 适配器
-│       │   └── openclawRuntimeAdapter.ts # OpenClaw 网关适配器
-│       ├── coworkRunner.ts      # Agent 执行引擎
-│       ├── coworkMemoryExtractor.ts # 对话记忆提取
-│       └── openclawEngineManager.ts  # OpenClaw 运行时生命周期管理
-│
-├── renderer/                    # React 前端（渲染进程）
-│   ├── App.tsx                  # 应用外壳
-│   ├── components/
-│   │   ├── cowork/              # 聊天、工作室、活动工作区、引擎 UI
-│   │   ├── Settings.tsx         # 模型、引擎、IM、技能、记忆和应用设置
-│   │   └── pet/                 # 桌面宠物 UI
-│   ├── services/                # IPC 封装和应用服务
-│   └── store/slices/            # Redux 状态管理
-│
-├── shared/                      # 共享常量和类型
-│
+│   ├── ipc/                     # IPC 注册与处理器
+│   └── libs/                    # 运行时工具、配置同步和安全辅助
+├── renderer/                    # React 前端工作台
+│   ├── components/              # Cowork、研究、编排、知识库、热点、前端工作站、技能、设置等 UI
+│   ├── services/                # 类型化的 renderer 侧 API 封装
+│   ├── store/                   # Redux 状态
+│   └── theme/                   # 主题系统
+├── scheduledTask/               # 定时任务调度与策略
+├── shared/                      # 跨进程共享类型和常量
+└── test/                        # 测试辅助
+
 SKILLs/                          # 内置技能
 scripts/                         # runtime、打包和安装脚本
+docs/                            # 架构与补充文档
 ```
 
 ### 内置技能
@@ -297,13 +284,22 @@ scripts/                         # runtime、打包和安装脚本
 4. **推送到分支**：`git push origin feat/my-feature`。
 5. **创建 Pull Request**。
 
-请确保你的代码通过 lint 检查（`npm run lint`），并遵循现有的代码风格。
+请确保你的代码通过相关检查，并遵循现有代码风格。
 
 ### 开发规范
 
 - 使用约定式提交信息（`feat:`、`fix:`、`docs:`、`refactor:` 等）。
 - 保持 renderer 不直接依赖 Node.js API —— 使用 IPC 桥接。
-- 新功能请添加相应测试（运行 `npm run test:memory`）。
+- 涉及行为变更时补充或更新测试（运行 `npm test`）。
+
+常见贡献基线命令：
+
+```bash
+npm run lint
+npm test
+npm run build
+npm run compile:electron
+```
 
 ---
 

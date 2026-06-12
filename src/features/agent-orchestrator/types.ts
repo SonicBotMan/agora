@@ -2,19 +2,20 @@
  * Type definitions for the Agent Orchestrator feature.
  */
 
+import type { CoworkRuntime as CoreCoworkRuntime } from '../../core/CoworkRuntime';
 import type { CoworkAgentEngine } from '../../shared/cowork/constants';
 
 // ── CoworkRuntime (local subset) ───────────────────────────────────────────
 
 /**
  * Minimal CoworkRuntime interface matching the subset used by the orchestrator.
- * Full definition lives in src/main/libs/agentEngine/types.ts.
+ * Reuses the core runtime contract so the orchestrator can run against the
+ * same engine router used by the main cowork flow.
  */
-export interface CoworkRuntime {
-  startSession(sessionId: string, prompt: string, options?: { agentEngine?: string; agentId?: string }): Promise<void>;
-  stopSession(sessionId: string): void;
-  isSessionActive?(sessionId: string): boolean;
-}
+export type CoworkRuntime = Pick<
+  CoreCoworkRuntime,
+  'on' | 'off' | 'startSession' | 'stopSession' | 'isSessionActive'
+>;
 
 // ── Task Node ──────────────────────────────────────────────────────────────
 

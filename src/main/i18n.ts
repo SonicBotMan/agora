@@ -12,9 +12,17 @@
  *   const msg = t('imMissingCredentials', { fields: 'appId, appSecret' });
  */
 
-export type LanguageType = 'zh' | 'en';
+import {
+  type LanguageType,
+  normalizeMainLanguage,
+  translateCatalog,
+  type TranslationCatalog,
+  type TranslationParams,
+} from './i18nSupport';
 
-const translations: Record<LanguageType, Record<string, string>> = {
+export type { LanguageType } from './i18nSupport';
+
+export const MAIN_I18N_TRANSLATIONS: TranslationCatalog = {
   zh: {
     // Tray menu
     trayShowWindow: '打开 Agora',
@@ -27,6 +35,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     channelPrefixFeishu: '飞书',
     channelPrefixDingtalk: '钉钉',
     channelPrefixWecom: '企微',
+    channelPrefixNim: '云信',
     channelPrefixWeixin: '微信',
     channelPrefixNeteaseBee: '小蜜蜂',
 
@@ -217,6 +226,7 @@ const translations: Record<LanguageType, Record<string, string>> = {
     channelPrefixFeishu: 'Feishu',
     channelPrefixDingtalk: 'DingTalk',
     channelPrefixWecom: 'WeCom',
+    channelPrefixNim: 'NetEase IM',
     channelPrefixWeixin: 'WeChat',
     channelPrefixNeteaseBee: 'Xiaomifeng',
 
@@ -401,7 +411,7 @@ let currentLanguage: LanguageType = 'zh';
 
 /** Set the active language. Call this when app_config.language changes. */
 export function setLanguage(language: LanguageType): void {
-  currentLanguage = language;
+  currentLanguage = normalizeMainLanguage(language);
 }
 
 export function getLanguage(): LanguageType {
@@ -415,14 +425,6 @@ export function getLanguage(): LanguageType {
  *   t('imMissingCredentials', { fields: 'appId, appSecret' })
  *   // => "缺少必要配置项: appId, appSecret"
  */
-export function t(key: string, params?: Record<string, string | number>): string {
-  let text = translations[currentLanguage][key]
-    ?? translations[currentLanguage === 'zh' ? 'en' : 'zh'][key]
-    ?? key;
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      text = text.replace(`{${k}}`, String(v));
-    }
-  }
-  return text;
+export function t(key: string, params?: TranslationParams): string {
+  return translateCatalog(MAIN_I18N_TRANSLATIONS, currentLanguage, key, params);
 }

@@ -5,12 +5,12 @@
  * Extracted from main.ts lines 2705–2758.
  */
 
-import { ipcMain, BrowserWindow, dialog, app, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import path from 'path';
 
-import { getLogFilePath, getRecentMainLogEntries } from '../logger';
-import { exportLogsZip } from '../libs/logExport';
 import { getCoworkLogPath } from '../libs/coworkLogger';
+import { exportLogsZip } from '../libs/logExport';
+import { getLogFilePath, getRecentMainLogEntries } from '../logger';
 
 // ── Helper functions (extracted from main.ts) ──
 
@@ -29,9 +29,7 @@ const ensureZipFileName = (value: string): string => {
 
 // ── Deps interface ──
 
-export interface LogDeps {
-  // No deps needed — all dependencies are imported directly.
-}
+export type LogDeps = Record<string, never>;
 
 // ── Handler registration ──
 

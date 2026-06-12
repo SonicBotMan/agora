@@ -7,21 +7,26 @@
 
 import { EventEmitter } from 'events';
 
+import { DocumentProcessor } from './DocumentProcessor';
+import { EmbeddingEngine } from './EmbeddingEngine';
+import { EntityExtractor } from './EntityExtractor';
+import { KnowledgeStore } from './KnowledgeStore';
 import type {
-  KnowledgeDocument,
-  KnowledgeSource,
   ConversationMessage,
+  Entity,
   IngestionResult,
   IngestionSummary,
+  KnowledgeDocument,
+  KnowledgeSource,
 } from './types';
-import { DocumentProcessor } from './DocumentProcessor';
-import { EntityExtractor } from './EntityExtractor';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface ConversationIngestorOptions {
   documentProcessor?: DocumentProcessor;
   entityExtractor?: EntityExtractor;
+  embeddingEngine?: EmbeddingEngine;
+  knowledgeStore?: KnowledgeStore;
   maxMessagesPerDoc?: number;
 }
 
@@ -43,12 +48,16 @@ export interface ConversationIngestorEvent {
 export class ConversationIngestor extends EventEmitter {
   private processor: DocumentProcessor;
   private extractor: EntityExtractor;
+  private embedder: EmbeddingEngine;
+  private store?: KnowledgeStore;
   private maxMessagesPerDoc: number;
 
   constructor(options: ConversationIngestorOptions = {}) {
     super();
     this.processor = options.documentProcessor ?? new DocumentProcessor();
     this.extractor = options.entityExtractor ?? new EntityExtractor();
+    this.embedder = options.embeddingEngine ?? new EmbeddingEngine();
+    this.store = options.knowledgeStore;
     this.maxMessagesPerDoc = options.maxMessagesPerDoc ?? 50;
   }
 
@@ -66,6 +75,8 @@ export class ConversationIngestor extends EventEmitter {
     this.emitEvent('ingest:start', sessionId, { messageCount: messages.length });
 
     const results: IngestionResult[] = [];
+    const batchId = this.createBatchId(sessionId);
+    const persistedDocumentIds = new Set<string>();
 
     // Group messages into digestible chunks
     const groups = this.groupMessages(messages);
@@ -87,16 +98,14 @@ export class ConversationIngestor extends EventEmitter {
 
         // Extract entities from the conversation text
         const entities = await this.extractor.extract(text);
-
-        // Attach entities to each document
-        const enriched = documents.map((doc) => ({
-          ...doc,
-          metadata: {
-            ...doc.metadata,
-            entities: [...doc.metadata.entities, ...entities],
-          },
-          sourceId: sessionId,
-        }));
+        const enriched = await this.prepareDocuments(
+          documents,
+          `${batchId}-part-${i + 1}`,
+          sessionId,
+          entities,
+        );
+        await this.persistDocuments(enriched);
+        enriched.forEach((document) => persistedDocumentIds.add(document.id));
 
         results.push({
           success: true,
@@ -128,6 +137,10 @@ export class ConversationIngestor extends EventEmitter {
     const succeeded = results.filter((r) => r.success).length;
     const failed = results.filter((r) => !r.success).length;
 
+    if (failed === 0) {
+      await this.prunePersistedDocuments(sessionId, persistedDocumentIds);
+    }
+
     this.emitEvent('ingest:complete', sessionId, {
       total: results.length,
       succeeded,
@@ -135,6 +148,10 @@ export class ConversationIngestor extends EventEmitter {
     });
 
     return { total: results.length, succeeded, failed, results };
+  }
+
+  hasKnowledgeStore(): boolean {
+    return Boolean(this.store);
   }
 
   // ── Private ─────────────────────────────────────────────────────────────
@@ -145,6 +162,110 @@ export class ConversationIngestor extends EventEmitter {
       groups.push(messages.slice(i, i + this.maxMessagesPerDoc));
     }
     return groups;
+  }
+
+  private async prepareDocuments(
+    documents: KnowledgeDocument[],
+    batchId: string,
+    sessionId: string,
+    entities: Entity[],
+  ): Promise<KnowledgeDocument[]> {
+    const uniqueEntities = this.mergeEntities(
+      documents[0]?.metadata.entities ?? [],
+      entities,
+    );
+    const normalized = documents.map((doc, index) => ({
+      ...doc,
+      id: `${batchId}-${index + 1}-${doc.id}`,
+      sourceId: sessionId,
+      metadata: {
+        ...doc.metadata,
+        tags: [...new Set(doc.metadata.tags)],
+        entities: uniqueEntities,
+      },
+    }));
+
+    return this.embedder.embedDocuments(normalized);
+  }
+
+  private async persistDocuments(documents: KnowledgeDocument[]): Promise<void> {
+    if (!this.store) {
+      return;
+    }
+
+    await Promise.all(documents.map(async (document) => {
+      await this.store?.save(document);
+    }));
+  }
+
+  private async prunePersistedDocuments(
+    sessionId: string,
+    persistedDocumentIds: Set<string>,
+  ): Promise<void> {
+    if (!this.store) {
+      return;
+    }
+
+    const total = await this.store.count();
+    if (total === 0) {
+      return;
+    }
+
+    const existingDocuments = await this.store.list(0, total);
+    const staleDocuments = existingDocuments.filter((document) => (
+      document.source === 'conversation'
+      && document.sourceId === sessionId
+      && !persistedDocumentIds.has(document.id)
+    ));
+
+    await Promise.all(staleDocuments.map(async (document) => {
+      await this.store?.delete(document.id);
+    }));
+  }
+
+  private mergeEntities(
+    left: Entity[],
+    right: Entity[],
+  ): Entity[] {
+    const entities = new Map<string, typeof left[number]>();
+
+    for (const entity of [...left, ...right]) {
+      const existing = entities.get(entity.name);
+      if (!existing) {
+        entities.set(entity.name, {
+          ...entity,
+          relations: [...entity.relations],
+        });
+        continue;
+      }
+
+      const relations = new Map(
+        existing.relations.map((relation) => [
+          `${relation.target}:${relation.type}`,
+          relation,
+        ]),
+      );
+
+      for (const relation of entity.relations) {
+        relations.set(`${relation.target}:${relation.type}`, relation);
+      }
+
+      entities.set(entity.name, {
+        ...existing,
+        relations: Array.from(relations.values()),
+      });
+    }
+
+    return Array.from(entities.values());
+  }
+
+  private createBatchId(sessionId: string): string {
+    const slug = sessionId
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48);
+    return `conversation-${slug || 'session'}`;
   }
 
   private emitEvent(type: ConversationIngestorEventType, sessionId: string, payload?: unknown): void {

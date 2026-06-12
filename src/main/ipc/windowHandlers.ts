@@ -5,7 +5,7 @@
  * Extracted from main.ts to keep the main process entrypoint focused.
  */
 
-import { ipcMain, BrowserWindow, Menu } from 'electron';
+import { BrowserWindow, ipcMain, Menu } from 'electron';
 
 export function registerWindowHandlers(getMainWindow: () => BrowserWindow | null): void {
   ipcMain.on('window-minimize', () => {

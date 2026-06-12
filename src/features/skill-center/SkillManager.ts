@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
-import { SkillManifest, SkillInstallResult } from './types';
+
+import { SkillInstallResult,SkillManifest } from './types';
 
 export declare interface SkillManagerEvents {
   installed: (skill: SkillManifest) => void;

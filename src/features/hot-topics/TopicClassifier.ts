@@ -3,11 +3,11 @@
  */
 
 import type {
-  TopicItem,
-  TopicCategory,
   ClassificationResult,
   ClassifiedTopics,
   ScoreWeights,
+  TopicCategory,
+  TopicItem,
 } from './types';
 import { DEFAULT_SCORE_WEIGHTS } from './types';
 

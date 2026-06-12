@@ -7,7 +7,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
-import { SCHEDULED_TASK_SWITCH_MESSAGE } from '../../scheduledTask/enginePrompt';
+import { SCHEDULED_TASK_SWITCH_MESSAGE } from '../../scheduled-task/enginePrompt';
 import type { CoworkExecutionMode,CoworkMessage, CoworkStore } from '../coworkStore';
 import type { CoworkRuntimeMetric } from './agentEngine/types';
 import { loadClaudeSdk } from './claudeSdk';

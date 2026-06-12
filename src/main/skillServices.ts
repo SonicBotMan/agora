@@ -3,200 +3,36 @@
  */
 
 import { execSync, spawn, spawnSync } from 'child_process';
-import path from 'path';
-import fs from 'fs';
 import { app } from 'electron';
+import fs from 'fs';
+import path from 'path';
+
 import { cpRecursiveSync } from './fsCompat';
 import { getElectronNodeRuntimePath } from './libs/coworkUtil';
 import { appendPythonRuntimeToEnv } from './libs/pythonRuntime';
-
-/**
- * Resolve the user's login shell PATH on macOS/Linux.
- * Packaged Electron apps on macOS don't inherit the user's shell profile,
- * so node/npm won't be in PATH unless we resolve it explicitly.
- */
-function resolveUserShellPath(): string | null {
-  if (process.platform === 'win32') return null;
-
-  try {
-    const shell = process.env.SHELL || '/bin/bash';
-    // Use non-interactive login shell to avoid side effects in interactive startup scripts.
-    const result = execSync(`${shell} -lc 'echo __PATH__=$PATH'`, {
-      encoding: 'utf-8',
-      timeout: 5000,
-      env: { ...process.env },
-    });
-    const match = result.match(/__PATH__=(.+)/);
-    return match ? match[1].trim() : null;
-  } catch (error) {
-    console.warn('[SkillServices] Failed to resolve user shell PATH:', error);
-    return null;
-  }
-}
-
-/**
- * Build an environment for spawning skill service scripts.
- * Merges the user's shell PATH with the current process environment.
- */
-function buildSkillServiceEnv(): Record<string, string | undefined> {
-  const env: Record<string, string | undefined> = { ...process.env };
-  const electronNodeRuntimePath = getElectronNodeRuntimePath();
-
-  if (app.isPackaged) {
-    if (!env.HOME) {
-      env.HOME = app.getPath('home');
-    }
-
-    const userPath = resolveUserShellPath();
-    if (userPath) {
-      env.PATH = userPath;
-      console.log('[SkillServices] Resolved user shell PATH for skill services');
-    } else {
-      // Fallback: append common node installation paths
-      const commonPaths = [
-        '/usr/local/bin',
-        '/opt/homebrew/bin',
-        `${env.HOME}/.nvm/current/bin`,
-        `${env.HOME}/.volta/bin`,
-        `${env.HOME}/.fnm/current/bin`,
-      ];
-      env.PATH = [env.PATH, ...commonPaths].filter(Boolean).join(':');
-      console.log('[SkillServices] Using fallback PATH for skill services');
-    }
-  }
-
-  // Expose Electron executable so skill scripts can run JS with ELECTRON_RUN_AS_NODE
-  // even when system Node.js is not installed.
-  env.LOBSTERAI_ELECTRON_PATH = electronNodeRuntimePath;
-  appendPythonRuntimeToEnv(env);
-
-  return env;
-}
+import {
+  buildSkillServiceEnv,
+  hasCommand,
+  isWebSearchDistOutdated,
+  isWebSearchRuntimeHealthy,
+  resolveBundledWebSearchRepairPath,
+  resolveNodeRuntime,
+  resolveUserShellPath,
+  resolveWebSearchPath,
+} from './skillServicesSupport';
 
 export class SkillServiceManager {
   private webSearchPid: number | null = null;
   private skillEnv: Record<string, string | undefined> | null = null;
 
-  private hasWebSearchRuntimeScriptSupport(skillPath: string): boolean {
-    const startServerScript = path.join(skillPath, 'scripts', 'start-server.sh');
-    const searchScript = path.join(skillPath, 'scripts', 'search.sh');
-    if (!fs.existsSync(startServerScript)) {
-      return false;
-    }
-    if (!fs.existsSync(searchScript)) {
-      return false;
-    }
-    try {
-      const startScript = fs.readFileSync(startServerScript, 'utf-8');
-      const searchScriptContent = fs.readFileSync(searchScript, 'utf-8');
-      return startScript.includes('WEB_SEARCH_FORCE_REPAIR')
-        && startScript.includes('detect_healthy_bridge_server')
-        && searchScriptContent.includes('ACTIVE_SERVER_URL')
-        && searchScriptContent.includes('try_switch_to_local_server');
-    } catch {
-      return false;
-    }
-  }
-
-  private hasLegacyWebSearchEncodingHeuristic(serverEntry: string): boolean {
-    try {
-      const content = fs.readFileSync(serverEntry, 'utf-8');
-      return content.includes('scoreDecodedJsonText')
-        && content.includes('Request body decoded using gb18030 (score');
-    } catch {
-      return true;
-    }
-  }
-
-  private isWebSearchDistOutdated(skillPath: string): boolean {
-    const serverEntry = path.join(skillPath, 'dist', 'server', 'index.js');
-    if (!fs.existsSync(serverEntry)) {
-      return true;
-    }
-
-    if (this.hasLegacyWebSearchEncodingHeuristic(serverEntry)) {
-      return true;
-    }
-
-    const sourceDir = path.join(skillPath, 'server');
-    if (!fs.existsSync(sourceDir)) {
-      return false;
-    }
-
-    let distMtimeMs = 0;
-    try {
-      distMtimeMs = fs.statSync(serverEntry).mtimeMs;
-    } catch {
-      return true;
-    }
-
-    const queue: string[] = [sourceDir];
-    while (queue.length > 0) {
-      const current = queue.pop();
-      if (!current) continue;
-
-      let entries: fs.Dirent[] = [];
-      try {
-        entries = fs.readdirSync(current, { withFileTypes: true });
-      } catch {
-        return true;
-      }
-
-      for (const entry of entries) {
-        const fullPath = path.join(current, entry.name);
-        if (entry.isDirectory()) {
-          queue.push(fullPath);
-          continue;
-        }
-
-        if (!entry.isFile() || !entry.name.endsWith('.ts')) {
-          continue;
-        }
-
-        try {
-          if (fs.statSync(fullPath).mtimeMs > distMtimeMs) {
-            return true;
-          }
-        } catch {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  private isWebSearchRuntimeHealthy(skillPath: string): boolean {
-    const requiredPaths = [
-      path.join(skillPath, 'scripts', 'start-server.sh'),
-      path.join(skillPath, 'scripts', 'search.sh'),
-      path.join(skillPath, 'dist', 'server', 'index.js'),
-      path.join(skillPath, 'node_modules', 'iconv-lite', 'encodings', 'index.js'),
-    ];
-    return requiredPaths.every(requiredPath => fs.existsSync(requiredPath))
-      && this.hasWebSearchRuntimeScriptSupport(skillPath)
-      && !this.isWebSearchDistOutdated(skillPath);
-  }
-
-  private hasCommand(command: string, env: NodeJS.ProcessEnv): boolean {
-    const checker = process.platform === 'win32' ? 'where' : 'which';
-    const result = spawnSync(checker, [command], {
-      stdio: 'ignore',
-      env,
-      windowsHide: process.platform === 'win32',
-    });
-    return result.status === 0;
-  }
-
   private repairWebSearchRuntimeFromBundled(skillPath: string): void {
-    if (!app.isPackaged) return;
-
-    const candidates = [
-      path.join(process.resourcesPath, 'SKILLs', 'web-search'),
-      path.join(app.getAppPath(), 'SKILLs', 'web-search'),
-    ];
-
-    const bundledPath = candidates.find(candidate => candidate !== skillPath && fs.existsSync(candidate));
+    const bundledPath = resolveBundledWebSearchRepairPath({
+      skillPath,
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      appPath: app.getAppPath(),
+      existsSync: fs.existsSync,
+    });
     if (!bundledPath) {
       return;
     }
@@ -211,36 +47,29 @@ export class SkillServiceManager {
     }
   }
 
-  private resolveNodeRuntime(
-    env: NodeJS.ProcessEnv
-  ): { command: string; args: string[]; extraEnv?: NodeJS.ProcessEnv } {
-    if (this.hasCommand('node', env)) {
-      return { command: 'node', args: [] };
-    }
-
-    return {
-      command: getElectronNodeRuntimePath(),
-      args: [],
-      extraEnv: { ELECTRON_RUN_AS_NODE: '1' },
-    };
-  }
-
   private ensureWebSearchRuntimeReady(skillPath: string): void {
-    if (this.isWebSearchRuntimeHealthy(skillPath)) {
+    if (isWebSearchRuntimeHealthy(skillPath, fs)) {
       return;
     }
 
     this.repairWebSearchRuntimeFromBundled(skillPath);
-    if (this.isWebSearchRuntimeHealthy(skillPath)) {
+    if (isWebSearchRuntimeHealthy(skillPath, fs)) {
       return;
     }
 
     const nodeModules = path.join(skillPath, 'node_modules');
     const distDir = path.join(skillPath, 'dist');
     const env = this.skillEnv as NodeJS.ProcessEnv ?? process.env;
-    const npmAvailable = this.hasCommand('npm', env);
+    const npmAvailable = hasCommand({
+      command: 'npm',
+      env,
+      platform: process.platform,
+      spawnSync,
+    });
 
-    const shouldInstallDeps = !fs.existsSync(nodeModules) || !this.isWebSearchRuntimeHealthy(skillPath);
+    const shouldInstallDeps =
+      !fs.existsSync(nodeModules)
+      || !isWebSearchRuntimeHealthy(skillPath, fs);
     if (shouldInstallDeps) {
       if (!npmAvailable) {
         throw new Error('Web-search runtime is incomplete and npm is not available to repair it');
@@ -249,7 +78,9 @@ export class SkillServiceManager {
       execSync('npm install', { cwd: skillPath, stdio: 'ignore', env });
     }
 
-    const shouldCompileDist = !fs.existsSync(distDir) || this.isWebSearchDistOutdated(skillPath);
+    const shouldCompileDist =
+      !fs.existsSync(distDir)
+      || isWebSearchDistOutdated(skillPath, fs);
     if (shouldCompileDist) {
       if (!npmAvailable) {
         throw new Error('Web-search dist files are missing/outdated and npm is not available to rebuild them');
@@ -258,7 +89,7 @@ export class SkillServiceManager {
       execSync('npm run build', { cwd: skillPath, stdio: 'ignore', env });
     }
 
-    if (!this.isWebSearchRuntimeHealthy(skillPath)) {
+    if (!isWebSearchRuntimeHealthy(skillPath, fs)) {
       throw new Error('Web-search runtime is still unhealthy after attempted repair');
     }
   }
@@ -270,7 +101,20 @@ export class SkillServiceManager {
     console.log('[SkillServices] Starting skill services...');
 
     // Resolve environment once for all service spawns
-    this.skillEnv = buildSkillServiceEnv();
+    this.skillEnv = buildSkillServiceEnv({
+      processEnv: process.env,
+      isPackaged: app.isPackaged,
+      homePath: app.getPath('home'),
+      resolveUserShellPath: () =>
+        resolveUserShellPath({
+          platform: process.platform,
+          shell: process.env.SHELL,
+          env: process.env,
+          execSync,
+        }),
+      electronNodeRuntimePath: getElectronNodeRuntimePath(),
+      appendPythonRuntimeToEnv,
+    });
 
     try {
       await this.startWebSearchService();
@@ -336,7 +180,17 @@ export class SkillServiceManager {
     const serverEntry = path.join(skillPath, 'dist', 'server', 'index.js');
     this.ensureWebSearchRuntimeReady(skillPath);
     const baseEnv = this.skillEnv as NodeJS.ProcessEnv ?? process.env;
-    const runtime = this.resolveNodeRuntime(baseEnv);
+    const runtime = resolveNodeRuntime({
+      env: baseEnv,
+      hasCommand: (command, resolvedEnv) =>
+        hasCommand({
+          command,
+          env: resolvedEnv,
+          platform: process.platform,
+          spawnSync,
+        }),
+      electronNodeRuntimePath: getElectronNodeRuntimePath(),
+    });
     const electronNodeRuntimePath = getElectronNodeRuntimePath();
     const env = {
       ...baseEnv,
@@ -424,7 +278,7 @@ export class SkillServiceManager {
         try {
           const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim());
           this.webSearchPid = pid;
-        } catch (error) {
+        } catch {
           return false;
         }
       } else {
@@ -436,7 +290,7 @@ export class SkillServiceManager {
     try {
       process.kill(this.webSearchPid, 0); // Signal 0 checks if process exists
       return true;
-    } catch (error) {
+    } catch {
       this.webSearchPid = null;
       return false;
     }
@@ -446,21 +300,14 @@ export class SkillServiceManager {
    * Get Web Search skill path
    */
   private getWebSearchPath(): string | null {
-    const candidates: string[] = [];
-
-    if (app.isPackaged) {
-      // Prefer userData for packaged apps so scripts run from a real filesystem path.
-      candidates.push(path.join(app.getPath('userData'), 'SKILLs', 'web-search'));
-      candidates.push(path.join(process.resourcesPath, 'SKILLs', 'web-search'));
-      candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
-    } else {
-      // In development, __dirname is dist-electron/, so we need to go up one level to get to project root
-      const projectRoot = path.resolve(__dirname, '..');
-      candidates.push(path.join(projectRoot, 'SKILLs', 'web-search'));
-      candidates.push(path.join(app.getAppPath(), 'SKILLs', 'web-search'));
-    }
-
-    return candidates.find(skillPath => fs.existsSync(skillPath)) ?? null;
+    return resolveWebSearchPath({
+      isPackaged: app.isPackaged,
+      userDataPath: app.getPath('userData'),
+      resourcesPath: process.resourcesPath,
+      appPath: app.getAppPath(),
+      moduleDir: __dirname,
+      existsSync: fs.existsSync,
+    });
   }
 
   /**
@@ -482,7 +329,7 @@ export class SkillServiceManager {
         signal: AbortSignal.timeout(3000)
       });
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

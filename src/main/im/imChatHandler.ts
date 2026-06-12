@@ -4,11 +4,12 @@
  */
 
 import axios from 'axios';
+
+import { buildIMMediaInstruction } from './imMediaInstruction';
 import {
   IMMessage,
   IMSettings,
 } from './types';
-import { buildIMMediaInstruction } from './imMediaInstruction';
 
 // LLM Configuration interface (mirrors app_config structure)
 interface LLMConfig {
@@ -17,6 +18,9 @@ interface LLMConfig {
   model?: string;
   provider?: string;
 }
+
+type StreamChunk = { content: string; done: boolean };
+type SSEEvent = { event: string; data: string };
 
 export interface IMChatHandlerOptions {
   getLLMConfig: () => Promise<LLMConfig | null>;
@@ -40,25 +44,7 @@ export class IMChatHandler {
       throw new Error('LLM configuration not found');
     }
 
-    // Build system prompt with optional skills
-    let systemPrompt = this.options.imSettings.systemPrompt || '';
-
-    if (this.options.imSettings.skillsEnabled && this.options.getSkillsPrompt) {
-      const skillsPrompt = await this.options.getSkillsPrompt();
-      if (skillsPrompt) {
-        systemPrompt = systemPrompt
-          ? `${systemPrompt}\n\n${skillsPrompt}`
-          : skillsPrompt;
-      }
-    }
-
-    // Append IM media sending instruction
-    const mediaInstruction = buildIMMediaInstruction(this.options.imSettings);
-    if (mediaInstruction) {
-      systemPrompt = systemPrompt
-        ? `${systemPrompt}\n\n${mediaInstruction}`
-        : mediaInstruction;
-    }
+    const systemPrompt = await this.buildSystemPrompt();
 
     // Call LLM API
     const response = await this.callLLM(llmConfig, message.content, systemPrompt);
@@ -187,15 +173,7 @@ export class IMChatHandler {
     });
 
     // Extract text from response
-    const content = response.data.content;
-    if (Array.isArray(content)) {
-      return content
-        .filter((block: any) => block.type === 'text')
-        .map((block: any) => block.text)
-        .join('\n');
-    }
-
-    return content?.text || content || '';
+    return this.extractAnthropicText(response.data);
   }
 
   /**
@@ -252,7 +230,7 @@ export class IMChatHandler {
     if (useResponsesApi) {
       return this.extractResponsesText(response.data);
     }
-    return response.data.choices?.[0]?.message?.content || '';
+    return this.extractOpenAICompatibleText(response.data);
   }
 
   private extractResponsesText(payload: any): string {
@@ -275,18 +253,37 @@ export class IMChatHandler {
     return chunks.join('');
   }
 
-  /**
-   * Process message with streaming (for AI cards)
-   */
-  async *processMessageStream(
-    message: IMMessage
-  ): AsyncGenerator<{ content: string; done: boolean }> {
-    const llmConfig = await this.options.getLLMConfig();
-    if (!llmConfig) {
-      throw new Error('LLM configuration not found');
+  private extractAnthropicText(payload: any): string {
+    const content = payload?.content;
+    if (Array.isArray(content)) {
+      return content
+        .filter((block: any) => block.type === 'text')
+        .map((block: any) => block.text)
+        .join('\n');
     }
 
-    // Build system prompt
+    return content?.text || content || '';
+  }
+
+  private extractOpenAICompatibleText(payload: any): string {
+    const content = payload?.choices?.[0]?.message?.content;
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content
+        .map((item: any) => {
+          if (typeof item === 'string') return item;
+          if (typeof item?.text === 'string') return item.text;
+          return '';
+        })
+        .filter(Boolean)
+        .join('');
+    }
+    return '';
+  }
+
+  private async buildSystemPrompt(): Promise<string> {
     let systemPrompt = this.options.imSettings.systemPrompt || '';
 
     if (this.options.imSettings.skillsEnabled && this.options.getSkillsPrompt) {
@@ -298,8 +295,323 @@ export class IMChatHandler {
       }
     }
 
-    // For now, use non-streaming and yield once
-    // TODO: Implement actual streaming for better UX
+    const mediaInstruction = buildIMMediaInstruction(this.options.imSettings);
+    if (mediaInstruction) {
+      systemPrompt = systemPrompt
+        ? `${systemPrompt}\n\n${mediaInstruction}`
+        : mediaInstruction;
+    }
+
+    return systemPrompt;
+  }
+
+  private async *callLLMStream(
+    config: LLMConfig,
+    userMessage: string,
+    systemPrompt?: string,
+  ): AsyncGenerator<StreamChunk> {
+    const provider = this.detectProvider(config);
+
+    if (provider === 'anthropic') {
+      yield* this.callAnthropicAPIStream(config, userMessage, systemPrompt);
+      return;
+    }
+
+    yield* this.callOpenAICompatibleAPIStream(config, userMessage, systemPrompt);
+  }
+
+  private async *callAnthropicAPIStream(
+    config: LLMConfig,
+    userMessage: string,
+    systemPrompt?: string,
+  ): AsyncGenerator<StreamChunk> {
+    const url = `${config.baseUrl.replace(/\/$/, '')}/v1/messages`;
+
+    const body: Record<string, unknown> = {
+      model: config.model || 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      stream: true,
+      messages: [{ role: 'user', content: userMessage }],
+    };
+
+    if (systemPrompt) {
+      body.system = systemPrompt;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Anthropic stream failed: ${response.status} ${response.statusText}`);
+    }
+
+    if (!this.isSSE(response)) {
+      yield {
+        content: this.extractAnthropicText(await response.json()),
+        done: true,
+      };
+      return;
+    }
+
+    let accumulated = '';
+    let emitted = false;
+
+    for await (const sse of this.iterateSSE(response)) {
+      if (sse.data === '[DONE]') continue;
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(sse.data);
+      } catch {
+        continue;
+      }
+
+      const eventType = sse.event || String(parsed?.type || '');
+      if (eventType !== 'content_block_delta' || parsed?.delta?.type !== 'text_delta') {
+        continue;
+      }
+
+      const delta = typeof parsed?.delta?.text === 'string' ? parsed.delta.text : '';
+      if (!delta) continue;
+
+      accumulated += delta;
+      emitted = true;
+      yield { content: accumulated, done: false };
+    }
+
+    if (emitted) {
+      yield { content: accumulated, done: true };
+    }
+  }
+
+  private async *callOpenAICompatibleAPIStream(
+    config: LLMConfig,
+    userMessage: string,
+    systemPrompt?: string,
+  ): AsyncGenerator<StreamChunk> {
+    const useResponsesApi = this.shouldUseOpenAIResponsesApi(config);
+    const url = useResponsesApi
+      ? this.buildOpenAIResponsesUrl(config)
+      : this.buildOpenAICompatibleChatCompletionsUrl(config);
+
+    const messages: Array<{ role: string; content: string }> = [];
+    if (systemPrompt) {
+      messages.push({ role: 'system', content: systemPrompt });
+    }
+    messages.push({ role: 'user', content: userMessage });
+
+    const body: Record<string, unknown> = useResponsesApi
+      ? {
+          model: config.model || 'gpt-4o',
+          input: [{ role: 'user', content: [{ type: 'input_text', text: userMessage }] }],
+          max_output_tokens: 4096,
+          stream: true,
+        }
+      : {
+          model: config.model || 'gpt-4o',
+          messages,
+          stream: true,
+        };
+
+    if (useResponsesApi && systemPrompt) {
+      body.instructions = systemPrompt;
+    }
+    if (!useResponsesApi) {
+      if (this.shouldUseMaxCompletionTokens(config)) {
+        body.max_completion_tokens = 4096;
+      } else {
+        body.max_tokens = 4096;
+      }
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (config.apiKey) {
+      headers.Authorization = `Bearer ${config.apiKey}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI-compatible stream failed: ${response.status} ${response.statusText}`);
+    }
+
+    if (!this.isSSE(response)) {
+      const payload = await response.json();
+      yield {
+        content: useResponsesApi
+          ? this.extractResponsesText(payload)
+          : this.extractOpenAICompatibleText(payload),
+        done: true,
+      };
+      return;
+    }
+
+    let accumulated = '';
+    let emitted = false;
+
+    for await (const sse of this.iterateSSE(response)) {
+      if (sse.data === '[DONE]') continue;
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(sse.data);
+      } catch {
+        continue;
+      }
+
+      const delta = useResponsesApi
+        ? this.extractResponsesStreamDelta(sse.event, parsed, accumulated.length > 0)
+        : this.extractChatCompletionsStreamDelta(parsed);
+
+      if (!delta) continue;
+
+      accumulated += delta;
+      emitted = true;
+      yield { content: accumulated, done: false };
+    }
+
+    if (emitted) {
+      yield { content: accumulated, done: true };
+    }
+  }
+
+  private extractChatCompletionsStreamDelta(payload: any): string {
+    const delta = payload?.choices?.[0]?.delta?.content;
+    if (typeof delta === 'string') {
+      return delta;
+    }
+    if (Array.isArray(delta)) {
+      return delta
+        .map((item: any) => (typeof item?.text === 'string' ? item.text : ''))
+        .filter(Boolean)
+        .join('');
+    }
+    return '';
+  }
+
+  private extractResponsesStreamDelta(
+    event: string,
+    payload: any,
+    hasAccumulatedContent = false,
+  ): string {
+    const eventType = event || String(payload?.type || '');
+    if (
+      (eventType === 'response.output_text.delta' || eventType === 'response.output.delta')
+      && typeof payload?.delta === 'string'
+    ) {
+      return payload.delta;
+    }
+
+    if (
+      (eventType === 'response.completed' || eventType === 'response.output_item.done')
+      && !payload?.delta
+      && !hasAccumulatedContent
+    ) {
+      const completed = this.extractResponsesText(payload?.response ?? payload);
+      return completed || '';
+    }
+
+    return '';
+  }
+
+  private isSSE(response: Response): boolean {
+    return (response.headers.get('content-type') || '').toLowerCase().includes('text/event-stream');
+  }
+
+  private async *iterateSSE(response: Response): AsyncGenerator<SSEEvent> {
+    if (!response.body) {
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let currentEvent = '';
+    let currentData: string[] = [];
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\r$/, '');
+        if (!line) {
+          if (currentData.length > 0) {
+            yield {
+              event: currentEvent,
+              data: currentData.join('\n'),
+            };
+          }
+          currentEvent = '';
+          currentData = [];
+          continue;
+        }
+        if (line.startsWith('event:')) {
+          currentEvent = line.slice(6).trim();
+          continue;
+        }
+        if (line.startsWith('data:')) {
+          currentData.push(line.slice(5).trimStart());
+        }
+      }
+    }
+
+    buffer += decoder.decode();
+    const tail = buffer.replace(/\r/g, '').trim();
+    if (tail.startsWith('data:')) {
+      currentData.push(tail.slice(5).trimStart());
+    }
+    if (currentData.length > 0) {
+      yield {
+        event: currentEvent,
+        data: currentData.join('\n'),
+      };
+    }
+  }
+
+  /**
+   * Process message with streaming (for AI cards)
+   */
+  async *processMessageStream(
+    message: IMMessage
+  ): AsyncGenerator<{ content: string; done: boolean }> {
+    const llmConfig = await this.options.getLLMConfig();
+    if (!llmConfig) {
+      throw new Error('LLM configuration not found');
+    }
+
+    const systemPrompt = await this.buildSystemPrompt();
+    let emitted = false;
+
+    try {
+      for await (const chunk of this.callLLMStream(llmConfig, message.content, systemPrompt)) {
+        emitted = true;
+        yield chunk;
+      }
+      if (emitted) {
+        return;
+      }
+    } catch (error) {
+      console.warn('[IMChatHandler] Streaming failed, falling back to non-streaming response:', error);
+    }
+
     const response = await this.callLLM(llmConfig, message.content, systemPrompt);
     yield { content: response, done: true };
   }

@@ -5,80 +5,86 @@
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export type {
-  KnowledgeSource,
   ContentType,
-  EntityType,
-  EntityRelation,
-  Entity,
-  KnowledgeDocumentMetadata,
-  KnowledgeDocument,
-  KnowledgeSearchResult,
-  KnowledgeSearchOptions,
-  KnowledgeSearchQuery,
-  IngestionResult,
-  IngestionSummary,
   ConversationMessage,
-  ResearchResult,
   DocumentChunk,
+  Entity,
+  EntityRelation,
+  EntityType,
   FTSQuery,
   FTSResult,
+  IngestionResult,
+  IngestionSummary,
+  KnowledgeDocument,
+  KnowledgeDocumentMetadata,
+  KnowledgeSearchOptions,
+  KnowledgeSearchQuery,
+  KnowledgeSearchResult,
+  KnowledgeSource,
+  ResearchResult,
 } from './types';
 
 // ── Store ───────────────────────────────────────────────────────────────────
 
-export { KnowledgeStore } from './KnowledgeStore';
 export type {
-  SQLiteAdapter,
-  KnowledgeStoreEventType,
   KnowledgeStoreEvent,
+  KnowledgeStoreEventType,
   KnowledgeStoreOptions,
+  SQLiteAdapter,
 } from './KnowledgeStore';
+export { KnowledgeStore } from './KnowledgeStore';
 
 // ── Embedding Engine ────────────────────────────────────────────────────────
 
-export { EmbeddingEngine, OllamaProvider, TransformersProvider, NoOpProvider } from './EmbeddingEngine';
 export type {
+  EmbeddingEngineOptions,
   EmbeddingProvider,
+  LocalHashingProviderOptions,
   OllamaProviderOptions,
   TransformersProviderOptions,
-  EmbeddingEngineOptions,
+} from './EmbeddingEngine';
+export {
+  EmbeddingEngine,
+  LocalHashingProvider,
+  NoOpProvider,
+  OllamaProvider,
+  TransformersProvider,
 } from './EmbeddingEngine';
 
 // ── Document Processor ──────────────────────────────────────────────────────
 
-export { DocumentProcessor } from './DocumentProcessor';
 export type {
   ChunkingStrategy,
   DocumentProcessorOptions,
 } from './DocumentProcessor';
+export { DocumentProcessor } from './DocumentProcessor';
 
 // ── Ingestors ───────────────────────────────────────────────────────────────
 
+export type {
+  ConversationIngestorEvent,
+  ConversationIngestorEventType,
+  ConversationIngestorOptions,
+} from './ConversationIngestor';
 export { ConversationIngestor } from './ConversationIngestor';
 export type {
-  ConversationIngestorOptions,
-  ConversationIngestorEventType,
-  ConversationIngestorEvent,
-} from './ConversationIngestor';
-
-export { ResearchIngestor } from './ResearchIngestor';
-export type {
-  ResearchIngestorOptions,
-  ResearchIngestorEventType,
   ResearchIngestorEvent,
+  ResearchIngestorEventType,
+  ResearchIngestorOptions,
 } from './ResearchIngestor';
+export { ResearchIngestor } from './ResearchIngestor';
 
 // ── Entity Extractor ────────────────────────────────────────────────────────
 
-export { EntityExtractor } from './EntityExtractor';
 export type {
   EntityExtractorOptions,
   ExtractedEntity,
 } from './EntityExtractor';
+export { EntityExtractor } from './EntityExtractor';
 
 // ── Knowledge Search ────────────────────────────────────────────────────────
 
-export { HybridSearchEngine } from './KnowledgeSearch';
 export type {
   KnowledgeSearchConfig,
 } from './KnowledgeSearch';
+export { HybridSearchEngine } from './KnowledgeSearch';

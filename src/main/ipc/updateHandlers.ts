@@ -7,7 +7,7 @@
 
 import { ipcMain } from 'electron';
 
-import { downloadUpdate, cancelActiveDownload, installUpdate } from '../libs/appUpdateInstaller';
+import { cancelActiveDownload, downloadUpdate, installUpdate } from '../libs/appUpdateInstaller';
 
 /**
  * Interface to read/write the SQLite KV store.

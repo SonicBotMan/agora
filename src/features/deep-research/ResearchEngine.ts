@@ -5,19 +5,19 @@
 
 import { EventEmitter } from 'events';
 
+import type { SearchSourceAdapter } from './sources/index';
+import { ScholarSearchAdapter } from './sources/scholar';
+import { SocialSearchAdapter } from './sources/social';
+import { WebSearchAdapter } from './sources/web';
 import type {
+  Finding,
+  ResearchEvent,
   ResearchQuery,
   ResearchResult,
   ResearchRound,
-  Finding,
-  Source,
-  ResearchEvent,
   ResearchSourceType,
+  Source,
 } from './types';
-import type { SearchSourceAdapter } from './sources/index';
-import { WebSearchAdapter } from './sources/web';
-import { ScholarSearchAdapter } from './sources/scholar';
-import { SocialSearchAdapter } from './sources/social';
 
 export class ResearchEngine extends EventEmitter {
   private adapters: Map<ResearchSourceType, SearchSourceAdapter>;
@@ -81,6 +81,7 @@ export class ResearchEngine extends EventEmitter {
     const result: ResearchResult = {
       query: query.query,
       rounds,
+      findings: allFindings,
       synthesis,
       sources: Array.from(allSources.values()),
       confidence,
@@ -104,19 +105,29 @@ export class ResearchEngine extends EventEmitter {
     // Generate search queries for this round
     const searchQueries = this.generateSearchQueries(query.query, roundNum, previousRounds);
 
-    // Run searches in parallel across all requested sources
+    // Run each generated query across all requested sources.
     const results = await Promise.all(
-      query.sources.map(async (sourceType) => {
+      searchQueries.flatMap((searchQuery) => query.sources.map(async (sourceType) => {
         const adapter = this.adapters.get(sourceType);
-        if (!adapter) {
-          return { findings: [], sourceMetadata: [] };
-        }
-        return adapter.search(query.query);
-      }),
+        if (!adapter) return { findings: [], sourceMetadata: [] };
+        return adapter.search(searchQuery);
+      })),
     );
 
-    // Flatten findings
-    const findings: Finding[] = results.flatMap((r) => r.findings);
+    const dedupedFindings = new Map<string, Finding>();
+    for (const result of results) {
+      for (const finding of result.findings) {
+        const key = finding.source.url;
+        const existing = dedupedFindings.get(key);
+        if (!existing || existing.relevanceScore < finding.relevanceScore) {
+          dedupedFindings.set(key, finding);
+        }
+      }
+    }
+
+    const findings = Array.from(dedupedFindings.values())
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 12);
 
     // Generate follow-up questions based on findings (simplified)
     const newQuestions = this.generateFollowUpQuestions(findings);
@@ -149,10 +160,27 @@ export class ResearchEngine extends EventEmitter {
   /**
    * Synthesize findings across all rounds into a coherent summary.
    */
-  private async synthesize(_query: string, _rounds: ResearchRound[]): Promise<string> {
-    // TODO: Implement actual LLM-based synthesis
-    const totalFindings = _rounds.reduce((sum, r) => sum + r.findings.length, 0);
-    return `Synthesis of "${_query}": gathered ${totalFindings} finding(s) across ${_rounds.length} round(s).`;
+  private async synthesize(query: string, rounds: ResearchRound[]): Promise<string> {
+    const totalFindings = rounds.reduce((sum, round) => sum + round.findings.length, 0);
+    const topFindings = rounds
+      .flatMap((round) => round.findings)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 5);
+
+    if (topFindings.length === 0) {
+      return `No concrete findings were gathered for "${query}" after ${rounds.length} round(s).`;
+    }
+
+    const bullets = topFindings.map((finding) =>
+      `- ${finding.title}: ${finding.snippet}`,
+    );
+
+    return [
+      `Research summary for "${query}":`,
+      `Collected ${totalFindings} finding(s) across ${rounds.length} round(s).`,
+      '',
+      ...bullets,
+    ].join('\n');
   }
 
   private generateSearchQueries(
@@ -173,12 +201,21 @@ export class ResearchEngine extends EventEmitter {
     return [baseQuery];
   }
 
-  private generateFollowUpQuestions(_findings: Finding[]): string[] {
-    // TODO: Implement LLM-based question generation
-    if (_findings.length === 0) {
+  private generateFollowUpQuestions(findings: Finding[]): string[] {
+    if (findings.length === 0) {
       return [];
     }
-    // Stub: return empty to stop rounds by default
-    return [];
+
+    const nextQuestions: string[] = [];
+    const seen = new Set<string>();
+    for (const finding of findings.slice(0, 3)) {
+      const question = `Investigate more evidence about ${finding.title}`;
+      if (!seen.has(question)) {
+        seen.add(question);
+        nextQuestions.push(question);
+      }
+    }
+
+    return nextQuestions.slice(0, 2);
   }
 }

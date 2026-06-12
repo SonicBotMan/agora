@@ -12,8 +12,8 @@
  * memory cache + redux dispatch lifecycle.
  */
 
-import React from 'react';
 import { PlusCircleIcon } from '@heroicons/react/24/outline';
+import React from 'react';
 
 import { i18nService } from '../../../services/i18n';
 import type {

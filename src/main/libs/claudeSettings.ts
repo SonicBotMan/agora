@@ -486,7 +486,7 @@ function normalizeQwenBaseUrl(value: string | undefined): string {
  * Map Agora model IDs to OAuth endpoint model names
  * OAuth endpoint only supports 'coder-model' and 'vision-model'
  */
-function mapQwenModelToOAuthModel(modelId: string, supportsImage?: boolean): string {
+function mapQwenModelToOAuthModel(_modelId: string, supportsImage?: boolean): string {
   // If the model supports image input, use vision-model
   if (supportsImage) {
     return 'vision-model';

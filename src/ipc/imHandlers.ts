@@ -1,26 +1,33 @@
-import type { IpcMain } from 'electron';
+import {
+  registerImCoreHandlers,
+} from '../main/ipc/imCoreHandlers';
+import type { ImDeps } from '../main/ipc/imDeps';
+import {
+  registerImFeishuInstanceHandlers,
+} from '../main/ipc/imFeishuInstanceHandlers';
+import {
+  registerImFeishuManagementHandlers,
+} from '../main/ipc/imFeishuManagementHandlers';
+import {
+  registerImInstanceHandlers,
+} from '../main/ipc/imInstanceHandlers';
+import {
+  registerImPairingHandlers,
+} from '../main/ipc/imPairingHandlers';
 
 /**
- * Register IPC handlers for instant messaging platform operations.
+ * Top-level architecture facade for IM IPC wiring.
+ *
+ * The runtime implementation is split across several focused modules under
+ * `src/main/ipc`. This facade keeps the documented `src/ipc/imHandlers.ts`
+ * entry stable while composing those concrete registrars.
  */
-export function registerImHandlers(ipcMain: IpcMain): void {
-  ipcMain.handle('im:listPlatforms', async () => {
-    console.log('[IPC] im:listPlatforms');
-    throw new Error('Not implemented');
-  });
-
-  ipcMain.handle('im:getInstances', async (_event, platform: string) => {
-    console.log('[IPC] im:getInstances', { platform });
-    throw new Error('Not implemented');
-  });
-
-  ipcMain.handle('im:createInstance', async (_event, platform: string, config: Record<string, unknown>) => {
-    console.log('[IPC] im:createInstance', { platform, config });
-    throw new Error('Not implemented');
-  });
-
-  ipcMain.handle('im:testConnection', async (_event, instanceId: string) => {
-    console.log('[IPC] im:testConnection', { instanceId });
-    throw new Error('Not implemented');
-  });
+export function registerImHandlers(deps: ImDeps): void {
+  registerImCoreHandlers(deps);
+  registerImFeishuManagementHandlers(deps);
+  registerImFeishuInstanceHandlers(deps);
+  registerImPairingHandlers(deps);
+  registerImInstanceHandlers(deps);
 }
+
+export type { ImDeps };

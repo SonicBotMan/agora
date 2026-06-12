@@ -1,5 +1,6 @@
 const EXPLICIT_ADD_RE = /(?:^|\n)\s*(?:请)?(?:记住|记下|保存到记忆|保存记忆|写入记忆|remember(?:\s+this|\s+that)?|store\s+(?:this|that)\s+in\s+memory)\s*[:：,，]?\s*(.+)$/gim;
 const EXPLICIT_DELETE_RE = /(?:^|\n)\s*(?:请)?(?:删除记忆|从记忆中删除|忘掉|忘记这条|forget\s+this|remove\s+from\s+memory)\s*[:：,，]?\s*(.+)$/gim;
+const EXPLICIT_MEMORY_COMMAND_LINE_RE = /^\s*(?:请)?(?:记住|记下|保存到记忆|保存记忆|写入记忆|remember(?:\s+this|\s+that)?|store\s+(?:this|that)\s+in\s+memory|删除记忆|从记忆中删除|忘掉|忘记这条|forget\s+this|remove\s+from\s+memory)\s*[:：,，]?/i;
 const CODE_BLOCK_RE = /```[\s\S]*?```/g;
 const SMALL_TALK_RE = /^(ok|okay|thanks|thank\s+you|好的|收到|明白|行|嗯|谢谢)[.!? ]*$/i;
 const SHORT_FACT_SIGNAL_RE = /(我叫|我是|我的名字是|我名字是|名字叫|我有(?!\s*(?:一个|个)?问题)|我养了|我家有|\bmy\s+name\s+is\b|\bi\s+am\b|\bi['’]?m\b|\bi\s+have\b|\bi\s+own\b)/i;
@@ -125,6 +126,7 @@ function extractImplicit(options: ExtractTurnMemoryOptions): ExtractedMemoryChan
   const seen = new Set<string>();
 
   for (const rawCandidate of candidates) {
+    if (EXPLICIT_MEMORY_COMMAND_LINE_RE.test(rawCandidate)) continue;
     const candidate = sanitizeImplicitCandidate(rawCandidate);
     if (!shouldKeepCandidate(candidate)) continue;
 

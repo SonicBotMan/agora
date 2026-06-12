@@ -8,7 +8,12 @@ import AgentSetupWizard from './components/cowork/AgentSetupWizard';
 import CoworkPermissionModal from './components/cowork/CoworkPermissionModal';
 import CoworkQuestionWizard from './components/cowork/CoworkQuestionWizard';
 import EngineStartupOverlay from './components/cowork/EngineStartupOverlay';
+import FrontendStationView from './components/frontend-station/FrontendStationView';
+import HotTopicsView from './components/hot-topics/HotTopicsView';
+import KnowledgeBaseView from './components/knowledge/KnowledgeBaseView';
+import OrchestratorView from './components/orchestrator/OrchestratorView';
 import PrivacyDialog from './components/PrivacyDialog';
+import ResearchWorkbenchView from './components/research/ResearchWorkbenchView';
 import RuntimeDashboardView from './components/runtime/RuntimeDashboardView';
 import Settings, { type SettingsOpenOptions } from './components/Settings';
 import Sidebar from './components/Sidebar';
@@ -37,7 +42,17 @@ import type { CoworkPermissionResult } from './types/cowork';
 const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsOptions, setSettingsOptions] = useState<SettingsOpenOptions>({});
-  const [mainView, setMainView] = useState<'cowork' | 'skills' | 'runtime' | 'agents'>('cowork');
+  const [mainView, setMainView] = useState<
+    | 'cowork'
+    | 'skills'
+    | 'runtime'
+    | 'agents'
+    | 'frontend-station'
+    | 'research'
+    | 'knowledge'
+    | 'hot-topics'
+    | 'orchestrator'
+  >('cowork');
   const [isInitialized, setIsInitialized] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -272,6 +287,39 @@ const App: React.FC = () => {
     setMainView('cowork');
   }, []);
 
+  const handleShowCoworkSession = useCallback((options?: {
+    sessionId?: string | null;
+    draft?: string;
+    focusInput?: boolean;
+    resetSession?: boolean;
+  }) => {
+    if (options?.resetSession) {
+      coworkService.clearSession();
+      dispatch(clearSelection());
+    }
+
+    if (typeof options?.draft === 'string') {
+      dispatch(setDraftPrompt({
+        sessionId: options.sessionId ?? '__home__',
+        draft: options.draft,
+      }));
+    }
+
+    setMainView('cowork');
+
+    if (options?.sessionId) {
+      void coworkService.loadSession(options.sessionId);
+    }
+
+    if (options?.focusInput) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('cowork:focus-input', {
+          detail: { clear: false },
+        }));
+      }, 0);
+    }
+  }, [dispatch]);
+
   const handleShowRuntimeDashboard = useCallback(() => {
     setMainView('runtime');
   }, []);
@@ -282,6 +330,26 @@ const App: React.FC = () => {
 
   const handleShowAgents = useCallback(() => {
     setMainView('agents');
+  }, []);
+
+  const handleShowFrontendStation = useCallback(() => {
+    setMainView('frontend-station');
+  }, []);
+
+  const handleShowResearch = useCallback(() => {
+    setMainView('research');
+  }, []);
+
+  const handleShowKnowledge = useCallback(() => {
+    setMainView('knowledge');
+  }, []);
+
+  const handleShowHotTopics = useCallback(() => {
+    setMainView('hot-topics');
+  }, []);
+
+  const handleShowOrchestrator = useCallback(() => {
+    setMainView('orchestrator');
   }, []);
 
   const handleShowAgentSettings = useCallback(() => {
@@ -696,6 +764,11 @@ const App: React.FC = () => {
           onShowCowork={handleShowCowork}
           onShowRuntimeDashboard={handleShowRuntimeDashboard}
           onShowAgents={handleShowAgents}
+          onShowFrontendStation={handleShowFrontendStation}
+          onShowResearch={handleShowResearch}
+          onShowKnowledge={handleShowKnowledge}
+          onShowHotTopics={handleShowHotTopics}
+          onShowOrchestrator={handleShowOrchestrator}
           onShowAgentSettings={handleShowAgentSettings}
           onNewChat={handleNewChat}
           isCollapsed={isSidebarCollapsed}
@@ -729,6 +802,42 @@ const App: React.FC = () => {
                 onToggleSidebar={handleToggleSidebar}
                 onNewChat={handleNewChat}
                 onShowCowork={handleShowCowork}
+                updateBadge={isSidebarCollapsed ? updateBadge : null}
+              />
+            ) : mainView === 'research' ? (
+              <ResearchWorkbenchView
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={handleToggleSidebar}
+                onNewChat={handleNewChat}
+                updateBadge={isSidebarCollapsed ? updateBadge : null}
+              />
+            ) : mainView === 'knowledge' ? (
+              <KnowledgeBaseView
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={handleToggleSidebar}
+                onNewChat={handleNewChat}
+                updateBadge={isSidebarCollapsed ? updateBadge : null}
+              />
+            ) : mainView === 'hot-topics' ? (
+              <HotTopicsView
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={handleToggleSidebar}
+                onNewChat={handleNewChat}
+                updateBadge={isSidebarCollapsed ? updateBadge : null}
+              />
+            ) : mainView === 'orchestrator' ? (
+              <OrchestratorView
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={handleToggleSidebar}
+                onNewChat={handleNewChat}
+                updateBadge={isSidebarCollapsed ? updateBadge : null}
+              />
+            ) : mainView === 'frontend-station' ? (
+              <FrontendStationView
+                isSidebarCollapsed={isSidebarCollapsed}
+                onToggleSidebar={handleToggleSidebar}
+                onNewChat={handleNewChat}
+                onShowCoworkSession={handleShowCoworkSession}
                 updateBadge={isSidebarCollapsed ? updateBadge : null}
               />
             ) : (

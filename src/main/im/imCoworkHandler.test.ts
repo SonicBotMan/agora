@@ -197,3 +197,40 @@ test('IM completion replies with only the current turn for a reused Feishu sessi
   await expect(pendingReply).resolves.toBe('你好，我是 Agora。');
   handler.destroy();
 });
+
+test('emits streaming progress updates for IM cowork replies', async () => {
+  const runtime = new FakeRuntime();
+  const coworkStore = new FakeCoworkStore();
+  const imStore = new FakeIMStore();
+  const handler = new IMCoworkHandler({
+    coworkRuntime: runtime as unknown as CoworkRuntime,
+    coworkStore: coworkStore as unknown as CoworkStore,
+    imStore,
+  });
+  const progressUpdates: string[] = [];
+
+  const pendingReply = handler.processMessage(
+    createFeishuMessage('请流式回复'),
+    {
+      onProgress: async (text) => {
+        progressUpdates.push(text);
+      },
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const [sessionId] = Array.from(coworkStore.sessions.keys());
+  runtime.emit('message', sessionId, {
+    id: 'assistant-1',
+    type: 'assistant',
+    content: '第一段',
+    metadata: {},
+    timestamp: Date.now(),
+  } satisfies CoworkMessage);
+  runtime.emit('messageUpdate', sessionId, 'assistant-1', '第一段，已更新');
+  runtime.emit('complete', sessionId);
+
+  await expect(pendingReply).resolves.toBe('第一段，已更新');
+  expect(progressUpdates).toEqual(['第一段', '第一段，已更新']);
+  handler.destroy();
+});

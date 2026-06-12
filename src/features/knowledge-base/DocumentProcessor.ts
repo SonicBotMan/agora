@@ -5,7 +5,13 @@
  * KnowledgeDocument arrays using configurable chunking strategies.
  */
 
-import type { KnowledgeDocument, KnowledgeSource, DocumentChunk, ContentType } from './types';
+import type {
+  ContentType,
+  DocumentChunk,
+  Entity,
+  KnowledgeDocument,
+  KnowledgeSource,
+} from './types';
 
 // ── Chunking Strategy ───────────────────────────────────────────────────────
 
@@ -160,7 +166,7 @@ export class DocumentProcessor {
       contentType: meta.contentType,
       metadata: {
         tags: meta.tags ?? [],
-        entities: [],
+        entities: [] as Entity[],
         createdAt: now,
         updatedAt: now,
       },

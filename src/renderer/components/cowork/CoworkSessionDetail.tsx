@@ -15,7 +15,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { useDispatch, useSelector } from 'react-redux';
 
-import { getScheduledReminderDisplayText } from '../../../scheduledTask/reminderText';
+import { getScheduledReminderDisplayText } from '../../../scheduled-task/reminderText';
 import { coworkService } from '../../services/cowork';
 import { i18nService } from '../../services/i18n';
 import { RootState } from '../../store';
@@ -41,6 +41,7 @@ import EllipsisHorizontalIcon from '../icons/EllipsisHorizontalIcon';
 import ExclamationTriangleIcon from '../icons/ExclamationTriangleIcon';
 import InformationCircleIcon from '../icons/InformationCircleIcon';
 import PencilSquareIcon from '../icons/PencilSquareIcon';
+import PushPinIcon from '../icons/PushPinIcon';
 import PuzzleIcon from '../icons/PuzzleIcon';
 import SidebarToggleIcon from '../icons/SidebarToggleIcon';
 import TrashIcon from '../icons/TrashIcon';
@@ -57,12 +58,47 @@ import {
   clampActivitySidebarWidth,
   parseStoredActivitySidebarWidth,
 } from './activitySidebarResize';
+import {
+  type CaptureRect,
+  domRectToCaptureRect,
+  loadImageFromBase64,
+  waitForNextFrame,
+} from './captureFrame';
 import CoworkActivitySidebar from './CoworkActivitySidebar';
 import CoworkPromptInput, { type CoworkPromptInputRef, type CoworkSlashCommandHandler } from './CoworkPromptInput';
 import CoworkStudioView from './CoworkStudioView';
 import DiffView, { extractDiffFromToolInput } from './DiffView';
 import LazyRenderTurn, { clearHeightCache } from './LazyRenderTurn';
+import {
+  normalizeLocalPath,
+  parseRootRelativePath,
+  toAbsolutePathFromCwd,
+} from './localPath';
+import {
+  formatExportTimestamp,
+  MAX_EXPORT_CANVAS_HEIGHT,
+  MAX_EXPORT_SEGMENTS,
+  sanitizeExportFileName,
+} from './sessionExport';
 import { CoworkSessionViewMode, type CoworkSessionViewMode as CoworkSessionViewModeType } from './studioConstants';
+import {
+  encodeLocalFileSrc,
+  formatToolInput,
+  type GeneratedImage,
+  getGeneratedImageName,
+  getGeneratedImages,
+  getToolDisplayName,
+  getToolInputSummary,
+  getToolResultDisplay,
+  hasText,
+  isBashLikeToolName,
+  isCronToolName,
+  isTodoWriteToolName,
+  type ParsedTodoItem,
+  parseTodoWriteItems,
+  type TodoStatus,
+  truncatePreview,
+} from './toolDisplay';
 
 interface CoworkSessionDetailProps {
   onManageSkills?: () => void;
@@ -80,64 +116,18 @@ interface CoworkSessionDetailProps {
 const AUTO_SCROLL_THRESHOLD = 120;
 const NAV_SCROLL_LOCK_DURATION = 800;
 const NAV_BOTTOM_SNAP_THRESHOLD = 20;
-const INVALID_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001F]/g;
 
-const sanitizeExportFileName = (value: string): string => {
-  const sanitized = value.replace(INVALID_FILE_NAME_PATTERN, ' ').replace(/\s+/g, ' ').trim();
-  return sanitized || 'cowork-session';
+type ExpandedGeneratedImage = {
+  image: GeneratedImage;
+  name: string;
+  src: string;
 };
 
-const formatExportTimestamp = (value: Date): string => {
-  const pad = (num: number): string => String(num).padStart(2, '0');
-  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}-${pad(value.getHours())}${pad(value.getMinutes())}${pad(value.getSeconds())}`;
+type ImageDownloadStatus = {
+  type: 'success' | 'error';
+  message: string;
 };
 
-type CaptureRect = { x: number; y: number; width: number; height: number };
-
-const MAX_EXPORT_CANVAS_HEIGHT = 32760;
-const MAX_EXPORT_SEGMENTS = 240;
-
-const waitForNextFrame = (): Promise<void> =>
-  new Promise((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
-
-const loadImageFromBase64 = (pngBase64: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Failed to decode captured image'));
-    img.src = `data:image/png;base64,${pngBase64}`;
-  });
-
-const domRectToCaptureRect = (rect: DOMRect): CaptureRect => ({
-  x: Math.max(0, Math.round(rect.x)),
-  y: Math.max(0, Math.round(rect.y)),
-  width: Math.max(0, Math.round(rect.width)),
-  height: Math.max(0, Math.round(rect.height)),
-});
-
-// PushPinIcon component for pin/unpin functionality
-const PushPinIcon: React.FC<React.SVGProps<SVGSVGElement> & { slashed?: boolean }> = ({
-  slashed,
-  ...props
-}) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.5}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <g transform="rotate(45 12 12)">
-      <path d="M9 3h6l-1 5 2 2v2H8v-2l2-2-1-5z" />
-      <path d="M12 12v9" />
-    </g>
-    {slashed && <path d="M5 5L19 19" />}
-  </svg>
-);
 
 const formatUnknown = (value: unknown): string => {
   if (typeof value === 'string') {
@@ -156,403 +146,13 @@ const getStringArray = (value: unknown): string | null => {
   return lines.length > 0 ? lines.join('\n') : null;
 };
 
-type TodoStatus = 'completed' | 'in_progress' | 'pending' | 'unknown';
 
-type ParsedTodoItem = {
-  primaryText: string;
-  secondaryText: string | null;
-  status: TodoStatus;
-};
-
-const normalizeToolName = (value: string): string => value.toLowerCase().replace(/[\s_]+/g, '');
-
-const TOOL_USE_ERROR_TAG_PATTERN = /^<tool_use_error>([\s\S]*?)<\/tool_use_error>$/i;
-const ANSI_ESCAPE_PATTERN = /\u001B\[[0-?]*[ -/]*[@-~]/g;
-
-const getToolDisplayName = (toolName: string | undefined): string => {
-  if (!toolName) return 'Tool';
-  const normalized = normalizeToolName(toolName);
-  switch (normalized) {
-    case 'cron':
-      return 'Cron';
-    case 'exec':
-    case 'bash':
-    case 'shell':
-      return 'Bash';
-    case 'read':
-    case 'readfile':
-      return 'Read';
-    case 'write':
-    case 'writefile':
-      return 'Write';
-    case 'edit':
-    case 'editfile':
-      return 'Edit';
-    case 'multiedit':
-      return 'MultiEdit';
-    case 'process':
-      return 'Process';
-    default:
-      return toolName;
-  }
-};
-
-const isBashLikeToolName = (toolName: string | undefined): boolean => {
-  if (!toolName) return false;
-  const normalized = normalizeToolName(toolName);
-  return normalized === 'bash' || normalized === 'exec' || normalized === 'shell';
-};
-
-const getToolInputString = (
-  input: Record<string, unknown>,
-  keys: string[],
-): string | null => {
-  for (const key of keys) {
-    const value = input[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value;
-    }
-  }
-  return null;
-};
-
-const truncatePreview = (value: string, maxLength = 120): string =>
-  value.length <= maxLength ? value : `${value.slice(0, maxLength - 3)}...`;
-
-const normalizeToolResultText = (value: string): string => {
-  const withoutAnsi = value.replace(ANSI_ESCAPE_PATTERN, '');
-  const errorTagMatch = withoutAnsi.trim().match(TOOL_USE_ERROR_TAG_PATTERN);
-  return errorTagMatch ? errorTagMatch[1].trim() : withoutAnsi;
-};
-
-const isTodoWriteToolName = (toolName: string | undefined): boolean => {
-  if (!toolName) return false;
-  return normalizeToolName(toolName) === 'todowrite';
-};
-
-const isCronToolName = (toolName: string | undefined): boolean => {
-  if (!toolName) return false;
-  return normalizeToolName(toolName) === 'cron';
-};
-
-const getCronToolSummary = (input: Record<string, unknown>): string | null => {
-  const action = getToolInputString(input, ['action']);
-  if (!action) return null;
-
-  const job = input.job && typeof input.job === 'object'
-    ? input.job as Record<string, unknown>
-    : null;
-  const jobName = job
-    ? getToolInputString(job, ['name', 'id'])
-    : null;
-  const jobId = getToolInputString(input, ['jobId', 'id'])
-    ?? (job ? getToolInputString(job, ['id']) : null);
-  const wakeText = getToolInputString(input, ['text']);
-
-  switch (action) {
-    case 'add':
-      return [action, jobName ?? jobId].filter(Boolean).join(' · ');
-    case 'update':
-    case 'remove':
-    case 'run':
-    case 'runs':
-      return [action, jobId ?? jobName].filter(Boolean).join(' · ');
-    case 'wake':
-      return [action, wakeText].filter(Boolean).join(' · ');
-    default:
-      return action;
-  }
-};
-
-const formatStructuredText = (value: string): string => {
-  const trimmed = value.trim();
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(trimmed), null, 2);
-  } catch {
-    return value;
-  }
-};
-
-const toTrimmedString = (value: unknown): string | null => (
-  typeof value === 'string' && value.trim() ? value.trim() : null
-);
-
-const normalizeTodoStatus = (value: unknown): TodoStatus => {
-  const normalized = typeof value === 'string'
-    ? value.trim().toLowerCase().replace(/-/g, '_')
-    : '';
-
-  if (normalized === 'completed') return 'completed';
-  if (normalized === 'in_progress' || normalized === 'running') return 'in_progress';
-  if (normalized === 'pending' || normalized === 'todo') return 'pending';
-  return 'unknown';
-};
-
-const parseTodoWriteItems = (input: unknown): ParsedTodoItem[] | null => {
-  if (!input || typeof input !== 'object') return null;
-  const record = input as Record<string, unknown>;
-  if (!Array.isArray(record.todos)) return null;
-
-  const parsedItems = record.todos
-    .map((rawTodo) => {
-      if (!rawTodo || typeof rawTodo !== 'object') {
-        return null;
-      }
-
-      const todo = rawTodo as Record<string, unknown>;
-      const activeForm = toTrimmedString(todo.activeForm);
-      const content = toTrimmedString(todo.content);
-      const primaryText = activeForm ?? content ?? i18nService.t('coworkTodoUntitled');
-      const secondaryText = content && content !== primaryText ? content : null;
-
-      return {
-        primaryText,
-        secondaryText,
-        status: normalizeTodoStatus(todo.status),
-      } satisfies ParsedTodoItem;
-    })
-    .filter((item): item is ParsedTodoItem => item !== null);
-
-  return parsedItems.length > 0 ? parsedItems : null;
-};
-
-const getTodoWriteSummary = (items: ParsedTodoItem[]): string => {
-  const completedCount = items.filter((item) => item.status === 'completed').length;
-  const inProgressCount = items.filter((item) => item.status === 'in_progress').length;
-  const pendingCount = items.length - completedCount - inProgressCount;
-
-  const summary = [
-    `${items.length} ${i18nService.t('coworkTodoItems')}`,
-    `${completedCount} ${i18nService.t('coworkTodoCompleted')}`,
-    `${inProgressCount} ${i18nService.t('coworkTodoInProgress')}`,
-    `${pendingCount} ${i18nService.t('coworkTodoPending')}`,
-  ];
-
-  const activeItem = items.find((item) => item.status === 'in_progress');
-  if (activeItem) {
-    summary.push(activeItem.primaryText);
-  }
-
-  return summary.join(' · ');
-};
-
-const getToolInputSummary = (
-  toolName: string | undefined,
-  toolInput?: Record<string, unknown>
-): string | null => {
-  if (!toolName || !toolInput) return null;
-  const input = toolInput as Record<string, unknown>;
-  if (isTodoWriteToolName(toolName)) {
-    const items = parseTodoWriteItems(input);
-    return items ? getTodoWriteSummary(items) : null;
-  }
-
-  const normalizedToolName = normalizeToolName(toolName);
-
-  switch (normalizedToolName) {
-    case 'cron':
-      return getCronToolSummary(input);
-    case 'bash':
-    case 'exec':
-    case 'shell':
-      return getToolInputString(input, ['command', 'cmd', 'script'])
-        ?? getStringArray(input.commands);
-    case 'read':
-    case 'readfile':
-    case 'write':
-    case 'writefile':
-    case 'edit':
-    case 'editfile':
-    case 'multiedit':
-      return getToolInputString(input, ['file_path', 'path', 'filePath', 'target_file', 'targetFile'])
-        ?? (
-          typeof input.content === 'string' && input.content.trim()
-            ? truncatePreview(input.content.split('\n')[0].trim())
-            : null
-        );
-    case 'glob':
-    case 'grep':
-      return getToolInputString(input, ['pattern', 'query']);
-    case 'task':
-      return getToolInputString(input, ['description', 'task']);
-    case 'webfetch':
-      return getToolInputString(input, ['url']);
-    case 'process': {
-      const action = getToolInputString(input, ['action']);
-      const sessionId = getToolInputString(input, ['sessionId', 'session_id']);
-      if (action && sessionId) return `${action} · ${sessionId}`;
-      return action ?? sessionId;
-    }
-    default:
-      return null;
-  }
-};
-
-const formatToolInput = (
-  toolName: string | undefined,
-  toolInput?: Record<string, unknown>
-): string | null => {
-  if (!toolInput) return null;
-  const summary = getToolInputSummary(toolName, toolInput);
-  if (summary && summary.trim()) {
-    return summary;
-  }
-  return formatUnknown(toolInput);
-};
-
-const hasText = (value: unknown): value is string =>
-  typeof value === 'string' && value.trim().length > 0;
-
-type GeneratedImage = {
-  path: string;
-  name?: string;
-  mimeType?: string;
-  source?: string;
-};
-
-type ExpandedGeneratedImage = {
-  image: GeneratedImage;
-  name: string;
-  src: string;
-};
-
-type ImageDownloadStatus = {
-  type: 'success' | 'error';
-  message: string;
-};
-
-const getGeneratedImages = (metadata?: CoworkMessageMetadata): GeneratedImage[] => {
-  const images = metadata?.generatedImages;
-  if (!Array.isArray(images)) return [];
-  return images.filter((image): image is GeneratedImage => (
-    Boolean(image)
-    && typeof image === 'object'
-    && typeof (image as GeneratedImage).path === 'string'
-    && (image as GeneratedImage).path.trim().length > 0
-  ));
-};
-
-const encodeLocalFileSrc = (filePath: string): string => {
-  const raw = filePath.trim();
-  const normalized = raw.replace(/\\/g, '/');
-  const fileUrl = /^file:\/\//i.test(normalized)
-    ? normalized
-    : normalized.startsWith('/')
-      ? `file://${normalized}`
-      : `file:///${normalized}`;
-  return encodeURI(fileUrl)
-    .replace(/\(/g, '%28')
-    .replace(/\)/g, '%29')
-    .replace(/^file:\/\//i, 'localfile://');
-};
-
-const getGeneratedImageName = (image: GeneratedImage): string => {
-  if (image.name?.trim()) return image.name.trim();
-  const segments = image.path.replace(/\\/g, '/').split('/');
-  return segments[segments.length - 1] || 'generated-image.png';
-};
-
-const getToolResultDisplay = (message: CoworkMessage): string => {
-  if (hasText(message.content)) {
-    return formatStructuredText(normalizeToolResultText(message.content));
-  }
-  if (hasText(message.metadata?.toolResult)) {
-    return formatStructuredText(normalizeToolResultText(message.metadata?.toolResult ?? ''));
-  }
-  if (hasText(message.metadata?.error)) {
-    return formatStructuredText(normalizeToolResultText(message.metadata?.error ?? ''));
-  }
-  return '';
-};
-
-const safeDecodeURIComponent = (value: string): string => {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-};
-
-const stripHashAndQuery = (value: string): string => value.split('#')[0].split('?')[0];
-
-const stripFileProtocol = (value: string): string => {
-  let cleaned = value.replace(/^file:\/\//i, '');
-  if (/^\/[A-Za-z]:/.test(cleaned)) {
-    cleaned = cleaned.slice(1);
-  }
-  return cleaned;
-};
-
-const hasScheme = (value: string): boolean => /^[a-z][a-z0-9+.-]*:/i.test(value);
-
-const isAbsolutePath = (value: string): boolean => (
-  value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
-);
-
-const isRelativePath = (value: string): boolean => !isAbsolutePath(value) && !hasScheme(value);
-
-const parseRootRelativePath = (value: string): string | null => {
-  const trimmed = value.trim();
-  if (!/^file:\/\//i.test(trimmed)) return null;
-  const separatorIndex = trimmed.indexOf('::');
-  if (separatorIndex < 0) return null;
-
-  const rootPart = trimmed.slice(0, separatorIndex);
-  const relativePart = trimmed.slice(separatorIndex + 2);
-  if (!relativePart.trim()) return null;
-
-  const rootPath = safeDecodeURIComponent(stripFileProtocol(stripHashAndQuery(rootPart)));
-  const relativePath = safeDecodeURIComponent(stripHashAndQuery(relativePart));
-  if (!rootPath || !relativePath) return null;
-
-  const normalizedRoot = rootPath.replace(/[\\/]+$/, '');
-  const normalizedRelative = relativePath.replace(/^[\\/]+/, '');
-  if (!normalizedRelative) return null;
-
-  return `${normalizedRoot}/${normalizedRelative}`;
-};
-
-const normalizeLocalPath = (
-  value: string
-): { path: string; isRelative: boolean; isAbsolute: boolean } | null => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  const fileScheme = /^file:\/\//i.test(trimmed);
-  const schemePresent = hasScheme(trimmed);
-  if (schemePresent && !fileScheme && !isAbsolutePath(trimmed)) return null;
-
-  let raw = trimmed;
-  if (fileScheme) {
-    raw = stripFileProtocol(raw);
-  }
-  raw = stripHashAndQuery(raw);
-  const decoded = safeDecodeURIComponent(raw);
-  const path = decoded || raw;
-  if (!path) return null;
-
-  const isAbsolute = isAbsolutePath(path);
-  const isRelative = isRelativePath(path);
-  return { path, isRelative, isAbsolute };
-};
-
-const toAbsolutePathFromCwd = (filePath: string, cwd: string): string => {
-  if (isAbsolutePath(filePath)) {
-    return filePath;
-  }
-  return `${cwd.replace(/\/$/, '')}/${filePath.replace(/^\.\//, '')}`;
-};
 
 export type ToolGroupItem = {
   type: 'tool_group';
   toolUse: CoworkMessage;
   toolResult?: CoworkMessage | null;
 };
-
 export type DisplayItem =
   | { type: 'message'; message: CoworkMessage }
   | ToolGroupItem;
@@ -769,9 +369,9 @@ const ToolCallGroup: React.FC<{
   const isTodoWriteTool = isTodoWriteToolName(rawToolName);
   const todoItems = isTodoWriteTool ? parseTodoWriteItems(toolInput) : null;
   const mapText = mapDisplayText ?? ((value: string) => value);
-  const toolInputDisplayRaw = formatToolInput(rawToolName, toolInput);
+  const toolInputDisplayRaw = formatToolInput(rawToolName, toolInput, formatUnknown, getStringArray);
   const toolInputDisplay = toolInputDisplayRaw ? mapText(toolInputDisplayRaw) : null;
-  const toolInputSummaryRaw = getToolInputSummary(rawToolName, toolInput) ?? toolInputDisplayRaw;
+  const toolInputSummaryRaw = getToolInputSummary(rawToolName, toolInput, getStringArray) ?? toolInputDisplayRaw;
   const toolInputSummary = toolInputSummaryRaw ? mapText(toolInputSummaryRaw) : null;
   const toolResultDisplayRaw = toolResult ? getToolResultDisplay(toolResult) : '';
   const toolResultDisplay = mapText(toolResultDisplayRaw);

@@ -98,9 +98,7 @@ const requestCalendarPermission = async (): Promise<boolean> => {
 
 // ── Deps interface ──
 
-export interface PermissionDeps {
-  // No deps needed — permission logic is self-contained.
-}
+export type PermissionDeps = Record<string, never>;
 
 // ── Handler registration ──
 

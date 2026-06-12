@@ -3,12 +3,12 @@
  * Extracted from main.ts - pure functions with no state dependencies.
  */
 
-import path from 'path';
-import fs from 'fs';
 import { app } from 'electron';
+import fs from 'fs';
+import path from 'path';
 
+import { isCoworkAgentEngine, isRuntimeCallSource,isRuntimeCallStatus } from '../../shared/cowork/constants';
 import type { CoworkFileActivity } from '../../shared/cowork/fileActivity';
-import { isCoworkAgentEngine, isRuntimeCallStatus, isRuntimeCallSource } from '../../shared/cowork/constants';
 import type { RuntimeMetricsFilters } from '../../shared/cowork/runtimeMetrics';
 
 /**
@@ -25,23 +25,22 @@ export interface CaptureRect {
 
 const INVALID_FILE_NAME_PATTERN = /[<>:"/\\|?*\u0000-\u001F]/g;
 const IPC_MAX_ITEMS = 500;
-const IPC_MAX_STRING = 20000;
 // IPC payload sanitization limits — keep these in sync with the renderer-side
 // IpcStringLimits constant. Strings longer than IPC_STRING_MAX_CHARS are
 // truncated with a marker; deeply-nested payloads are flattened to a summary.
 const IPC_STRING_MAX_CHARS = 120_000;
-const IPC_UPDATE_CONTENT_MAX_CHARS = 120_000;
+export const IPC_UPDATE_CONTENT_MAX_CHARS = 120_000;
 const IPC_MAX_DEPTH = 5;
 const IPC_MAX_KEYS = 80;
 
 
-const sanitizeExportFileName = (value: string): string => {
+export const sanitizeExportFileName = (value: string): string => {
   const sanitized = value.replace(INVALID_FILE_NAME_PATTERN, ' ').replace(/\s+/g, ' ').trim();
   return sanitized || 'cowork-session';
 };
 
 
-const sanitizeAttachmentFileName = (value?: string): string => {
+export const sanitizeAttachmentFileName = (value?: string): string => {
   const raw = typeof value === 'string' ? value.trim() : '';
   if (!raw) return 'attachment';
   const fileName = path.basename(raw);
@@ -50,7 +49,7 @@ const sanitizeAttachmentFileName = (value?: string): string => {
 };
 
 
-const safeDecodePathComponent = (value: string): string => {
+export const safeDecodePathComponent = (value: string): string => {
   try {
     return decodeURIComponent(value);
   } catch {
@@ -59,7 +58,7 @@ const safeDecodePathComponent = (value: string): string => {
 };
 
 
-const normalizeLocalFilePath = (value: string): string => {
+export const normalizeLocalFilePath = (value: string): string => {
   const trimmed = value.trim().replace(/^localfile:\/\//i, 'file://');
   if (/^file:\/\//i.test(trimmed)) {
     try {
@@ -72,7 +71,10 @@ const normalizeLocalFilePath = (value: string): string => {
 };
 
 
-const buildUniqueTargetPath = async (directory: string, fileName: string): Promise<string> => {
+export const buildUniqueTargetPath = async (
+  directory: string,
+  fileName: string,
+): Promise<string> => {
   const extension = path.extname(fileName);
   const baseName = extension ? fileName.slice(0, -extension.length) : fileName;
 
@@ -90,7 +92,7 @@ const buildUniqueTargetPath = async (directory: string, fileName: string): Promi
 };
 
 
-const resolveInlineAttachmentDir = (cwd?: string): string => {
+export const resolveInlineAttachmentDir = (cwd?: string): string => {
   const trimmed = typeof cwd === 'string' ? cwd.trim() : '';
   if (trimmed) {
     const resolved = path.resolve(trimmed);
@@ -102,29 +104,33 @@ const resolveInlineAttachmentDir = (cwd?: string): string => {
 };
 
 
-const ensurePngFileName = (value: string): string => {
+export const ensurePngFileName = (value: string): string => {
   return value.toLowerCase().endsWith('.png') ? value : `${value}.png`;
 };
 
-const ensureZipFileName = (value: string): string => {
+export const ensureZipFileName = (value: string): string => {
   return value.toLowerCase().endsWith('.zip') ? value : `${value}.zip`;
 };
 
 const padTwoDigits = (value: number): string => value.toString().padStart(2, '0');
 
-const buildLogExportFileName = (): string => {
+export const buildLogExportFileName = (): string => {
   const now = new Date();
   const datePart = `${now.getFullYear()}${padTwoDigits(now.getMonth() + 1)}${padTwoDigits(now.getDate())}`;
   const timePart = `${padTwoDigits(now.getHours())}${padTwoDigits(now.getMinutes())}${padTwoDigits(now.getSeconds())}`;
   return `agora-logs-${datePart}-${timePart}.zip`;
 };
 
-const truncateIpcString = (value: string, maxChars: number): string => {
+export const truncateIpcString = (value: string, maxChars: number): string => {
   if (value.length <= maxChars) return value;
   return `${value.slice(0, maxChars)}\n...[truncated in main IPC forwarding]`;
 };
 
-const sanitizeIpcPayload = (value: unknown, depth = 0, seen?: WeakSet<object>): unknown => {
+export const sanitizeIpcPayload = (
+  value: unknown,
+  depth = 0,
+  seen?: WeakSet<object>,
+): unknown => {
   const localSeen = seen ?? new WeakSet<object>();
   if (
     value === null
@@ -172,7 +178,50 @@ const sanitizeIpcPayload = (value: unknown, depth = 0, seen?: WeakSet<object>): 
 };
 
 
-const sanitizeCoworkFileActivityForIpc = (activity: CoworkFileActivity): CoworkFileActivity => ({
+export const sanitizeCoworkMessageForIpc = (
+  message: unknown,
+): unknown => {
+  if (!message || typeof message !== 'object') {
+    return message;
+  }
+
+  const messageRecord = message as Record<string, unknown>;
+
+  let sanitizedMetadata: unknown;
+  if (messageRecord.metadata && typeof messageRecord.metadata === 'object') {
+    const { imageAttachments, ...rest } = messageRecord.metadata as Record<
+      string,
+      unknown
+    >;
+    const sanitizedRest = sanitizeIpcPayload(rest) as
+      | Record<string, unknown>
+      | undefined;
+    sanitizedMetadata = {
+      ...(sanitizedRest && typeof sanitizedRest === 'object'
+        ? sanitizedRest
+        : {}),
+      ...(Array.isArray(imageAttachments) && imageAttachments.length > 0
+        ? { imageAttachments }
+        : {}),
+    };
+  } else {
+    sanitizedMetadata = undefined;
+  }
+
+  return {
+    ...messageRecord,
+    content:
+      typeof messageRecord.content === 'string'
+        ? truncateIpcString(messageRecord.content, IPC_STRING_MAX_CHARS)
+        : '',
+    metadata: sanitizedMetadata,
+  };
+};
+
+
+export const sanitizeCoworkFileActivityForIpc = (
+  activity: CoworkFileActivity,
+): CoworkFileActivity => ({
   ...activity,
   content: activity.content === null
     ? null
@@ -180,18 +229,23 @@ const sanitizeCoworkFileActivityForIpc = (activity: CoworkFileActivity): CoworkF
 });
 
 
-const sanitizePermissionRequestForIpc = (request: any): any => {
+export const sanitizePermissionRequestForIpc = (
+  request: unknown,
+): unknown => {
   if (!request || typeof request !== 'object') {
     return request;
   }
+  const requestRecord = request as Record<string, unknown>;
   return {
-    ...request,
-    toolInput: sanitizeIpcPayload(request.toolInput ?? {}),
+    ...requestRecord,
+    toolInput: sanitizeIpcPayload(requestRecord.toolInput ?? {}),
   };
 };
 
 
-const normalizeRuntimeMetricsFilters = (input: unknown): RuntimeMetricsFilters => {
+export const normalizeRuntimeMetricsFilters = (
+  input: unknown,
+): RuntimeMetricsFilters => {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
   const record = input as Record<string, unknown>;
   const filters: RuntimeMetricsFilters = {};
@@ -213,7 +267,9 @@ const normalizeRuntimeMetricsFilters = (input: unknown): RuntimeMetricsFilters =
 };
 
 
-const normalizeCaptureRect = (rect?: Partial<CaptureRect> | null): CaptureRect | null => {
+export const normalizeCaptureRect = (
+  rect?: Partial<CaptureRect> | null,
+): CaptureRect | null => {
   if (!rect) return null;
   const normalized = {
     x: Math.max(0, Math.round(typeof rect.x === 'number' ? rect.x : 0)),
@@ -225,7 +281,9 @@ const normalizeCaptureRect = (rect?: Partial<CaptureRect> | null): CaptureRect |
 };
 
 
-const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
+export const resolveTaskWorkingDirectory = (
+  workspaceRoot: string,
+): string => {
   const resolvedWorkspaceRoot = path.resolve(workspaceRoot);
   // Reject bare Windows drive roots (e.g. "D:\") — mkdir on drive roots causes EPERM,
   // and some agent engines (OpenClaw) also fail when given a drive root as workspace.
@@ -242,10 +300,11 @@ const resolveTaskWorkingDirectory = (workspaceRoot: string): string => {
 };
 
 
-const getDefaultExportImageName = (defaultFileName?: string): string => {
+export const getDefaultExportImageName = (
+  defaultFileName?: string,
+): string => {
   const normalized = typeof defaultFileName === 'string' && defaultFileName.trim()
     ? defaultFileName.trim()
     : `cowork-session-${Date.now()}`;
   return ensurePngFileName(sanitizeExportFileName(normalized));
 };
-

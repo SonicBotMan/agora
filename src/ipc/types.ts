@@ -1,7 +1,4 @@
-import type { IpcMain } from 'electron';
-
 /**
- * Type for an IPC handler registration function.
- * Each domain-specific handler module exports a function matching this signature.
+ * Generic IPC registration function type for the architecture-level facade.
  */
-export type IpcHandlerRegistration = (ipcMain: IpcMain) => void;
+export type IpcHandlerRegistration<TDeps = unknown> = (deps: TDeps) => void;

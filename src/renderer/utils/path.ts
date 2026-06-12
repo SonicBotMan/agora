@@ -23,3 +23,30 @@ export const getCompactFolderName = (rawPath: string, maxLength?: number): strin
 
   return folderName;
 };
+
+export const sanitizePathSegment = (rawValue: string): string => {
+  const trimmed = rawValue.trim();
+  const normalized = trimmed
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64);
+
+  if (normalized) {
+    return normalized;
+  }
+
+  return trimmed.replace(/[\\/]+/g, '-').slice(0, 64);
+};
+
+export const joinPathSegments = (basePath: string, childSegment: string): string => {
+  const trimmedBase = basePath.trim();
+  const trimmedChild = childSegment.trim();
+
+  if (!trimmedBase) return trimmedChild;
+  if (!trimmedChild) return trimmedBase;
+
+  const separator = trimmedBase.includes('\\') ? '\\' : '/';
+  return `${trimmedBase.replace(/[\\/]+$/, '')}${separator}${trimmedChild.replace(/^[\\/]+/, '')}`;
+};

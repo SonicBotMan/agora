@@ -17,6 +17,43 @@ import type { CoworkStudioAssetsResult } from '@shared/cowork/studioAssets';
 import type { FeishuEngineKeyType, FeishuManagementModeType, FeishuRuntimeOwnershipType } from '@shared/im/constants';
 import type { SkillMarketplaceSort, SkillMarketplaceSourceType } from '@shared/skills/constants';
 
+import type {
+  OrchestratorEvent,
+  TaskGraph,
+  WorkflowTemplate,
+} from '../../features/agent-orchestrator';
+import type {
+  ResearchDeliveryResult,
+  ResearchQuery,
+  ResearchResult,
+  ResearchSessionEvent,
+  ResearchSessionRecord,
+} from '../../features/deep-research';
+import type {
+  DevProject,
+  EditorFile,
+  FrontendStationEvent,
+  PreviewState,
+  ProjectFileNode,
+  ProjectTemplate,
+  TemplateConfig,
+  TerminalSession,
+} from '../../features/frontend-station';
+import type {
+  SourceConfig,
+  TopicActionResult,
+  TopicDigest,
+  TopicItem,
+  TopicMonitorEvent,
+} from '../../features/hot-topics';
+import type {
+  ContentType,
+  KnowledgeDocument,
+  KnowledgeSearchOptions,
+  KnowledgeSearchResult,
+  KnowledgeSource,
+} from '../../features/knowledge-base';
+
 interface ApiResponse {
   ok: boolean;
   status: number;
@@ -539,6 +576,101 @@ interface IElectronAPI {
     deleteTeam: (id: string) => Promise<boolean>;
     installDevelopmentTeam: () => Promise<AgentTeam | null>;
   };
+  orchestrator: {
+    listTemplates: () => Promise<WorkflowTemplate[]>;
+    plan: (goal: string, context?: string, templateId?: string) => Promise<TaskGraph | null>;
+    execute: (graphId: string) => Promise<{ graph: TaskGraph | null; summary: string }>;
+    cancel: (graphId: string) => Promise<boolean>;
+    getStatus: (graphId: string) => Promise<TaskGraph | null>;
+    onEvent: (callback: (event: OrchestratorEvent) => void) => () => void;
+  };
+  research: {
+    start: (query: ResearchQuery) => Promise<ResearchSessionRecord | null>;
+    cancel: (sessionId: string) => Promise<boolean>;
+    getStatus: (sessionId: string) => Promise<ResearchSessionRecord | null>;
+    getResult: (sessionId: string) => Promise<ResearchResult | null>;
+    list: () => Promise<ResearchSessionRecord[]>;
+    getReport: (sessionId: string) => Promise<string | null>;
+    pushToIM: (sessionId: string, channels: string[]) => Promise<ResearchDeliveryResult | null>;
+    onEvent: (callback: (event: ResearchSessionEvent) => void) => () => void;
+  };
+  knowledge: {
+    search: (
+      query: string,
+      options?: KnowledgeSearchOptions & {
+        mode?: 'keyword' | 'embedding' | 'hybrid' | 'entity';
+      },
+    ) => Promise<KnowledgeSearchResult[]>;
+    get: (documentId: string) => Promise<KnowledgeDocument | null>;
+    list: (offset?: number, limit?: number) => Promise<KnowledgeDocument[]>;
+    delete: (documentId: string) => Promise<boolean>;
+    add: (document: {
+      id?: string;
+      title: string;
+      source: KnowledgeSource;
+      sourceId?: string;
+      content: string;
+      contentType: ContentType;
+      metadata?: Partial<KnowledgeDocument['metadata']>;
+    }) => Promise<KnowledgeDocument | null>;
+  };
+  hotTopics: {
+    start: (sources: SourceConfig[]) => Promise<{
+      active: boolean;
+      sources: SourceConfig[];
+    }>;
+    stop: () => Promise<boolean>;
+    getStatus: () => Promise<{
+      active: boolean;
+      sources: SourceConfig[];
+    }>;
+    list: (limit?: number) => Promise<TopicItem[]>;
+    get: (topicId: string) => Promise<TopicItem | null>;
+    getDigest: () => Promise<TopicDigest | null>;
+    startResearch: (topicId: string) => Promise<TopicActionResult | null>;
+    startWriting: (topicId: string, style?: string) => Promise<TopicActionResult | null>;
+    pushToIM: (topicId: string, channels: string[]) => Promise<TopicActionResult | null>;
+    saveToKnowledge: (topicId: string) => Promise<TopicActionResult | null>;
+    onEvent: (callback: (event: TopicMonitorEvent) => void) => () => void;
+  };
+  frontendStation: {
+    listTemplates: () => Promise<TemplateConfig[]>;
+    createProject: (options: {
+      name: string;
+      template: ProjectTemplate;
+      path: string;
+    }) => Promise<DevProject | null>;
+    getProjects: () => Promise<DevProject[]>;
+    getProject: (projectId: string) => Promise<DevProject | null>;
+    startServer: (projectId: string) => Promise<{
+      project: DevProject | null;
+      preview: PreviewState | null;
+    }>;
+    stopServer: (projectId: string) => Promise<DevProject | null>;
+    restartServer: (projectId: string) => Promise<{
+      project: DevProject | null;
+      preview: PreviewState | null;
+    }>;
+    getPreview: (projectId: string) => Promise<PreviewState | null>;
+    getPreviews: () => Promise<PreviewState[]>;
+    getFileTree: (projectId: string) => Promise<ProjectFileNode[]>;
+    openFile: (projectId: string, filePath: string) => Promise<EditorFile | null>;
+    saveFile: (options: {
+      projectId: string;
+      filePath: string;
+      content: string;
+    }) => Promise<EditorFile | null>;
+    createTerminalSession: (projectId: string) => Promise<TerminalSession | null>;
+    getTerminalBuffer: (sessionId: string) => Promise<string>;
+    writeTerminal: (sessionId: string, data: string) => Promise<boolean>;
+    resizeTerminal: (options: {
+      sessionId: string;
+      cols: number;
+      rows: number;
+    }) => Promise<boolean>;
+    destroyTerminalSession: (sessionId: string) => Promise<boolean>;
+    onEvent: (callback: (event: FrontendStationEvent) => void) => () => void;
+  };
   api: {
     fetch: (options: {
       url: string;
@@ -776,17 +908,17 @@ interface IElectronAPI {
     onMessageReceived: (callback: (message: IMMessage) => void) => () => void;
   };
   scheduledTasks: {
-    list: () => Promise<{ success: boolean; tasks?: import('../../scheduledTask/types').ScheduledTask[]; error?: string }>;
-    get: (id: string) => Promise<{ success: boolean; task?: import('../../scheduledTask/types').ScheduledTask; error?: string }>;
-    create: (input: import('../../scheduledTask/types').ScheduledTaskInput) => Promise<{ success: boolean; task?: import('../../scheduledTask/types').ScheduledTask; error?: string }>;
-    update: (id: string, input: Partial<import('../../scheduledTask/types').ScheduledTaskInput>) => Promise<{ success: boolean; task?: import('../../scheduledTask/types').ScheduledTask; error?: string }>;
+    list: () => Promise<{ success: boolean; tasks?: import('../../scheduled-task/types').ScheduledTask[]; error?: string }>;
+    get: (id: string) => Promise<{ success: boolean; task?: import('../../scheduled-task/types').ScheduledTask; error?: string }>;
+    create: (input: import('../../scheduled-task/types').ScheduledTaskInput) => Promise<{ success: boolean; task?: import('../../scheduled-task/types').ScheduledTask; error?: string }>;
+    update: (id: string, input: Partial<import('../../scheduled-task/types').ScheduledTaskInput>) => Promise<{ success: boolean; task?: import('../../scheduled-task/types').ScheduledTask; error?: string }>;
     delete: (id: string) => Promise<{ success: boolean; error?: string }>;
-    toggle: (id: string, enabled: boolean) => Promise<{ success: boolean; task?: import('../../scheduledTask/types').ScheduledTask; warning?: string; error?: string }>;
+    toggle: (id: string, enabled: boolean) => Promise<{ success: boolean; task?: import('../../scheduled-task/types').ScheduledTask; warning?: string; error?: string }>;
     runManually: (id: string) => Promise<{ success: boolean; error?: string }>;
     stop: (id: string) => Promise<{ success: boolean; error?: string }>;
-    listRuns: (taskId: string, limit?: number, offset?: number) => Promise<{ success: boolean; runs?: import('../../scheduledTask/types').ScheduledTaskRun[]; error?: string }>;
+    listRuns: (taskId: string, limit?: number, offset?: number) => Promise<{ success: boolean; runs?: import('../../scheduled-task/types').ScheduledTaskRun[]; error?: string }>;
     countRuns: (taskId: string) => Promise<{ success: boolean; count?: number; error?: string }>;
-    listAllRuns: (limit?: number, offset?: number) => Promise<{ success: boolean; runs?: import('../../scheduledTask/types').ScheduledTaskRunWithName[]; error?: string }>;
+    listAllRuns: (limit?: number, offset?: number) => Promise<{ success: boolean; runs?: import('../../scheduled-task/types').ScheduledTaskRunWithName[]; error?: string }>;
     resolveSession: (sessionKey: string) => Promise<{
       success: boolean;
       session?: import('./cowork').CoworkSession | null;
@@ -794,16 +926,16 @@ interface IElectronAPI {
     }>;
     listChannels: () => Promise<{
       success: boolean;
-      channels?: import('../../scheduledTask/types').ScheduledTaskChannelOption[];
+      channels?: import('../../scheduled-task/types').ScheduledTaskChannelOption[];
       error?: string;
     }>;
     listChannelConversations?: (channel: string, accountId?: string) => Promise<{
       success: boolean;
-      conversations?: import('../../scheduledTask/types').ScheduledTaskConversationOption[];
+      conversations?: import('../../scheduled-task/types').ScheduledTaskConversationOption[];
       error?: string;
     }>;
-    onStatusUpdate: (callback: (data: import('../../scheduledTask/types').ScheduledTaskStatusEvent) => void) => () => void;
-    onRunUpdate: (callback: (data: import('../../scheduledTask/types').ScheduledTaskRunEvent) => void) => () => void;
+    onStatusUpdate: (callback: (data: import('../../scheduled-task/types').ScheduledTaskStatusEvent) => void) => () => void;
+    onRunUpdate: (callback: (data: import('../../scheduled-task/types').ScheduledTaskRunEvent) => void) => () => void;
     onRefresh: (callback: () => void) => () => void;
   };
   permissions: {

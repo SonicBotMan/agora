@@ -45,10 +45,10 @@ import {
   IMConnectivityCheck,
   IMConnectivityTestResult,
   IMConnectivityVerdict,
-  PlatformOrRemoved,
   IMGatewayConfig,
   IMGatewayStatus,
   IMMessage,
+  PlatformOrRemoved,
 } from './types';
 const CONNECTIVITY_TIMEOUT_MS = 10_000;
 const INBOUND_ACTIVITY_WARN_AFTER_MS = 2 * 60 * 1000;
@@ -72,6 +72,10 @@ type FeishuAgentEngine =
   | typeof CoworkAgentEngine.Hermes
   | typeof CoworkAgentEngine.ClaudeCode
   | typeof CoworkAgentEngine.Codex;
+
+type GatewayReplyFn = ((text: string) => Promise<void>) & {
+  finalize?: (text: string) => Promise<void>;
+};
 
 const isNativeFeishuCliEngine = (engine: FeishuAgentEngine | null): boolean => (
   engine === CoworkAgentEngine.ClaudeCode
@@ -313,13 +317,14 @@ export class IMGatewayManager extends EventEmitter {
   private setupMessageHandlers(): void {
     const messageHandler = async (
       message: IMMessage,
-      replyFn: (text: string) => Promise<void>
+      replyFn: GatewayReplyFn,
     ): Promise<void> => {
       // Persist notification target whenever we receive a message
-      this.persistNotificationTarget(message.platform);
+      this.persistNotificationTarget(message);
 
       try {
-        let response: string;
+        let response = '';
+        const useStreamingReply = this.shouldUseStreamingReply(message, replyFn);
 
         // Always use Cowork mode if handler is available
         if (this.coworkHandler) {
@@ -327,6 +332,17 @@ export class IMGatewayManager extends EventEmitter {
             await this.ensureCoworkReady();
           }
           console.log('[IMGatewayManager] Using Cowork mode for message processing');
+          if (useStreamingReply) {
+            let lastProgressText = '';
+            response = await this.coworkHandler.processMessage(message, {
+              onProgress: async (text: string) => {
+                lastProgressText = text;
+                await replyFn(text);
+              },
+            });
+            await this.finalizeStreamingReply(replyFn, response, lastProgressText);
+            return;
+          }
           response = await this.coworkHandler.processMessage(message);
         } else {
           // Fallback to regular chat handler
@@ -336,6 +352,22 @@ export class IMGatewayManager extends EventEmitter {
 
           if (!this.chatHandler) {
             throw new Error('Chat handler not available');
+          }
+
+          if (useStreamingReply) {
+            let lastProgressText = '';
+            for await (const chunk of this.chatHandler.processMessageStream(message)) {
+              if (chunk.done) {
+                response = chunk.content;
+                break;
+              }
+              lastProgressText = chunk.content;
+              await replyFn(chunk.content);
+            }
+
+            response = response || '';
+            await this.finalizeStreamingReply(replyFn, response, lastProgressText);
+            return;
           }
 
           response = await this.chatHandler.processMessage(message);
@@ -362,20 +394,85 @@ export class IMGatewayManager extends EventEmitter {
     this.nativeFeishuGateway.setMessageCallback(messageHandler);
   }
 
+  private shouldUseStreamingReply(
+    message: IMMessage,
+    replyFn: GatewayReplyFn,
+  ): boolean {
+    if (!replyFn.finalize || message.platform !== 'feishu') {
+      return false;
+    }
+
+    const engine = this.getFeishuAgentEngine?.() ?? null;
+    if (!isNativeFeishuCliEngine(engine)) {
+      return false;
+    }
+
+    const instanceId = this.parseNativeFeishuConversationInstanceId(message.conversationId);
+    if (!instanceId) {
+      return false;
+    }
+
+    const instanceConfig = this.imStore.getFeishuInstanceConfig(
+      instanceId,
+      this.resolveFeishuEngineKey(),
+    );
+    return instanceConfig?.replyMode === 'streaming';
+  }
+
+  private parseNativeFeishuConversationInstanceId(conversationId: string): string | null {
+    const normalized = conversationId.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const separatorIndex = normalized.indexOf(':');
+    if (separatorIndex <= 0) {
+      return null;
+    }
+
+    return normalized.slice(0, separatorIndex).trim() || null;
+  }
+
+  private async finalizeStreamingReply(
+    replyFn: GatewayReplyFn,
+    finalText: string,
+    lastProgressText: string,
+  ): Promise<void> {
+    const normalizedFinalText = finalText.trim();
+    if (!normalizedFinalText) {
+      return;
+    }
+
+    if (replyFn.finalize) {
+      await replyFn.finalize(normalizedFinalText);
+      return;
+    }
+
+    if (normalizedFinalText !== lastProgressText) {
+      await replyFn(normalizedFinalText);
+    }
+  }
+
   /**
    * Persist the notification target for a platform after receiving a message.
    */
-  private persistNotificationTarget(platform: PlatformAny): void {
+  private persistNotificationTarget(message: IMMessage): void {
     try {
-      let target: any = null;
-      // WeCom runs via OpenClaw; notification target not managed locally
-      // Weixin runs via OpenClaw; notification target not managed locally
-      // POPO runs via OpenClaw; notification target not managed locally
-      if (target != null) {
-        this.imStore.setNotificationTarget(platform, target);
+      const conversationId = typeof message.conversationId === 'string'
+        ? message.conversationId.trim()
+        : '';
+      if (!conversationId) {
+        return;
       }
+
+      this.imStore.setNotificationTarget(message.platform, {
+        conversationId,
+      });
     } catch (err: any) {
-      console.warn(`[IMGatewayManager] Failed to persist notification target for ${platform}:`, err.message);
+      console.warn(
+        `[IMGatewayManager] Failed to persist notification target for ${message.platform}:`,
+        err.message,
+      );
     }
   }
 

@@ -3,8 +3,8 @@
  * Decomposes a research goal into multi-angle evidence gathering, cross-validation, and synthesis.
  */
 
-import type { WorkflowTemplate, TaskGraph, TaskNode } from '../types';
 import { CoworkAgentEngine } from '../../../shared/cowork/constants';
+import type { TaskGraph, TaskNode,WorkflowTemplate } from '../types';
 
 function createGraph(goal: string, _context?: string): TaskGraph {
   const now = new Date().toISOString();

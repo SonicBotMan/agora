@@ -64,6 +64,7 @@ export interface TopicActionResult {
   success: boolean;
   result?: string;
   error?: string;
+  payload?: unknown;
   timestamp: string;
 }
 

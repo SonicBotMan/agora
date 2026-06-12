@@ -30,6 +30,7 @@ type MockFeishuClient = {
       message: {
         reply: ReturnType<typeof vi.fn>;
         create: ReturnType<typeof vi.fn>;
+        update: ReturnType<typeof vi.fn>;
       };
     };
   };
@@ -116,6 +117,7 @@ function createHarness(options: {
   });
   const reply = vi.fn(async () => ({}));
   const create = vi.fn(async () => ({}));
+  const update = vi.fn(async () => ({}));
   const client: MockFeishuClient = {
     im: {
       messageReaction: {
@@ -126,6 +128,7 @@ function createHarness(options: {
         message: {
           reply,
           create,
+          update,
         },
       },
     },
@@ -144,8 +147,11 @@ function createHarness(options: {
   return {
     access,
     calls,
+    create,
     reactionCreate,
     reactionDelete,
+    reply,
+    update,
   };
 }
 
@@ -218,4 +224,44 @@ test('does not fail message processing when removing the typing reaction fails',
   expect(callback).toHaveBeenCalledTimes(1);
   expect(reactionDelete).toHaveBeenCalledTimes(1);
   debugSpy.mockRestore();
+});
+
+test('reuses the same Feishu reply message for streaming updates', async () => {
+  const { access, create, reply, update } = createHarness();
+  const state = access.clients.get('inst-1');
+  if (!state) {
+    throw new Error('Missing test state');
+  }
+  state.instance.replyMode = 'streaming';
+  reply.mockResolvedValue({
+    data: {
+      message_id: 'reply-1',
+    },
+  });
+
+  access.setMessageCallback(async (_message, replyFn) => {
+    await replyFn('Hello');
+    await replyFn('Hello world');
+    await replyFn.finalize?.('Hello world');
+  });
+
+  await access.handleReceive('inst-1', createReceiveEvent());
+
+  expect(reply).toHaveBeenCalledTimes(1);
+  expect(create).not.toHaveBeenCalled();
+  expect(update).toHaveBeenCalledTimes(1);
+  expect(reply).toHaveBeenCalledWith({
+    path: { message_id: 'msg-1' },
+    data: {
+      content: JSON.stringify({ text: 'Hello' }),
+      msg_type: 'text',
+    },
+  });
+  expect(update).toHaveBeenCalledWith({
+    path: { message_id: 'reply-1' },
+    data: {
+      content: JSON.stringify({ text: 'Hello world' }),
+      msg_type: 'text',
+    },
+  });
 });
